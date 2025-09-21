@@ -12,22 +12,16 @@ logger.info("DATABASE_URL starts with postgresql:", process.env.DATABASE_URL?.st
 logger.info("All environment variables:", Object.keys(process.env).filter(key => key.includes('DATABASE') || key.includes('NEXT')));
 logger.info("=== END DATABASE DEBUG ===");
 
-let prisma: PrismaClient;
+// Создаем PrismaClient правильно
+const prisma = globalForPrisma.prisma ?? new PrismaClient({
+  log: ['query', 'info', 'warn', 'error'],
+});
 
-try {
-  prisma = globalForPrisma.prisma ?? new PrismaClient({
-    log: ['query', 'info', 'warn', 'error'],
-  });
-  
-  logger.info("Prisma client created successfully");
-  
-  if (process.env.NODE_ENV !== "production") {
-    globalForPrisma.prisma = prisma;
-    logger.info("Prisma client cached for development");
-  }
-} catch (error) {
-  logger.error("Failed to create Prisma client:", error);
-  throw error;
+logger.info("Prisma client created successfully");
+
+if (process.env.NODE_ENV !== "production") {
+  globalForPrisma.prisma = prisma;
+  logger.info("Prisma client cached for development");
 }
 
 export { prisma };
