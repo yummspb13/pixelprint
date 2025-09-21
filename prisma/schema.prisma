@@ -1,0 +1,244 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum PriceRuleKind {
+  tiers
+  perUnit
+  fixed
+}
+
+model Service {
+  id        Int        @id @default(autoincrement())
+  slug      String     @unique
+  name      String
+  description String?
+  image     String?    // URL to service image
+  category  String
+  order     Int        @default(0) // Order within category
+  categoryOrder Int    @default(0) // Order of category on homepage
+  isActive  Boolean    @default(true)
+  configuratorEnabled Boolean @default(false)
+  calculatorAvailable Boolean @default(false)
+  clickCount Int       @default(0) // For popularity tracking
+  rows      PriceRow[]
+  changeHistory ChangeHistory[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+model PriceRow {
+  id        Int           @id @default(autoincrement())
+  serviceId Int
+  service   Service       @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  // универсальные атрибуты варианта (Size, Sides, Paper, GSM, Lamination, и т.д.)
+  attrs     Json
+
+  ruleKind  PriceRuleKind
+  unit      Float?        // perUnit
+  setup     Float?        // опциональный setup для perUnit/tiers
+  fixed     Float?        // fixed
+
+  tiers     Tier[]        // для ruleKind = tiers
+  changeHistory ChangeHistory[]
+
+  isActive  Boolean       @default(true)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+}
+
+model Tier {
+  id     Int      @id @default(autoincrement())
+  rowId  Int
+  row    PriceRow @relation(fields: [rowId], references: [id], onDelete: Cascade)
+  qty    Int
+  unit   Float    // цена за единицу при этой минимальной qty
+}
+
+model ChangeHistory {
+  id        Int      @id @default(autoincrement())
+  serviceId Int
+  service   Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  rowId     Int?     // null для изменений на уровне сервиса
+  row       PriceRow? @relation(fields: [rowId], references: [id], onDelete: Cascade)
+  
+  changeType String  // 'tier_change', 'row_update', 'row_create', 'row_delete', 'service_update'
+  description String // детальное описание изменения
+  oldData    String? // старые данные (для отката) - JSON строка
+  newData    String? // новые данные - JSON строка
+  
+  createdAt DateTime @default(now())
+}
+
+// NextAuth models
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  accounts      Account[]
+  sessions      Session[]
+  orders        Order[]
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Order {
+  id        Int      @id @default(autoincrement())
+  orderNumber String @unique
+  customerName String
+  customerEmail String
+  customerPhone String?
+  totalAmount Float
+  status String // 'pending_payment', 'pending_review', 'confirmed', 'processing', 'completed', 'cancelled'
+  paymentMethod String // 'online', 'manager'
+  deliveryDate DateTime
+  specialInstructions String?
+  
+  // Delivery address fields
+  deliveryAddress String?
+  deliveryCity String?
+  deliveryPostcode String?
+  deliveryCountry String? @default("UK")
+  deliveryContactName String?
+  deliveryContactPhone String?
+  deliveryCost Float? @default(15.0)
+  
+  // Link to user if authenticated
+  userId String?
+  user User? @relation(fields: [userId], references: [id])
+  
+  orderItems OrderItem[]
+  invoices Invoice[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model OrderItem {
+  id        Int      @id @default(autoincrement())
+  orderId   Int
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  
+  serviceName String
+  serviceSlug String
+  parameters String // JSON string of selected options
+  quantity Int
+  unitPrice Float
+  totalPrice Float
+  fileName String?
+  fileSize Int?
+  filePath String?
+  notes String?
+  
+  createdAt DateTime @default(now())
+}
+
+model Invoice {
+  id          Int      @id @default(autoincrement())
+  orderId     Int
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  
+  invoiceNumber String @unique
+  invoiceDate String
+  taxPoint String
+  billTo String // Customer billing address
+  paymentTerms String
+  
+  // Invoice items (JSON array)
+  items Json
+  
+  // Totals
+  subtotal Float
+  discount Float @default(0)
+  discountType String? // 'percentage' or 'fixed'
+  vatRate Float @default(20)
+  vatAmount Float
+  total Float
+  
+  // Status
+  status String @default("draft")
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model MenuTile {
+  id        Int      @id @default(autoincrement())
+  label     String
+  href      String
+  image     String?  // URL to tile image
+  order     Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model WhyArticle {
+  id          Int      @id @default(autoincrement())
+  title       String
+  text        String
+  image       String?  // Cover image URL
+  href        String?  // Optional link
+  span        String?  // "lg" | "xl" for grid span
+  order       Int      @default(0)
+  isActive    Boolean  @default(true)
+  
+  // Article content for individual pages
+  content     String?  // Full article content (markdown)
+  images      String?  // JSON array of additional images
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Settings {
+  id          Int      @id @default(autoincrement())
+  key         String   @unique
+  value       String
+  description String?
+  category    String   @default("general")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+

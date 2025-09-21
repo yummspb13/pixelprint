@@ -1,0 +1,542 @@
+"use client";
+
+import { useEffect, useState, useMemo } from "react";
+import { useParams, useSearchParams } from "next/navigation";
+import Link from "next/link";
+import Header from "@/components/site/Header";
+import Footer from "@/components/site/Footer";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Progress } from "@/components/ui/progress";
+import { Calculator, ArrowRight, Star, Clock, Shield, Truck } from "lucide-react";
+import { motion } from "framer-motion";
+import { toast } from "sonner";
+import { useCart } from "@/contexts/CartContext";
+import { useRouter } from "next/navigation";
+import { fetchOptions, fetchQuote, Attribute } from "@/lib/pricing-client";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { getTextSize } from "@/lib/languageStyles";
+
+type ServiceData = {
+  id: number;
+  name: string;
+  slug: string;
+  description: string;
+  category: string;
+  image: string | null;
+  isActive: boolean;
+  calculatorAvailable: boolean;
+};
+
+type ServiceMeta = { slug: string; name: string; category: string };
+
+export default function ServicePage() {
+  const { slug } = useParams() as { slug: string };
+  const sp = useSearchParams();
+  const { addItem, openCart } = useCart();
+  const router = useRouter();
+  const { t, language } = useLanguage();
+  
+  const [service, setService] = useState<ServiceData | null>(null);
+  const [meta, setMeta] = useState<ServiceMeta | null>(null);
+  const [attrs, setAttrs] = useState<Attribute[]>([]);
+  const [selection, setSelection] = useState<Record<string, string>>({});
+  const [qty, setQty] = useState<number>(Number(sp.get("qty") || 500));
+  const [turnaround, setTurnaround] = useState("Standard");
+  const [delivery, setDelivery] = useState("Pickup");
+  const [quote, setQuote] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [quoteLoading, setQuoteLoading] = useState(false);
+  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+
+  useEffect(() => {
+    const fetchService = async () => {
+      try {
+        // Сначала получаем данные услуги
+        const servicesResponse = await fetch('/api/pricing/services');
+        const servicesData = await servicesResponse.json();
+        
+        if (servicesData.ok && servicesData.services) {
+          const foundService = servicesData.services.find((s: any) => s.slug === slug);
+          if (foundService) {
+            setService(foundService);
+            setMeta({ slug: foundService.slug, name: foundService.name, category: foundService.category });
+          }
+        }
+
+        // Если есть калькулятор, загружаем опции
+        if (service?.calculatorAvailable) {
+          try {
+            const d = await fetchOptions(slug);
+            setAttrs(d.attributes);
+            // дефолты — первое значение
+            const defSel: Record<string, string> = {};
+            d.attributes.forEach(a => { if (a.values.length) defSel[a.key] = a.values[0]; });
+            setSelection(defSel);
+          } catch (e: any) { 
+            console.error('Error fetching options:', e);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching service:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchService();
+  }, [slug, service?.calculatorAvailable]);
+
+  // Auto-scroll to calculator when coming from Quick Quote
+  useEffect(() => {
+    if (sp.get("qty") && !loading) {
+      setTimeout(() => {
+        const calculatorElement = document.getElementById("calculator-section");
+        if (calculatorElement) {
+          calculatorElement.scrollIntoView({ 
+            behavior: "smooth", 
+            block: "start" 
+          });
+        }
+      }, 500); // Small delay to ensure page is loaded
+    }
+  }, [sp, loading]);
+
+  // fetch quote
+  async function recalc() {
+    if (!meta || !service?.calculatorAvailable) return;
+    setQuoteLoading(true);
+    try {
+      const q = await fetchQuote({ slug, qty, selection, extras: { turnaround, delivery } });
+      setQuote(q);
+    } catch (e: any) { 
+      console.error('Quote calculation error:', e);
+      toast.error(e.message || t('service.messages.failedCalculate'));
+      setQuote(null);
+    }
+    finally { 
+      setQuoteLoading(false); 
+    }
+  }
+  
+  useEffect(() => { 
+    if (service?.calculatorAvailable) {
+      recalc(); 
+    }
+    /* eslint-disable-next-line */ 
+  }, [meta, JSON.stringify(selection), qty, turnaround, delivery, service?.calculatorAvailable]);
+
+  const addToCart = () => {
+    if (!quote || !meta) {
+      toast.error(t('service.messages.calculateFirst'));
+      return;
+    }
+
+    addItem({
+      serviceName: meta.name,
+      serviceSlug: slug,
+      parameters: selection,
+      quantity: qty,
+      unitPrice: quote.breakdown.gross / qty, // Цена за единицу включая VAT
+      uploadedFile: uploadedFiles[0], // Первый файл
+      fileName: uploadedFiles[0]?.name,
+      fileSize: uploadedFiles[0]?.size,
+    });
+
+    toast.success(t('service.messages.addedToCart'));
+    openCart();
+  };
+
+  const proceedToCheckout = () => {
+    if (!quote || !meta) {
+      toast.error(t('service.messages.calculateFirst'));
+      return;
+    }
+
+    // Добавляем в корзину и переходим к чекауту
+    addItem({
+      serviceName: meta.name,
+      serviceSlug: slug,
+      parameters: selection,
+      quantity: qty,
+      unitPrice: quote.breakdown.gross / qty,
+      uploadedFile: uploadedFiles[0], // Первый файл
+      fileName: uploadedFiles[0]?.name,
+      fileSize: uploadedFiles[0]?.size,
+    });
+
+    router.push('/checkout');
+  };
+
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    if (files.length > 0) {
+      setUploadedFiles(prev => [...prev, ...files]);
+      toast.success(`${files.length} file(s) uploaded successfully`);
+    }
+  };
+
+  const removeFile = (index: number) => {
+    setUploadedFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-px-bg">
+        <Header />
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-px-cyan"></div>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (!service) {
+    return (
+      <div className="min-h-screen bg-px-bg">
+        <Header />
+        <div className="container mx-auto px-4 py-16 text-center">
+          <h1 className={`${getTextSize(language, 'sectionTitle')} font-bold text-px-fg mb-4`}>{t('service.messages.serviceNotFound')}</h1>
+          <p className={`${getTextSize(language, 'description')} text-px-muted mb-8`}>{t('service.messages.serviceNotFoundDesc')}</p>
+          <Link href="/pricing">
+            <Button>{t('service.messages.viewAllServices')}</Button>
+          </Link>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
+
+  const features = [
+    {
+      icon: Star,
+      title: t('service.features.premiumQuality'),
+      description: "High-quality printing with professional results",
+      color: "px-cyan"
+    },
+    {
+      icon: Clock,
+      title: t('service.features.fastTurnaround'),
+      description: "Quick delivery with same-day options available",
+      color: "px-magenta"
+    },
+    {
+      icon: Shield,
+      title: t('service.features.secureProcessing'),
+      description: "Safe file handling and secure payment processing",
+      color: "px-yellow"
+    },
+    {
+      icon: Truck,
+      title: t('service.features.flexibleDelivery'),
+      description: "Pickup, courier, or postal delivery options",
+      color: "px-cyan"
+    }
+  ];
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-px-bg via-zinc-50 to-px-bg">
+      <Header />
+      
+      <div className="container mx-auto px-4 py-8">
+        <div className="max-w-7xl mx-auto">
+          {/* Header */}
+          <div className="mb-8">
+            <Badge variant="outline" className="mb-4 text-px-cyan border-px-cyan">
+              {service.category}
+            </Badge>
+            <h1 className="text-4xl md:text-5xl font-bold tracking-tight leading-tight font-playfair mb-4">
+              <span className="text-px-fg">{service.name}</span>
+            </h1>
+            <p className="text-xl text-px-muted max-w-3xl">
+              {service.description}
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-8">
+            {/* Main Content */}
+            <div className="space-y-8">
+              {/* Features */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>{t('service.messages.whyChoose')} {service.name}?</CardTitle>
+                  <CardDescription>{t('service.messages.professionalPrinting')}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {features.map((feature, index) => (
+                      <motion.div
+                        key={feature.title}
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true }}
+                        transition={{ duration: 0.5, delay: index * 0.1 }}
+                        className="flex items-start space-x-3"
+                      >
+                        <div className={`w-10 h-10 rounded-full bg-${feature.color}/10 flex items-center justify-center flex-shrink-0`}>
+                          <feature.icon className={`h-5 w-5 text-${feature.color}`} />
+                        </div>
+                        <div>
+                          <h3 className="font-medium text-px-fg">{feature.title}</h3>
+                          <p className="text-sm text-px-muted">{feature.description}</p>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Calculator Section */}
+              {service.calculatorAvailable && (
+                <div id="calculator-section" className="space-y-6">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center">
+                        <Calculator className="mr-2 h-5 w-5" />
+                        {t('service.messages.calculateOrder')}
+                      </CardTitle>
+                      <CardDescription>{t('service.messages.configureService')} {service.name.toLowerCase()} {t('service.messages.getInstantQuote')}</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                      {/* Options */}
+                      {attrs.length > 0 && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {attrs.map(a => (
+                            <div key={a.key}>
+                              <label className="block text-sm font-medium text-px-fg mb-2">{a.key}</label>
+                              <Select 
+                                value={selection[a.key] ?? ""} 
+                                onValueChange={(v) => setSelection({ ...selection, [a.key]: v })}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder={`${t('service.messages.chooseOption')} ${a.key}`} />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {a.values.map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Quantity */}
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <label className={`block ${getTextSize(language, 'small')} font-medium text-px-fg`}>{t('service.quantity')}</label>
+                          {sp.get("qty") && (
+                            <span className="text-xs text-px-cyan bg-px-cyan/10 px-2 py-1 rounded-full">
+                              Pre-filled from Quick Quote
+                            </span>
+                          )}
+                        </div>
+                        <div className="space-y-4">
+                          <div className="flex flex-wrap gap-2">
+                            {[25, 50, 100, 250, 500, 1000, 2000].map(n => (
+                              <Button 
+                                key={n} 
+                                variant={qty === n ? "default" : "outline"} 
+                                size="sm"
+                                onClick={() => setQty(n)}
+                                className={`${qty === n ? "bg-px-cyan text-white" : ""} text-xs sm:text-sm`}
+                              >
+                                {n}
+                              </Button>
+                            ))}
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <Input 
+                              type="number" 
+                              min={1} 
+                              value={qty} 
+                              onChange={e => setQty(Number(e.target.value || 1))} 
+                              className="w-24 sm:w-32"
+                            />
+                            <span className="text-sm text-px-muted">pcs</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Turnaround & Delivery */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className={`block ${getTextSize(language, 'small')} font-medium text-px-fg mb-2`}>{t('service.turnaround')}</label>
+                          <Select value={turnaround} onValueChange={setTurnaround}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Standard">{t('service.standard')} (2–3 days)</SelectItem>
+                              <SelectItem value="Express">{t('service.express')} (next day)</SelectItem>
+                              <SelectItem value="Same-day">Same-day (order by 1pm)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <label className={`block ${getTextSize(language, 'small')} font-medium text-px-fg mb-2`}>{t('service.delivery')}</label>
+                          <Select value={delivery} onValueChange={setDelivery}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Pickup">{t('service.pickup')} (EC1A)</SelectItem>
+                              <SelectItem value="Courier">{t('service.courier')} (London same-day)</SelectItem>
+                              <SelectItem value="Post">Post (UK)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+
+                      {/* File Upload */}
+                      <div>
+                        <label className={`block ${getTextSize(language, 'small')} font-medium text-px-fg mb-2`}>{t('service.uploadArtwork')}</label>
+                        <div className="space-y-3">
+                          <div className="relative group">
+                            <div className="border-2 border-dashed border-gray-300 hover:border-px-cyan transition-colors duration-200 rounded-lg p-4 text-center bg-gradient-to-r from-gray-50 to-white hover:from-px-cyan/5 hover:to-px-magenta/5">
+                              <div className="flex items-center justify-center space-x-3">
+                                <div className="w-10 h-10 bg-gradient-to-r from-px-cyan to-px-magenta rounded-full flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
+                                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                                  </svg>
+                                </div>
+                                <div className="text-left">
+                                  <p className={`${getTextSize(language, 'small')} font-medium text-px-fg`}>{t('service.messages.dropFiles')}</p>
+                                  <div className="flex items-center space-x-2 mt-1">
+                                    <div className="flex space-x-1">
+                                      <span className="px-1.5 py-0.5 bg-px-cyan/10 text-px-cyan rounded text-xs">PDF</span>
+                                      <span className="px-1.5 py-0.5 bg-px-magenta/10 text-px-magenta rounded text-xs">AI</span>
+                                      <span className="px-1.5 py-0.5 bg-px-yellow/10 text-px-yellow rounded text-xs">PSD</span>
+                                      <span className="px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded text-xs">JPG/PNG</span>
+                                    </div>
+                                    <span className="text-xs text-px-muted">• Max 300MB</span>
+                                  </div>
+                                </div>
+                              </div>
+                              <input 
+                                type="file" 
+                                accept=".pdf,.ai,.psd,.tif,.tiff,.jpg,.jpeg,.png" 
+                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                multiple
+                                onChange={handleFileUpload}
+                              />
+                            </div>
+                          </div>
+                          
+                          {/* Uploaded Files List */}
+                          {uploadedFiles.length > 0 && (
+                            <div className="space-y-2">
+                              <p className={`${getTextSize(language, 'small')} font-medium text-px-fg`}>{t('service.uploadedFiles')}:</p>
+                              {uploadedFiles.map((file, index) => (
+                                <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                                  <div className="flex items-center space-x-2">
+                                    <div className="w-6 h-6 bg-px-cyan/10 rounded flex items-center justify-center">
+                                      <svg className="w-3 h-3 text-px-cyan" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                      </svg>
+                                    </div>
+                                    <div>
+                                      <p className="text-sm font-medium text-px-fg">{file.name}</p>
+                                      <p className="text-xs text-px-muted">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                                    </div>
+                                  </div>
+                                  <button
+                                    onClick={() => removeFile(index)}
+                                    className="text-red-500 hover:text-red-700 transition-colors"
+                                  >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+            </div>
+
+            {/* Sidebar - Quote Summary */}
+            {service.calculatorAvailable && (
+              <div className="lg:sticky lg:top-20">
+                <Card className="p-6">
+                  <div className="mb-4">
+                    <h3 className="text-lg font-semibold text-px-fg">{service.name}</h3>
+                    <p className="text-sm text-px-muted">Quantity: {qty} pieces</p>
+                  </div>
+                  
+                  <div className="space-y-3 mb-6">
+                    {quoteLoading ? (
+                      <div className="text-center py-4">
+                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-px-cyan mx-auto"></div>
+                        <p className="text-sm text-px-muted mt-2">Calculating...</p>
+                      </div>
+                    ) : quote ? (
+                      <>
+                        <div className="flex justify-between text-sm">
+                          <span>Items (net)</span>
+                          <span>£{(quote.breakdown.base.net || 0).toFixed(2)}</span>
+                        </div>
+                        <div className="flex justify-between text-sm text-px-muted">
+                          <span>Modifiers</span>
+                          <span>£{(quote.breakdown.modifiers.add || 0).toFixed(2)}</span>
+                        </div>
+                        <div className="border-t pt-2">
+                          <div className="flex justify-between text-sm">
+                            <span>Subtotal</span>
+                            <span>£{(quote.breakdown.net || 0).toFixed(2)}</span>
+                          </div>
+                          <div className="flex justify-between text-sm text-px-muted">
+                            <span>VAT (20%)</span>
+                            <span>£{(quote.breakdown.vat || 0).toFixed(2)}</span>
+                          </div>
+                          <div className="flex justify-between text-lg font-semibold mt-2">
+                            <span>Total (inc VAT)</span>
+                            <span>£{(quote.breakdown.gross || 0).toFixed(2)}</span>
+                          </div>
+                          {quote.breakdown.unit && (
+                            <p className="text-xs text-px-muted mt-1">
+                              ~ £{quote.breakdown.unit.toFixed(3)} per unit
+                            </p>
+                          )}
+                        </div>
+                      </>
+                    ) : (
+                      <div className="text-center py-4">
+                        <p className={`${getTextSize(language, 'small')} text-px-muted`}>{t('service.messages.selectOptions')}</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {quote && (
+                    <div className="space-y-3">
+                      <Button 
+                        onClick={addToCart}
+                        className="w-full bg-gradient-to-r from-px-cyan to-px-magenta hover:from-px-cyan/90 hover:to-px-magenta/90 text-white"
+                      >
+{t('service.addToCart')}
+                      </Button>
+                      <Button 
+                        onClick={proceedToCheckout}
+                        variant="outline"
+                        className="w-full"
+                      >
+{t('service.messages.proceedCheckout')}
+                      </Button>
+                    </div>
+                  )}
+                </Card>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <Footer />
+    </div>
+  );
+}

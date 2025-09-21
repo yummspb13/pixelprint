@@ -1,0 +1,16 @@
+Category,Service,Size,Sides,Paper,GSM,Lamination,Q100,Q250,Q500,Q1000,Setup
+Business Stationery,Business cards,85x55mm,S/S,Silk,350,None,0.15,0.12,0.10,0.08,25
+Business Stationery,Business cards,85x55mm,D/S,Silk,350,None,0.25,0.20,0.18,0.15,25
+Business Stationery,Business cards,85x55mm,S/S,Silk,350,Matte,0.15,0.12,0.10,0.08,31
+Business Stationery,Business cards,85x55mm,D/S,Silk,350,Matte,0.25,0.20,0.18,0.15,31
+Advertising,Flyers,A4,S/S,Uncoated,130,None,0.08,0.06,0.05,0.04,15
+Advertising,Flyers,A4,D/S,Uncoated,130,None,0.12,0.10,0.08,0.06,15
+Advertising,Flyers,A4,S/S,Uncoated,130,Matte,0.08,0.06,0.05,0.04,21
+Advertising,Flyers,A4,D/S,Uncoated,130,Matte,0.12,0.10,0.08,0.06,21
+Large Format,Posters,A3,S/S,Uncoated,170,None,2.50,2.00,1.50,1.20,20
+Large Format,Posters,A2,S/S,Uncoated,170,None,4.00,3.50,3.00,2.50,25
+Large Format,Posters,A1,S/S,Uncoated,170,None,6.00,5.00,4.00,3.50,30
+Photocopying,Photocopying B/W,A4,S/S,Standard,80,None,0.05,0.04,0.03,0.02,0
+Photocopying,Photocopying Colour,A4,S/S,Standard,80,None,0.15,0.12,0.10,0.08,0
+Laminating,Laminating,A4,None,None,None,Matte,1.50,1.20,1.00,0.80,5
+Laminating,Laminating,A4,None,None,None,Gloss,1.80,1.50,1.30,1.00,5

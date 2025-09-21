@@ -1,0 +1,6 @@
+Service,Category,Slug,Sides,Qty,PRICE,NET PRICE,VAT,Price +VAT
+DIGITAL BUSINESS CARDS,Business Stationery,digital-business-cards,Single Sided (S/S),100,0.22,22.00,4.40,26.40
+DIGITAL BUSINESS CARDS,Business Stationery,digital-business-cards,Single Sided (S/S),250,0.17,42.50,8.50,51.00
+DIGITAL BUSINESS CARDS,Business Stationery,digital-business-cards,Single Sided (S/S),500,0.15,75.00,15.00,90.00
+FLYERS,Advertising,flyers,Single Sided (S/S),1000,0.08,80.00,16.00,96.00
+FLYERS,Advertising,flyers,Single Sided (S/S),2000,0.06,120.00,24.00,144.00

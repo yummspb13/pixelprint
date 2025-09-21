@@ -1,0 +1,4 @@
+{
+  "next-auth": "^4.24.10",
+  "@auth/prisma-adapter": "^2.7.2"
+}
