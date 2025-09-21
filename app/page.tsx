@@ -6,6 +6,7 @@ import WhyPixelGrid from '@/components/sections/WhyPixelGrid';
 import ContactSection from '@/components/sections/ContactSection';
 import ScrollReveal from '@/components/ux/ScrollReveal';
 import CommandPalette from '@/components/ux/CommandPalette';
+import { logger } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic'
 
@@ -28,6 +29,13 @@ export const metadata = {
 };
 
 export default function Page() {
+  logger.info("=== HOME PAGE RENDERED ===");
+  logger.info("Environment:", {
+    NODE_ENV: process.env.NODE_ENV,
+    DATABASE_URL_EXISTS: !!process.env.DATABASE_URL,
+    NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL
+  });
+  
   return (
     <div className="min-h-screen bg-px-bg">
       <Header />

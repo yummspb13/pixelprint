@@ -9,6 +9,7 @@ import {
   Clock,
   Printer
 } from "lucide-react";
+import { logger } from "@/lib/logger";
 import { Button } from "@/components/ui/button";
 import AdminCard from "@/components/admin/AdminCard";
 import StatsGrid from "@/components/admin/StatsGrid";
@@ -18,6 +19,14 @@ import RecentNotifications from "@/components/admin/RecentNotifications";
 import ScrollReveal from "@/components/ux/ScrollReveal";
 
 export default function AdminDashboard() {
+  logger.info("=== ADMIN DASHBOARD RENDERED ===");
+  logger.info("Admin environment:", {
+    NODE_ENV: process.env.NODE_ENV,
+    DATABASE_URL_EXISTS: !!process.env.DATABASE_URL,
+    NEXTAUTH_URL: process.env.NEXTAUTH_URL,
+    ADMIN_EMAIL: process.env.ADMIN_EMAIL
+  });
+  
   return (
     <div className="space-y-8">
       {/* Header */}
