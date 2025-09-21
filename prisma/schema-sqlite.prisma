@@ -1,0 +1,267 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+enum PriceRuleKind {
+  tiers
+  perUnit
+  fixed
+}
+
+enum OrderStatus {
+  pending
+  processing
+  completed
+  cancelled
+  refunded
+}
+
+enum PaymentStatus {
+  pending
+  paid
+  failed
+  refunded
+}
+
+enum InvoiceStatus {
+  draft
+  sent
+  paid
+  overdue
+  cancelled
+}
+
+enum ChangeType {
+  created
+  updated
+  deleted
+}
+
+enum TierType {
+  quantity
+  price
+}
+
+enum MenuTileType {
+  service
+  category
+  custom
+}
+
+enum SettingsType {
+  general
+  pricing
+  email
+  payment
+}
+
+model Service {
+  id          Int      @id @default(autoincrement())
+  name        String
+  slug        String   @unique
+  description String?
+  category    String?
+  image       String?
+  price       Float?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  priceRows   PriceRow[]
+  orderItems  OrderItem[]
+
+  @@map("Service")
+}
+
+model WhyArticle {
+  id          Int      @id @default(autoincrement())
+  title       String
+  slug        String   @unique
+  content     String?
+  image       String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("WhyArticle")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts Account[]
+  sessions Session[]
+  orders   Order[]
+
+  @@map("User")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("Account")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("Session")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("VerificationToken")
+}
+
+model Order {
+  id            String        @id @default(cuid())
+  orderNumber   String        @unique
+  customerName  String
+  customerEmail String
+  customerPhone String?
+  totalAmount   Float
+  status        OrderStatus   @default(pending)
+  paymentStatus PaymentStatus @default(pending)
+  notes         String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id])
+
+  items OrderItem[]
+
+  @@map("Order")
+}
+
+model OrderItem {
+  id        Int     @id @default(autoincrement())
+  orderId   String
+  serviceId Int
+  quantity  Int
+  unitPrice Float
+  totalPrice Float
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  service Service @relation(fields: [serviceId], references: [id])
+
+  @@map("OrderItem")
+}
+
+model PriceRow {
+  id        Int           @id @default(autoincrement())
+  serviceId Int
+  qty       Int
+  unit      Float
+  netPrice  Float
+  vat       Float
+  totalPrice Float
+  category  String?
+  serviceName String?
+
+  service Service @relation(fields: [serviceId], references: [id])
+
+  @@map("PriceRow")
+}
+
+model Tier {
+  id        Int      @id @default(autoincrement())
+  serviceId Int
+  minQty    Int
+  maxQty    Int?
+  price     Float
+  type      TierType @default(quantity)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("Tier")
+}
+
+model ChangeHistory {
+  id        Int        @id @default(autoincrement())
+  tableName String
+  recordId  String
+  fieldName String
+  oldValue  String?
+  newValue  String?
+  changeType ChangeType
+  userId    String?
+  createdAt DateTime   @default(now())
+
+  @@map("ChangeHistory")
+}
+
+model Invoice {
+  id            String        @id @default(cuid())
+  invoiceNumber String        @unique
+  orderId       String
+  customerName  String
+  customerEmail String
+  totalAmount   Float
+  status        InvoiceStatus @default(draft)
+  dueDate       DateTime?
+  paidAt        DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@map("Invoice")
+}
+
+model MenuTile {
+  id          Int          @id @default(autoincrement())
+  title       String
+  description String?
+  image       String?
+  url         String?
+  type        MenuTileType @default(service)
+  isActive    Boolean      @default(true)
+  sortOrder   Int          @default(0)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@map("MenuTile")
+}
+
+model Settings {
+  id        Int          @id @default(autoincrement())
+  key       String       @unique
+  value     String
+  type      SettingsType @default(general)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  @@map("Settings")
+}
