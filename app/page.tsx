@@ -7,6 +7,8 @@ import ContactSection from '@/components/sections/ContactSection';
 import ScrollReveal from '@/components/ux/ScrollReveal';
 import CommandPalette from '@/components/ux/CommandPalette';
 
+export const dynamic = 'force-dynamic'
+
 // Добавляем метаданные для SEO и производительности
 export const metadata = {
   title: 'Pixel Print - Premium Digital & Large-Format Printing in London',
