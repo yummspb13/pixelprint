@@ -89,7 +89,7 @@ export default function StatsGrid() {
   const statsData = [
     {
       title: "Total Orders",
-      value: stats.totalOrders.toLocaleString(),
+      value: stats.totalOrders ? stats.totalOrders.toLocaleString() : '0',
       change: `${stats.ordersChange >= 0 ? '+' : ''}${stats.ordersChange.toFixed(1)}%`,
       changeType: stats.ordersChange >= 0 ? "positive" as const : "negative" as const,
       icon: ShoppingCart,
@@ -97,7 +97,7 @@ export default function StatsGrid() {
     },
     {
       title: "Revenue",
-      value: `£${stats.totalRevenue.toLocaleString()}`,
+      value: `£${stats.totalRevenue ? stats.totalRevenue.toLocaleString() : '0'}`,
       change: `${stats.revenueChange >= 0 ? '+' : ''}${stats.revenueChange.toFixed(1)}%`,
       changeType: stats.revenueChange >= 0 ? "positive" as const : "negative" as const,
       icon: DollarSign,
@@ -105,7 +105,7 @@ export default function StatsGrid() {
     },
     {
       title: "Average Order",
-      value: `£${(stats.totalRevenue / Math.max(stats.totalOrders, 1)).toFixed(2)}`,
+      value: `£${stats.totalRevenue && stats.totalOrders ? (stats.totalRevenue / Math.max(stats.totalOrders, 1)).toFixed(2) : '0.00'}`,
       change: `${stats.conversionChange >= 0 ? '+' : ''}${stats.conversionChange.toFixed(1)}%`,
       changeType: stats.conversionChange >= 0 ? "positive" as const : "negative" as const,
       icon: TrendingUp,

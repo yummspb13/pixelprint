@@ -108,14 +108,14 @@ export default function RecentOrders() {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-px-fg">{order.customerName}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-px-fg">{order.service}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-px-fg">{order.quantity}</td>
-                  <td className="px-6 py-4 whitespace-nowrap font-medium text-px-fg">£{order.totalAmount.toFixed(2)}</td>
+                  <td className="px-6 py-4 whitespace-nowrap font-medium text-px-fg">£{order.totalAmount ? order.totalAmount.toFixed(2) : '0.00'}</td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <Badge className={statusColors[order.status as keyof typeof statusColors]}>
                       {statusLabels[order.status as keyof typeof statusLabels]}
                     </Badge>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-px-muted">
-                    {new Date(order.createdAt).toLocaleDateString()}
+                    {order.createdAt ? new Date(order.createdAt).toLocaleDateString() : '—'}
                   </td>
                 </tr>
               ))
