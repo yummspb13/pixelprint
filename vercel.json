@@ -1,5 +1,5 @@
 {
-  "buildCommand": "./setup-env.sh",
+  "buildCommand": "pnpm run vercel-build",
   "installCommand": "pnpm install",
   "framework": "nextjs",
   "functions": {
