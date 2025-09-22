@@ -4,14 +4,25 @@ import { prisma } from "@/lib/db";
 export const runtime = 'nodejs';
 
 export async function POST(request: NextRequest) {
+  console.log('🚀 ORDERS API: POST request received');
+  
   try {
+    console.log('📝 ORDERS API: Parsing form data...');
     const formData = await request.formData();
+    
+    console.log('📝 ORDERS API: Form data keys:', Array.from(formData.keys()));
+    
     const items = JSON.parse(formData.get("items") as string);
     const checkoutData = JSON.parse(formData.get("checkoutData") as string);
     const totalAmount = parseFloat(formData.get("totalAmount") as string);
     const customerInfo = JSON.parse(formData.get("customerInfo") as string);
 
-    console.log('Creating order:', { items, checkoutData, totalAmount, customerInfo });
+    console.log('📝 ORDERS API: Parsed data:', { 
+      itemsCount: items?.length, 
+      checkoutData: checkoutData?.paymentMethod, 
+      totalAmount, 
+      customerInfo: customerInfo?.name 
+    });
 
     // Validate and set delivery date
     const requestedDeliveryDate = new Date(checkoutData.deliveryDate);
@@ -64,9 +75,18 @@ export async function POST(request: NextRequest) {
     }));
 
     // Create order in database
+    console.log('💾 ORDERS API: Creating order in database...');
     const orderNumber = `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
     const deliveryCost = 15.0; // Fixed delivery cost
     const totalAmountWithDelivery = totalAmount + deliveryCost;
+    
+    console.log('💾 ORDERS API: Order details:', {
+      orderNumber,
+      totalAmount,
+      deliveryCost,
+      totalAmountWithDelivery,
+      itemsCount: processedItems.length
+    });
     
     const order = await prisma.order.create({
       data: {
@@ -107,10 +127,15 @@ export async function POST(request: NextRequest) {
       }
     });
 
-    console.log('Order created:', order.id);
+    console.log('✅ ORDERS API: Order created successfully:', {
+      orderId: order.id,
+      orderNumber: order.orderNumber,
+      status: order.status
+    });
 
     // If online payment, redirect to payment gateway
     if (checkoutData.paymentMethod === 'online') {
+      console.log('💳 ORDERS API: Online payment requested');
       // Here you would integrate with your payment provider (Stripe, PayPal, etc.)
       return NextResponse.json({ 
         success: true, 
@@ -137,9 +162,17 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Error creating order:', error);
+    console.error('❌ ORDERS API: Error creating order:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      error: error
+    });
+    
     return NextResponse.json(
-      { error: "Failed to create order" }, 
+      { 
+        error: "Failed to create order",
+        details: error instanceof Error ? error.message : 'Unknown error'
+      }, 
       { status: 500 }
     );
   }
