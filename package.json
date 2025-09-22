@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "postinstall": "prisma generate",
-    "vercel-build": "prisma generate --no-engine && next build"
+    "vercel-build": "prisma generate --no-engine && node scripts/init-db.js && next build"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

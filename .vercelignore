@@ -1,0 +1,13 @@
+# Игнорируем ненужные файлы, но НЕ игнорируем SQLite базу данных
+node_modules
+.next
+.git
+.env.local
+.env.*.local
+*.log
+.DS_Store
+coverage
+.nyc_output
+.cache
+dist
+build
