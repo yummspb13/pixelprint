@@ -98,6 +98,7 @@ export async function POST(request: NextRequest) {
     
     const order = await prisma.order.create({
       data: {
+        // Don't include id - let Prisma auto-generate it
         orderNumber,
         customerName: customerInfo?.name || 'Guest',
         customerEmail: customerInfo?.email || '',
@@ -117,6 +118,7 @@ export async function POST(request: NextRequest) {
         deliveryCost: deliveryCost,
         orderItems: {
           create: processedItems.map((item: any) => ({
+            // Don't include id for OrderItem either
             serviceName: item.serviceName,
             serviceSlug: item.serviceSlug,
             parameters: JSON.stringify(item.parameters),

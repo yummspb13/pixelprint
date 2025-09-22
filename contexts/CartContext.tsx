@@ -188,6 +188,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       const response = await fetch('/api/orders/', {
         method: 'POST',
         body: formData, // Remove Content-Type header, let browser set it
+        // Don't set Content-Type - let browser set it automatically for FormData
       });
 
       const result = await response.json();
