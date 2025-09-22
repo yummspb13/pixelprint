@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 
+export const runtime = 'nodejs';
+
 export async function GET() {
   const items = await prisma.service.findMany({
     select: { id:true, slug:true, name:true, category:true, _count: { select: { rows:true } } },

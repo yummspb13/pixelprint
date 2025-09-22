@@ -4,6 +4,8 @@ import { parseCSV } from "@/lib/pricing-loader";
 import { revalidateTag } from "next/cache";
 import { PRICING_TAG } from "@/lib/pricing-const";
 
+export const runtime = 'nodejs';
+
 export async function POST(req: Request) {
   const form = await req.formData();
   const file = form.get("file") as unknown as File;

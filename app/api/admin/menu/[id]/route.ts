@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { prisma } from '@/lib/db';
+
+export const runtime = 'nodejs';
 
 // GET /api/admin/menu/[id] - Get single menu tile
 export async function GET(

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 
+export const runtime = 'nodejs';
+
 // GET all orders for admin
 export async function GET(request: NextRequest) {
   try {

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { prisma } from '@/lib/db';
+
+export const runtime = 'nodejs';
 
 // POST /api/services/[id]/click - Track service click
 export async function POST(

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { prisma } from '@/lib/db';
+
+export const runtime = 'nodejs';
 
 // GET /api/why-articles - Get all active articles for frontend
 export async function GET(request: NextRequest) {

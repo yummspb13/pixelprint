@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { prisma } from '@/lib/db';
+
+export const runtime = 'nodejs';
 
 // PATCH /api/admin/services/[id]/configurator - Toggle configurator for service
 export async function PATCH(

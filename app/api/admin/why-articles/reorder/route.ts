@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { prisma } from '@/lib/db';
+
+export const runtime = 'nodejs';
 
 // PUT /api/admin/why-articles/reorder - Reorder articles
 export async function PUT(request: NextRequest) {

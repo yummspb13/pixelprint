@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Manrope, Inter, Playfair_Display } from "next/font/google";
 import "./globals.css";
-import "./test.css";
 import { Toaster } from "sonner";
 import ClientProviders from "@/components/ClientProviders";
 

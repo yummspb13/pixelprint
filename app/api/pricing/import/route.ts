@@ -3,6 +3,8 @@ import { prisma } from "@/lib/db";
 import fs from 'fs';
 import path from 'path';
 
+export const runtime = 'nodejs';
+
 export async function POST() {
   try {
     // Читаем CSV файл

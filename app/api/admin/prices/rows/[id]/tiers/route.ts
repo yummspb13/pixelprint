@@ -3,6 +3,8 @@ import { prisma } from "@/lib/db";
 import { revalidateTag } from "next/cache";
 import { PRICING_TAG } from "@/lib/pricing-const";
 
+export const runtime = 'nodejs';
+
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { tiers = [], setup = null } = await req.json(); // tiers: [{qty,unit}]

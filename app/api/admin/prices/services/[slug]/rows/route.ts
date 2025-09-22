@@ -3,6 +3,8 @@ import { prisma } from "@/lib/db";
 import { revalidateTag } from "next/cache";
 import { PRICING_TAG } from "@/lib/pricing-const";
 
+export const runtime = 'nodejs';
+
 export async function GET(_: Request, { params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const s = await prisma.service.findUnique({

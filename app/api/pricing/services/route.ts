@@ -3,6 +3,8 @@ import { loadPricing, listServices } from "@/lib/pricing-loader";
 import { PRICING_TAG } from "@/lib/pricing-const";
 import { prisma } from "@/lib/db";
 
+export const runtime = 'nodejs';
+
 export async function GET() {
   try {
     // Получаем данные только из базы данных
