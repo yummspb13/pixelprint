@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import { logger } from "./logger";
+import "./vercel-env"; // Import Vercel environment variables
 
 const globalForPrisma = global as unknown as { prisma?: PrismaClient };
 
@@ -15,7 +16,13 @@ logger.info("=== END DATABASE DEBUG ===");
 // Проверяем наличие DATABASE_URL
 if (!process.env.DATABASE_URL) {
   logger.error("❌ DATABASE_URL environment variable is not set!");
-  throw new Error("DATABASE_URL environment variable is required");
+  // Во время сборки на Vercel используем fallback
+  if (process.env.VERCEL) {
+    logger.warn("⚠️ Running on Vercel without DATABASE_URL - using fallback for build");
+    process.env.DATABASE_URL = 'postgresql://fallback:fallback@localhost:5432/fallback';
+  } else {
+    throw new Error("DATABASE_URL environment variable is required");
+  }
 }
 
 // Создаем PrismaClient правильно с SSL настройками для Supabase

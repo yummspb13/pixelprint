@@ -1,3 +1,4 @@
+import "./vercel-env"; // Import Vercel environment variables
 import { prisma } from "@/lib/db";
 import { ServiceRecord, PriceRule } from "@/lib/pricing-loader";
 
