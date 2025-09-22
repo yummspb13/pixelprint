@@ -7,12 +7,5 @@
       "maxDuration": 30
     }
   },
-  "outputDirectory": ".next",
-  "env": {
-    "DATABASE_URL": "postgresql://postgres.nrtznccqxnfbvgarbqua:Rat606727931@aws-1-eu-west-2.pooler.supabase.com:6543/postgres?pgbouncer=true",
-    "DIRECT_URL": "postgresql://postgres:Rat606727931@db.nrtznccqxnfbvgarbqua.supabase.co:5432/postgres",
-    "NEXTAUTH_URL": "https://pixelprint.vercel.app",
-    "NEXTAUTH_SECRET": "YiKvmPodG1vruzLhJnNKSFUsY3IRdSFLchOfG9Reiwg=",
-    "NODE_ENV": "production"
-  }
+  "outputDirectory": ".next"
 }

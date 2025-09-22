@@ -20,12 +20,7 @@ if (!process.env.DATABASE_URL) {
 
 // Создаем PrismaClient правильно с SSL настройками для Supabase
 const prisma = globalForPrisma.prisma ?? new PrismaClient({
-  log: ['query', 'info', 'warn', 'error'],
-  datasources: {
-    db: {
-      url: process.env.DATABASE_URL.replace('sslmode=require', 'sslmode=prefer')
-    }
-  }
+  log: ['query', 'info', 'warn', 'error']
 });
 
 logger.info("Prisma client created successfully");
