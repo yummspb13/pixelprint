@@ -5,12 +5,20 @@ export const runtime = 'nodejs';
 
 export async function POST(request: NextRequest) {
   console.log('🚀 ORDERS API: POST request received');
+  console.log('📝 ORDERS API: Request headers:', Object.fromEntries(request.headers.entries()));
+  console.log('📝 ORDERS API: Content-Type:', request.headers.get('content-type'));
   
   try {
     console.log('📝 ORDERS API: Parsing form data...');
     const formData = await request.formData();
     
     console.log('📝 ORDERS API: Form data keys:', Array.from(formData.keys()));
+    console.log('📝 ORDERS API: Form data values:', {
+      items: formData.get("items"),
+      checkoutData: formData.get("checkoutData"),
+      totalAmount: formData.get("totalAmount"),
+      customerInfo: formData.get("customerInfo")
+    });
     
     const items = JSON.parse(formData.get("items") as string);
     const checkoutData = JSON.parse(formData.get("checkoutData") as string);
