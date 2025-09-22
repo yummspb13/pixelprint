@@ -1,0 +1,27 @@
+# VERCEL ENVIRONMENT VARIABLES
+# Скопируйте эти переменные в Vercel Dashboard → Settings → Environment Variables
+
+# === Database ===
+DATABASE_URL=postgresql://postgres.nrtznccqxnfbvgarbqua:Rat606727931@aws-1-eu-west-2.pooler.supabase.com:6543/postgres?pgbouncer=true&sslmode=require
+
+DIRECT_URL=postgresql://postgres:Rat606727931@db.nrtznccqxnfbvgarbqua.supabase.co:5432/postgres?sslmode=require
+
+# === NextAuth ===
+NEXTAUTH_URL=https://pixelprint.vercel.app
+
+NEXTAUTH_SECRET=YiKvmPodG1vruzLhJnNKSFUsY3IRdSFLchOfG9Reiwg=
+
+# === Optional: Node Environment ===
+NODE_ENV=production
+
+# ===========================================
+# ИНСТРУКЦИЯ ПО ДОБАВЛЕНИЮ В VERCEL:
+# ===========================================
+# 1. Зайдите в https://vercel.com/dashboard
+# 2. Выберите проект "pixelprint"
+# 3. Перейдите в Settings → Environment Variables
+# 4. Добавьте каждую переменную выше (Name = Value)
+# 5. Убедитесь, что выбрано "Production" environment
+# 6. Нажмите "Save"
+# 7. Перезапустите деплой (Redeploy)
+# ===========================================
