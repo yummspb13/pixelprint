@@ -27,5 +27,6 @@ if (!process.env.NEXTAUTH_SECRET) {
 }
 
 if (!process.env.NODE_ENV) {
-  process.env.NODE_ENV = VERCEL_ENV.NODE_ENV;
+  // NODE_ENV is read-only, so we can't assign it directly
+  // It should be set by the runtime environment
 }
