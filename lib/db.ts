@@ -1,6 +1,5 @@
 import { PrismaClient } from "@prisma/client";
 import { logger } from "./logger";
-import "./vercel-env"; // Import Vercel environment variables
 
 const globalForPrisma = global as unknown as { prisma?: PrismaClient };
 
