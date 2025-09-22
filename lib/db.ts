@@ -12,9 +12,14 @@ logger.info("DATABASE_URL starts with postgresql:", process.env.DATABASE_URL?.st
 logger.info("All environment variables:", Object.keys(process.env).filter(key => key.includes('DATABASE') || key.includes('NEXT')));
 logger.info("=== END DATABASE DEBUG ===");
 
-// Создаем PrismaClient правильно
+// Создаем PrismaClient правильно с SSL настройками для Supabase
 const prisma = globalForPrisma.prisma ?? new PrismaClient({
   log: ['query', 'info', 'warn', 'error'],
+  datasources: {
+    db: {
+      url: process.env.DATABASE_URL?.replace('sslmode=require', 'sslmode=prefer')
+    }
+  }
 });
 
 logger.info("Prisma client created successfully");
