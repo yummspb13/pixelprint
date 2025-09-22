@@ -5,10 +5,10 @@ DATABASE_URL=postgresql://postgres.nrtznccqxnfbvgarbqua:Rat606727931@aws-1-eu-we
 
 DIRECT_URL=postgresql://postgres:Rat606727931@db.nrtznccqxnfbvgarbqua.supabase.co:5432/postgres
 
-NEXTAUTH_URL=https://pixelprint.vercel.app
+NEXTAUTH_URL=https://pixelprint1.vercel.app
 
 NEXTAUTH_SECRET=YiKvmPodG1vruzLhJnNKSFUsY3IRdSFLchOfG9Reiwg=
 
 NODE_ENV=production
 
-NEXT_PUBLIC_SITE_URL=https://pixelprint.vercel.app
+NEXT_PUBLIC_SITE_URL=https://pixelprint1.vercel.app
