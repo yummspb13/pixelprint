@@ -96,6 +96,25 @@ export async function POST(request: NextRequest) {
       itemsCount: processedItems.length
     });
     
+    // Clean processedItems to remove any potential ID fields
+    const cleanProcessedItems = processedItems.map((item: any) => {
+      const { id, ...cleanItem } = item;
+      return cleanItem;
+    });
+    
+    console.log('💾 ORDERS API: Cleaned items (removed IDs):', cleanProcessedItems.length);
+    
+    // Check if orderNumber already exists
+    const existingOrder = await prisma.order.findUnique({
+      where: { orderNumber }
+    });
+    
+    if (existingOrder) {
+      console.log('⚠️ ORDERS API: Order number already exists, generating new one');
+      const newOrderNumber = `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
+      console.log('💾 ORDERS API: New order number:', newOrderNumber);
+    }
+    
     const order = await prisma.order.create({
       data: {
         // Don't include id - let Prisma auto-generate it
@@ -117,7 +136,7 @@ export async function POST(request: NextRequest) {
         deliveryContactPhone: customerInfo?.phone || '',
         deliveryCost: deliveryCost,
         orderItems: {
-          create: processedItems.map((item: any) => ({
+          create: cleanProcessedItems.map((item: any) => ({
             // Don't include id for OrderItem either
             serviceName: item.serviceName,
             serviceSlug: item.serviceSlug,
