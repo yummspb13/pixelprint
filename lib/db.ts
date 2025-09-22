@@ -12,12 +12,18 @@ logger.info("DATABASE_URL starts with postgresql:", process.env.DATABASE_URL?.st
 logger.info("All environment variables:", Object.keys(process.env).filter(key => key.includes('DATABASE') || key.includes('NEXT')));
 logger.info("=== END DATABASE DEBUG ===");
 
+// Проверяем наличие DATABASE_URL
+if (!process.env.DATABASE_URL) {
+  logger.error("❌ DATABASE_URL environment variable is not set!");
+  throw new Error("DATABASE_URL environment variable is required");
+}
+
 // Создаем PrismaClient правильно с SSL настройками для Supabase
 const prisma = globalForPrisma.prisma ?? new PrismaClient({
   log: ['query', 'info', 'warn', 'error'],
   datasources: {
     db: {
-      url: process.env.DATABASE_URL?.replace('sslmode=require', 'sslmode=prefer')
+      url: process.env.DATABASE_URL.replace('sslmode=require', 'sslmode=prefer')
     }
   }
 });
