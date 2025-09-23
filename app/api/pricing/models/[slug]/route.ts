@@ -4,9 +4,9 @@ import { PRICING_TAG } from "@/lib/pricing-const";
 
 export const runtime = 'nodejs';
 
-export async function GET(_: Request, { params }: { params: Promise<{ slug: string }> }) {
+export async function GET(_: Request, context: { params: Promise<{ slug: string }> }) {
   try {
-    const { slug } = await params;
+    const { slug } = await context.params;
     
     // Находим услугу в базе данных
     const service = await prisma.service.findUnique({

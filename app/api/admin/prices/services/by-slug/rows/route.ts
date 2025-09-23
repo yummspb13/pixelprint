@@ -5,9 +5,9 @@ import { PRICING_TAG } from "@/lib/pricing-const";
 
 export const runtime = 'nodejs';
 
-export async function GET(_: Request, { params }: { params: Promise<{ slug: string }> }) {
+export async function GET(_: Request, context: { params: Promise<{ slug: string }> }) {
   try {
-    const { slug } = await params;
+    const { slug } = await context.params;
     const s = await prisma.service.findUnique({
       where: { slug },
       include: { rows: { include: { tiers: true }, orderBy: { id: "asc" } } }
@@ -25,8 +25,8 @@ export async function GET(_: Request, { params }: { params: Promise<{ slug: stri
 }
 
 // создать новый ряд
-export async function POST(req: Request, { params }: { params: Promise<{ slug: string }> }) {
-  const { slug } = await params;
+export async function POST(req: Request, context: { params: Promise<{ slug: string }> }) {
+  const { slug } = await context.params;
   const { attrs = {}, ruleKind = "perUnit", unit = null, setup = null, fixed = null } = await req.json();
   const s = await prisma.service.findUnique({ where:{ slug } });
   if (!s) return NextResponse.json({ ok:false, error:"service not found" }, { status:404 });

@@ -5,10 +5,10 @@ export const runtime = 'nodejs';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ slug: string }> }
+  context: { params: Promise<{ slug: string }> }
 ) {
   try {
-    const { slug } = await params;
+    const { slug } = await context.params;
     console.log('Fetching history for slug:', slug);
     
     const service = await prisma.service.findUnique({

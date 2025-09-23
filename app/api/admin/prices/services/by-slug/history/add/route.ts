@@ -5,10 +5,10 @@ export const runtime = 'nodejs';
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ slug: string }> }
+  context: { params: Promise<{ slug: string }> }
 ) {
   try {
-    const { slug } = await params;
+    const { slug } = await context.params;
     const { changeType, description, rowId, oldData, newData } = await request.json();
     
     console.log('Adding change history:', { slug, changeType, description, rowId });

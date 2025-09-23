@@ -6,10 +6,10 @@ export const runtime = 'nodejs';
 // GET /api/admin/prices/services/[id] - Get single service
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params;
+    const { id } = await context.params;
     const service = await prisma.service.findUnique({
       where: { id: parseInt(id) },
       include: { _count: { select: { rows: true } } }
@@ -29,10 +29,10 @@ export async function GET(
 // PUT /api/admin/prices/services/[id] - Update service
 export async function PUT(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params;
+    const { id } = await context.params;
     const { name, category, slug } = await request.json();
 
     if (!name || !category || !slug) {
@@ -67,10 +67,10 @@ export async function PUT(
 // DELETE /api/admin/prices/services/[id] - Delete single service
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params;
+    const { id } = await context.params;
     
     const service = await prisma.service.findUnique({
       where: { id: parseInt(id) },
