@@ -6,7 +6,7 @@ export const runtime = 'nodejs';
 // GET /api/why-articles/[id] - Get single article for frontend
 export async function GET(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  context: { params: Promise<any> }
 ) {
   try {
     const { id } = await context.params;
@@ -37,7 +37,7 @@ export async function GET(
 // PUT /api/why-articles/[id] - Update article
 export async function PUT(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  context: { params: Promise<any> }
 ) {
   try {
     const { id } = await context.params;

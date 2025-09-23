@@ -6,7 +6,7 @@ export const runtime = 'nodejs';
 // GET /api/services/[id] - Get single service
 export async function GET(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  context: { params: Promise<any> }
 ) {
   try {
     const { id } = await context.params;
@@ -34,7 +34,7 @@ export async function GET(
 // PUT /api/services/[id] - Update service
 export async function PUT(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  context: { params: Promise<any> }
 ) {
   try {
     const { id } = await context.params;
@@ -79,7 +79,7 @@ export async function PUT(
 // DELETE /api/services/[id] - Delete service
 export async function DELETE(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  context: { params: Promise<any> }
 ) {
   try {
     const { id } = await context.params;

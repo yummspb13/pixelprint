@@ -6,7 +6,7 @@ export const runtime = 'nodejs';
 // GET /api/admin/why-articles/[id] - Get single article
 export async function GET(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  context: { params: Promise<any> }
 ) {
   try {
     const { id } = await context.params;
@@ -34,7 +34,7 @@ export async function GET(
 // PUT /api/admin/why-articles/[id] - Update article
 export async function PUT(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  context: { params: Promise<any> }
 ) {
   try {
     const { id } = await context.params;
@@ -69,7 +69,7 @@ export async function PUT(
 // DELETE /api/admin/why-articles/[id] - Delete article
 export async function DELETE(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  context: { params: Promise<any> }
 ) {
   try {
     const { id } = await context.params;

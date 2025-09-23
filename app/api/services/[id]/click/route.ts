@@ -6,7 +6,7 @@ export const runtime = 'nodejs';
 // POST /api/services/[id]/click - Track service click
 export async function POST(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  context: { params: Promise<any> }
 ) {
   try {
     const { id } = await context.params;

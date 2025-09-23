@@ -6,7 +6,7 @@ export const runtime = 'nodejs';
 // GET /api/admin/menu/[id] - Get single menu tile
 export async function GET(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  context: { params: Promise<any> }
 ) {
   try {
     const { id } = await context.params;
@@ -34,7 +34,7 @@ export async function GET(
 // PUT /api/admin/menu/[id] - Update menu tile
 export async function PUT(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  context: { params: Promise<any> }
 ) {
   try {
     const { id } = await context.params;
@@ -65,7 +65,7 @@ export async function PUT(
 // DELETE /api/admin/menu/[id] - Delete menu tile
 export async function DELETE(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  context: { params: Promise<any> }
 ) {
   try {
     const { id } = await context.params;

@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db";
 // PATCH order status
 export async function PATCH(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  context: { params: Promise<any> }
 ) {
   try {
     const { id } = await context.params;
@@ -32,7 +32,7 @@ export async function PATCH(
 // GET single order for admin
 export async function GET(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  context: { params: Promise<any> }
 ) {
   try {
     const { id } = await context.params;

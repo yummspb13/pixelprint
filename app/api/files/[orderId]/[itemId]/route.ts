@@ -5,7 +5,7 @@ import { join } from "path";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ orderId: string; itemId: string }> }
+  { params }: { params: Promise<any> }
 ) {
   try {
     const { orderId, itemId } = await context.params;

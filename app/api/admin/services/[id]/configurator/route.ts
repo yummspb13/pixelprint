@@ -6,7 +6,7 @@ export const runtime = 'nodejs';
 // PATCH /api/admin/services/[id]/configurator - Toggle configurator for service
 export async function PATCH(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  context: { params: Promise<any> }
 ) {
   try {
     const { id } = await context.params;

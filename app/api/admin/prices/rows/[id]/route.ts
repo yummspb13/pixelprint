@@ -5,7 +5,7 @@ import { PRICING_TAG } from "@/lib/pricing-const";
 
 export const runtime = 'nodejs';
 
-export async function PATCH(req: Request, context: { params: Promise<{ id: string }> }) {
+export async function PATCH(req: Request, context: { params: Promise<any> }) {
   const body = await req.json();
   const { id } = await context.params;
   const row = await prisma.priceRow.update({ where:{ id: Number(id) }, data: body });
@@ -13,7 +13,7 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
   return NextResponse.json({ ok:true, row });
 }
 
-export async function DELETE(_: Request, context: { params: Promise<{ id: string }> }) {
+export async function DELETE(_: Request, context: { params: Promise<any> }) {
   const { id } = await context.params;
   await prisma.priceRow.delete({ where:{ id: Number(id) } });
   revalidateTag(PRICING_TAG);

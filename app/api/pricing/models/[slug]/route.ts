@@ -4,7 +4,7 @@ import { PRICING_TAG } from "@/lib/pricing-const";
 
 export const runtime = 'nodejs';
 
-export async function GET(_: Request, context: { params: Promise<{ slug: string }> }) {
+export async function GET(_: Request, context: { params: Promise<any> }) {
   try {
     const { slug } = await context.params;
     

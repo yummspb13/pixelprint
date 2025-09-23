@@ -5,7 +5,7 @@ import { PRICING_TAG } from "@/lib/pricing-const";
 
 export const runtime = 'nodejs';
 
-export async function PUT(req: Request, context: { params: Promise<{ id: string }> }) {
+export async function PUT(req: Request, context: { params: Promise<any> }) {
   const { id } = await context.params;
   const { tiers = [], setup = null } = await req.json(); // tiers: [{qty,unit}]
   const rowId = Number(id);

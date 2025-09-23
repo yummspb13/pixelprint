@@ -5,7 +5,7 @@ export const runtime = 'nodejs';
 
 export async function GET(
   request: NextRequest,
-  context: { params: Promise<{ slug: string }> }
+  context: { params: Promise<any> }
 ) {
   try {
     const { slug } = await context.params;
