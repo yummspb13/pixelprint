@@ -5,8 +5,8 @@ import { PRICING_TAG } from "@/lib/pricing-const";
 
 export const runtime = 'nodejs';
 
-export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
+export async function PUT(req: Request, context: { params: Promise<{ id: string }> }) {
+  const { id } = await context.params;
   const { tiers = [], setup = null } = await req.json(); // tiers: [{qty,unit}]
   const rowId = Number(id);
   await prisma.$transaction([

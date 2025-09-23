@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 
-export async function GET(request: NextRequest, { params }: { params: Promise<{ orderNumber: string }> }) {
+export async function GET(request: NextRequest, context: { params: Promise<{ orderNumber: string }> }) {
   try {
-    const { orderNumber } = await params;
+    const { orderNumber } = await context.params;
     const { searchParams } = new URL(request.url);
     const customerEmail = searchParams.get('email');
 

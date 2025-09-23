@@ -8,7 +8,7 @@ export async function GET(
   { params }: { params: Promise<{ orderId: string; itemId: string }> }
 ) {
   try {
-    const { orderId, itemId } = await params;
+    const { orderId, itemId } = await context.params;
 
     // Find the order item
     const orderItem = await prisma.orderItem.findFirst({

@@ -4,10 +4,10 @@ import { prisma } from "@/lib/db";
 // PATCH order status
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params;
+    const { id } = await context.params;
     const { status } = await request.json();
 
     const order = await prisma.order.update({
@@ -32,10 +32,10 @@ export async function PATCH(
 // GET single order for admin
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params;
+    const { id } = await context.params;
 
     const order = await prisma.order.findUnique({
       where: { id: parseInt(id) },

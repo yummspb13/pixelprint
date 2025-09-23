@@ -6,10 +6,10 @@ export const runtime = 'nodejs';
 // GET /api/admin/menu/[id] - Get single menu tile
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params;
+    const { id } = await context.params;
     const tile = await prisma.menuTile.findUnique({
       where: { id: parseInt(id) }
     });
@@ -34,10 +34,10 @@ export async function GET(
 // PUT /api/admin/menu/[id] - Update menu tile
 export async function PUT(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params;
+    const { id } = await context.params;
     const body = await request.json();
     const { label, href, image, order, isActive } = body;
 
@@ -65,10 +65,10 @@ export async function PUT(
 // DELETE /api/admin/menu/[id] - Delete menu tile
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params;
+    const { id } = await context.params;
     await prisma.menuTile.delete({
       where: { id: parseInt(id) }
     });

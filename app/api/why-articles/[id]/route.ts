@@ -6,10 +6,10 @@ export const runtime = 'nodejs';
 // GET /api/why-articles/[id] - Get single article for frontend
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params;
+    const { id } = await context.params;
     const article = await prisma.whyArticle.findFirst({
       where: { 
         id: parseInt(id),
@@ -37,10 +37,10 @@ export async function GET(
 // PUT /api/why-articles/[id] - Update article
 export async function PUT(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params;
+    const { id } = await context.params;
     const body = await request.json();
     
     const article = await prisma.whyArticle.update({

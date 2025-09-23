@@ -6,10 +6,10 @@ export const runtime = 'nodejs';
 // POST /api/services/[id]/click - Track service click
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params;
+    const { id } = await context.params;
     const serviceId = parseInt(id);
     
     // Increment click count

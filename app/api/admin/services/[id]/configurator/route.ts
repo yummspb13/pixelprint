@@ -6,10 +6,10 @@ export const runtime = 'nodejs';
 // PATCH /api/admin/services/[id]/configurator - Toggle configurator for service
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params;
+    const { id } = await context.params;
     const { enabled } = await request.json();
     const serviceId = parseInt(id);
 

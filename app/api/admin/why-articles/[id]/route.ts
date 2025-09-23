@@ -6,10 +6,10 @@ export const runtime = 'nodejs';
 // GET /api/admin/why-articles/[id] - Get single article
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params;
+    const { id } = await context.params;
     const article = await prisma.whyArticle.findUnique({
       where: { id: parseInt(id) }
     });
@@ -34,10 +34,10 @@ export async function GET(
 // PUT /api/admin/why-articles/[id] - Update article
 export async function PUT(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params;
+    const { id } = await context.params;
     const body = await request.json();
     const { title, text, image, href, span, content, images, order, isActive } = body;
 
@@ -69,10 +69,10 @@ export async function PUT(
 // DELETE /api/admin/why-articles/[id] - Delete article
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params;
+    const { id } = await context.params;
     
     await prisma.whyArticle.delete({
       where: { id: parseInt(id) }
