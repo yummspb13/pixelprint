@@ -7,6 +7,7 @@ import ContactSection from '@/components/sections/ContactSection';
 import ScrollReveal from '@/components/ux/ScrollReveal';
 import CommandPalette from '@/components/ux/CommandPalette';
 import { logger } from '@/lib/logger';
+import { prisma } from '@/lib/db';
 
 export const dynamic = 'force-dynamic'
 
@@ -28,19 +29,34 @@ export const metadata = {
   viewport: 'width=device-width, initial-scale=1',
 };
 
-export default function Page() {
+export default async function Page() {
   logger.info("=== HOME PAGE RENDERED ===");
   logger.info("Environment:", {
     NODE_ENV: process.env.NODE_ENV,
     DATABASE_URL_EXISTS: !!process.env.DATABASE_URL,
     NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL
   });
+
+  // Загружаем услуги для HeroPrintPro
+  let services: any[] = [];
+  try {
+    services = await prisma.service.findMany({
+      where: { isActive: true },
+      orderBy: [
+        { categoryOrder: 'asc' },
+        { order: 'asc' },
+        { clickCount: 'desc' }
+      ]
+    });
+  } catch (error) {
+    console.error('Error loading services for HeroPrintPro:', error);
+  }
   
   return (
     <div className="min-h-screen bg-px-bg">
       <Header />
       <main>
-        <HeroPrintPro variant="photo" />
+        <HeroPrintPro variant="photo" services={services} />
         <ScrollReveal>
           <ServicesGridSSR />
         </ScrollReveal>

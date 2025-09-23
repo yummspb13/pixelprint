@@ -16,7 +16,8 @@ import {
   Menu,
   X,
   LogOut,
-  BookOpen
+  BookOpen,
+  Search
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "./AuthProvider";
@@ -28,6 +29,7 @@ const navigation = [
   { name: "Services", href: "/admin/configurator", icon: Printer },
   { name: "Menu", href: "/admin/menu", icon: Menu },
   { name: "Articles", href: "/admin/articles", icon: BookOpen },
+  { name: "Search Analytics", href: "/admin/search", icon: Search },
   { name: "Mail (soon)", href: "/admin/mail", icon: Mail, comingSoon: true },
   { name: "Analytics", href: "/admin/analytics", icon: BarChart3 },
   { name: "Customers", href: "/admin/customers", icon: Users },
@@ -46,7 +48,7 @@ export default function AdminSidebar() {
       <Button
         variant="ghost"
         size="sm"
-        className="lg:hidden fixed top-4 left-4 z-50 bg-white shadow-lg"
+        className="lg:hidden fixed top-16 left-4 z-50 bg-white shadow-lg border border-gray-200"
         onClick={() => setIsOpen(!isOpen)}
       >
         {isOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
@@ -62,17 +64,18 @@ export default function AdminSidebar() {
 
       {/* Sidebar */}
       <div className={`
-        fixed lg:relative inset-y-0 left-0 z-50 w-64 bg-white border-r border-gray-200 transform transition-transform duration-300 ease-in-out
+        fixed lg:relative inset-y-0 left-0 z-50 w-72 sm:w-80 lg:w-64 bg-white border-r border-gray-200 transform transition-transform duration-300 ease-in-out
         ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
         {/* Logo */}
         <div className="p-6 border-b border-gray-200">
           <div className="flex items-center space-x-3">
-            <div className="h-8 w-8 rounded bg-gradient-to-r from-px-cyan via-px-magenta to-px-yellow flex items-center justify-center">
-              <Printer className="h-5 w-5 text-white" />
-            </div>
+            <img 
+              src="/logo.png" 
+              alt="Pixel Print" 
+              className="h-8 w-auto"
+            />
             <div>
-              <h1 className="text-xl font-bold text-px-fg">Pixel Print</h1>
               <p className="text-sm text-px-muted">Admin Panel</p>
             </div>
           </div>

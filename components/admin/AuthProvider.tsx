@@ -25,23 +25,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const checkAuth = async () => {
     console.log("🔍 AUTH CHECK: Starting...");
+    
+    // Если мы на странице логина, не проверяем аутентификацию
+    if (typeof window !== 'undefined' && window.location.pathname === '/admin/login') {
+      console.log("🔍 AUTH CHECK: On login page, skipping auth check");
+      setIsLoading(false);
+      return;
+    }
+    
     try {
-      const response = await fetch('/api/admin/auth');
+      const response = await fetch('/api/admin/auth', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include', // Важно для cookies
+      });
       console.log("🔍 AUTH CHECK: Response status:", response.status);
       
-      const data = await response.json();
-      console.log("🔍 AUTH CHECK: Response data:", data);
-      
-      if (data.authenticated) {
-        console.log("✅ AUTH CHECK: User authenticated:", data.user);
-        setUser(data.user);
+      if (response.status === 200) {
+        const data = await response.json();
+        console.log("🔍 AUTH CHECK: Response data:", data);
+        
+        if (data.authenticated) {
+          console.log("✅ AUTH CHECK: User authenticated:", data.user);
+          setUser(data.user);
+        } else {
+          console.log("❌ AUTH CHECK: User not authenticated");
+          setUser(null);
+        }
       } else {
-        console.log("❌ AUTH CHECK: User not authenticated");
+        console.log("❌ AUTH CHECK: Auth check failed with status:", response.status);
         setUser(null);
       }
     } catch (error) {
       console.error("💥 AUTH CHECK ERROR:", error);
-      setUser(null);
+      // Если это ошибка сети, не сбрасываем пользователя сразу
+      if (error instanceof TypeError && error.message === 'Failed to fetch') {
+        console.log("🌐 AUTH CHECK: Network error, keeping current state");
+        // Не меняем состояние пользователя при сетевых ошибках
+      } else {
+        setUser(null);
+      }
     } finally {
       console.log("🔍 AUTH CHECK: Setting isLoading to false");
       setIsLoading(false);
@@ -56,6 +81,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include', // Важно для cookies
         body: JSON.stringify({ email, password }),
       });
 
@@ -80,11 +106,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await fetch('/api/admin/auth', {
         method: 'DELETE',
+        credentials: 'include', // Важно для cookies
       });
       setUser(null);
       router.push('/admin/login');
     } catch (error) {
       console.error("Logout error:", error);
+      // Даже если logout не удался, сбрасываем пользователя локально
+      setUser(null);
+      router.push('/admin/login');
     }
   };
 

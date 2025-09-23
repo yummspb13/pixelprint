@@ -33,11 +33,17 @@ export default function MegaMenuPro() {
 
   const fetchMenuTiles = async () => {
     try {
-      const response = await fetch('/api/admin/menu');
+      const response = await fetch('/api/menu');
       const data = await response.json();
-      setMenuTiles((data.tiles || []).filter((tile: MenuTile) => tile.isActive));
+      if (data.ok) {
+        setMenuTiles(data.tiles || []);
+      } else {
+        console.error('Error fetching menu tiles:', data.error);
+        setMenuTiles([]);
+      }
     } catch (error) {
       console.error('Error fetching menu tiles:', error);
+      setMenuTiles([]);
     } finally {
       setLoading(false);
     }
@@ -73,7 +79,7 @@ export default function MegaMenuPro() {
           <NavigationMenuItem key={sec.id}>
             <NavigationMenuTrigger className="text-sm font-medium">{sec.label}</NavigationMenuTrigger>
             <NavigationMenuContent>
-              <div className="w-[900px] max-w-[min(90vw,1000px)] p-4">
+              <div className="w-[900px] max-w-[min(90vw,1000px)] p-6">
                 {/* Плитки сверху */}
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                   {sec.tiles.slice(0, 8).map((tile, index) => (
@@ -93,7 +99,7 @@ export default function MegaMenuPro() {
                         <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition
                                         bg-gradient-to-t from-black/15 to-transparent" />
                       </div>
-                      <div className="flex items-center justify-between px-3 py-2">
+                      <div className="flex items-center justify-between px-4 py-3">
                         <span className="text-sm font-medium text-zinc-800">{tile.label}</span>
                         <ChevronRight className="h-4 w-4 text-zinc-400 group-hover:text-zinc-600 transition" />
                       </div>

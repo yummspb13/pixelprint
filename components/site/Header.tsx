@@ -16,6 +16,7 @@ import { useCart } from '@/contexts/CartContext';
 import CartProvider from '@/components/cart/CartProvider';
 import LanguageSwitcher from '@/components/ui/LanguageSwitcher';
 import { useLanguage } from '@/contexts/LanguageContext';
+import SearchAutocomplete from '@/components/search/SearchAutocomplete';
 
 export default function Header() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -109,25 +110,44 @@ export default function Header() {
       }
     };
 
+    const handleClickOutside = (e: MouseEvent) => {
+      if (isSearchOpen) {
+        // Проверяем, что клик не по поисковой панели и не по кнопке поиска
+        const target = e.target as Element;
+        const searchPanel = target.closest('[data-search-panel]');
+        const searchButton = target.closest('[data-search-button]');
+        
+        if (!searchPanel && !searchButton) {
+          setIsSearchOpen(false);
+          setSearchQuery('');
+        }
+      }
+    };
+
     document.addEventListener('openLoginModal', handleOpenLoginModal);
     document.addEventListener('openSearchModal', handleOpenSearchModal);
     document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('click', handleClickOutside);
     
     return () => {
       document.removeEventListener('openLoginModal', handleOpenLoginModal);
       document.removeEventListener('openSearchModal', handleOpenSearchModal);
       document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('click', handleClickOutside);
     };
   }, [isSearchOpen]);
 
   return (
     <>
       <header className="sticky top-0 z-40 border-b bg-white/80 backdrop-blur">
-        <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4">
+        <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 sm:px-6">
           {/* Лого */}
-          <Link href="/" className="flex items-center space-x-2">
-            <div className="h-8 w-8 rounded bg-gradient-to-r from-px-cyan to-px-magenta" />
-            <span className="font-playfair text-xl font-bold text-px-fg">Pixel Print</span>
+          <Link href="/" className="flex items-center">
+            <img 
+              src="/logo.png" 
+              alt="Pixel Print" 
+              className="h-10 w-auto"
+            />
           </Link>
 
           {/* Navigation Menu */}
@@ -167,6 +187,7 @@ export default function Header() {
           <div className="flex items-center gap-2">
             {/* Search Icon */}
             <button 
+              data-search-button
               onClick={handleSearchToggle}
               className="hidden md:flex rounded-full p-2 text-zinc-600 hover:text-px-cyan hover:bg-px-cyan/10 transition-all duration-200 group"
               title={t('header.search')}
@@ -207,7 +228,7 @@ export default function Header() {
             )}
 
             {/* Call Now Button */}
-            <Button asChild className="bg-gradient-to-r from-px-cyan to-px-magenta hover:from-px-cyan/90 hover:to-px-magenta/90 text-white rounded-full px-4 py-2">
+            <Button asChild className="bg-gradient-to-r from-px-cyan to-px-magenta hover:from-px-cyan/90 hover:to-px-magenta/90 text-white rounded-full px-4 py-2 focus:outline-none focus:ring-2 focus:ring-px-cyan focus:ring-offset-2">
               <Link href="/contact">
                 <Phone className="mr-2 h-4 w-4" />
                 {t('hero.callNow')}
@@ -219,38 +240,24 @@ export default function Header() {
         </div>
 
         {/* Search Bar - Slides in from right */}
-        <div className={`absolute top-0 right-0 h-14 bg-white/95 backdrop-blur-sm border-b shadow-lg transition-all duration-500 ease-in-out ${
-          isSearchOpen ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'
-        }`} style={{ width: isSearchOpen ? 'calc(100% - 200px)' : '0px' }}>
+        <div 
+          data-search-panel
+          className={`absolute top-0 right-0 h-14 bg-transparent backdrop-blur-sm border-b shadow-lg transition-all duration-500 ease-in-out z-[90] rounded-l-3xl md:rounded-l-3xl rounded-l-none ${
+            isSearchOpen ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'
+          }`} 
+          style={{ 
+            width: isSearchOpen ? 'min(calc(100% - 200px), calc(100vw - 1rem))' : '0px'
+          }}
+        >
           <div className="h-full flex items-center px-6">
-            <form onSubmit={handleSearchSubmit} className="flex items-center gap-4 w-full">
-              <div className="flex-1 relative">
-                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-px-cyan" />
-                <Input
-                  id="header-search"
-                  type="text"
+            <div className="flex items-center gap-4 w-full">
+              <div className="flex-1">
+                <SearchAutocomplete
                   placeholder={t('header.search')}
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-12 pr-4 py-3 w-full border-2 border-px-cyan/20 focus:border-px-cyan focus:ring-px-cyan/20 rounded-full bg-zinc-50/50 text-lg"
+                  onClose={() => setIsSearchOpen(false)}
                 />
               </div>
-              <Button 
-                type="submit" 
-                className="bg-gradient-to-r from-px-cyan to-px-magenta hover:from-px-cyan/90 hover:to-px-magenta/90 text-white rounded-full px-6 py-3 font-medium"
-              >
-                {t('common.search')}
-              </Button>
-              <Button 
-                type="button" 
-                variant="outline" 
-                onClick={handleSearchToggle}
-                className="border-2 border-zinc-300 text-zinc-700 hover:bg-zinc-50 hover:border-zinc-400 rounded-full p-3 transition-all"
-                title="Close search (Esc)"
-              >
-                <X className="h-5 w-5" />
-              </Button>
-            </form>
+            </div>
           </div>
         </div>
       </header>

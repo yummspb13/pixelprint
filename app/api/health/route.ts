@@ -16,7 +16,7 @@ export async function GET() {
     
     return NextResponse.json({ 
       ok: true, 
-      rows,
+      rows: Array.isArray(rows) ? rows.map(row => ({ ...row, ok: Number(row.ok) })) : rows,
       env: {
         DATABASE_URL_EXISTS: !!process.env.DATABASE_URL,
         DIRECT_URL_EXISTS: !!process.env.DIRECT_URL,

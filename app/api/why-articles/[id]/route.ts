@@ -33,3 +33,35 @@ export async function GET(
     );
   }
 }
+
+// PUT /api/why-articles/[id] - Update article
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const body = await request.json();
+    
+    const article = await prisma.whyArticle.update({
+      where: { id: parseInt(id) },
+      data: {
+        title: body.title,
+        text: body.text,
+        image: body.image,
+        href: body.href,
+        span: body.span,
+        order: body.order,
+        isActive: body.isActive
+      }
+    });
+
+    return NextResponse.json({ article });
+  } catch (error) {
+    console.error('Error updating article:', error);
+    return NextResponse.json(
+      { error: 'Failed to update article' },
+      { status: 500 }
+    );
+  }
+}

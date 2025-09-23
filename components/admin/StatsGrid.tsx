@@ -53,9 +53,9 @@ export default function StatsGrid() {
 
   if (loading) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {[...Array(4)].map((_, i) => (
-          <AdminCard key={i} title="" className="p-4">
+          <AdminCard key={i} title="" className="p-3 sm:p-4">
             <div className="animate-pulse">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
@@ -76,8 +76,8 @@ export default function StatsGrid() {
 
   if (!stats) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <AdminCard title="Error" className="p-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <AdminCard title="Error" className="p-3 sm:p-4">
           <div className="text-center text-red-500">
             <p className="text-sm">Error loading stats</p>
           </div>
@@ -121,7 +121,7 @@ export default function StatsGrid() {
     }
   ];
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
       {statsData.map((stat) => {
         const Icon = stat.icon;
         const colorClasses = {
@@ -131,18 +131,18 @@ export default function StatsGrid() {
         };
         
         return (
-          <AdminCard key={stat.title} title={stat.title} className="p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div className={`p-2 rounded-lg ${colorClasses[stat.color as keyof typeof colorClasses]}`}>
-                  <Icon className="h-4 w-4" />
+          <AdminCard key={stat.title} title={stat.title} className="p-3 sm:p-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-2 sm:space-y-0">
+              <div className="flex items-center space-x-2 sm:space-x-3">
+                <div className={`p-1.5 sm:p-2 rounded-lg ${colorClasses[stat.color as keyof typeof colorClasses]}`}>
+                  <Icon className="h-3 w-3 sm:h-4 sm:w-4" />
                 </div>
                 <div>
                   <p className="text-xs font-medium text-px-muted">{stat.title}</p>
-                  <p className="text-lg font-semibold text-px-fg">{stat.value}</p>
+                  <p className="text-sm sm:text-lg font-semibold text-px-fg">{stat.value}</p>
                 </div>
               </div>
-              <span className={`text-xs font-medium ${
+              <span className={`text-xs font-medium self-start sm:self-auto ${
                 stat.changeType === 'positive' ? 'text-green-600' : 'text-red-600'
               }`}>
                 {stat.change}

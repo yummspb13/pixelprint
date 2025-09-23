@@ -1,0 +1,10 @@
+<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+  <!-- Cyan square (top-left) -->
+  <rect x="0" y="0" width="32" height="32" fill="#00AEEF"/>
+  
+  <!-- Yellow square (bottom-left) -->
+  <rect x="0" y="32" width="32" height="32" fill="#FFF200"/>
+  
+  <!-- Magenta square (bottom-right) -->
+  <rect x="32" y="32" width="32" height="32" fill="#EC008C"/>
+</svg>

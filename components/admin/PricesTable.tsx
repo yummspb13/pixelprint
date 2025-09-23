@@ -123,7 +123,7 @@ export default function PricesTable() {
       // Загружаем детали для каждого сервиса
       const servicesWithDetails = await Promise.all(
         data.map(async (service: any) => {
-          const rowsResponse = await fetch(`/api/admin/prices/services/${service.slug}/rows/`);
+          const rowsResponse = await fetch(`/api/admin/prices/services/by-slug/${service.slug}/rows/`);
           const rowsData = await rowsResponse.json();
           return {
             ...service,

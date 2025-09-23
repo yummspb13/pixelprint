@@ -99,7 +99,7 @@ export default function PricesServicesPage() {
       const servicesWithDetails = await Promise.all(
         data.map(async (service: any) => {
           try {
-            const rowsResponse = await fetch(`/api/admin/prices/services/${service.slug}/rows/`);
+            const rowsResponse = await fetch(`/api/admin/prices/services/by-slug/${service.slug}/rows/`);
             const rowsData = await rowsResponse.json();
             console.log(`Rows for ${service.slug}:`, rowsData);
             return {

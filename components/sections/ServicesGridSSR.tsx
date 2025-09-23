@@ -1,4 +1,4 @@
-import { prisma } from '@/lib/prisma';
+import { prisma } from '@/lib/db';
 import ServicesGridNew from './ServicesGridNew';
 
 // Серверный компонент для предзагрузки данных с кэшированием

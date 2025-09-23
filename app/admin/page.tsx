@@ -38,7 +38,7 @@ export default function AdminDashboard() {
               Dashboard
             </span>
           </h1>
-          <p className="text-lg text-px-muted max-w-2xl mt-4">
+          <p className="text-sm sm:text-base lg:text-lg text-px-muted max-w-2xl mt-4">
             Manage your Pixel Print business operations and track performance
           </p>
         </div>
@@ -58,7 +58,7 @@ export default function AdminDashboard() {
 
 
       {/* Additional Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8">
         <ScrollReveal>
           <PopularServices />
         </ScrollReveal>

@@ -189,8 +189,8 @@ export default function WhyPixelGrid({ className = "", id }: { className?: strin
               "before:[-webkit-mask:linear-gradient(#000_0_0)_content-box,linear-gradient(#000_0_0)]",
               "before:[-webkit-mask-composite:xor] before:[mask-composite:exclude]",
               "hover:before:opacity-100",
-              tile.span === "xl" ? "lg:col-span-3" :
-              tile.span === "lg" ? "lg:col-span-2" : "",
+              tile.span === "xl" ? "lg:col-span-2" :
+              tile.span === "lg" ? "lg:col-span-1" : "lg:col-span-1",
             ].join(" ")}
           >
             <TileContent {...tile} onClick={() => handleArticleClick(tile)} />

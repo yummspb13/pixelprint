@@ -66,7 +66,7 @@ function TiltCard({ service, index, onServiceClick }: TiltCardProps) {
         <div className="pr-28 md:pr-48">
           <div className="flex items-center gap-2 mb-2">
             <h3 className={`${getTextSize(language, 'serviceTitle')} font-playfair font-semibold text-px-fg`}>
-              {t(`services.names.${service.slug}`) || service.name}
+              {service.name}
             </h3>
             {service.calculatorAvailable && (
               <div className="w-7 h-7 bg-px-cyan/10 rounded-full flex items-center justify-center">

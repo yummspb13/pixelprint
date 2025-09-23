@@ -47,17 +47,41 @@ export default function SettingsPage() {
   const fetchSettings = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/admin/settings');
+      console.log('🔍 FETCH SETTINGS: Starting...');
+      
+      const response = await fetch('/api/admin/settings', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include', // Важно для cookies
+      });
+      
+      console.log('🔍 FETCH SETTINGS: Response status:', response.status);
+      console.log('🔍 FETCH SETTINGS: Response ok:', response.ok);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
       const data = await response.json();
+      console.log('🔍 FETCH SETTINGS: Response data:', data);
 
       if (data.ok) {
         setSettings(data.settings);
+        console.log('✅ FETCH SETTINGS: Success');
       } else {
+        console.log('❌ FETCH SETTINGS: API returned error');
         toast.error('Failed to load settings');
       }
     } catch (error) {
-      console.error('Error fetching settings:', error);
-      toast.error('Failed to load settings');
+      console.error('💥 FETCH SETTINGS ERROR:', error);
+      if (error instanceof TypeError && error.message === 'Failed to fetch') {
+        console.log('🌐 FETCH SETTINGS: Network error - server might be down');
+        toast.error('Network error - please check if server is running');
+      } else {
+        toast.error('Failed to load settings');
+      }
     } finally {
       setLoading(false);
     }
@@ -71,6 +95,7 @@ export default function SettingsPage() {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include', // Важно для cookies
         body: JSON.stringify({ settings }),
       });
 
@@ -110,6 +135,7 @@ export default function SettingsPage() {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include', // Важно для cookies
         body: JSON.stringify({ action: 'list' }),
       });
 

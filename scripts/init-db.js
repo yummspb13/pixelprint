@@ -98,7 +98,7 @@ async function initDatabase() {
             text: 'We provide high-quality printing services with fast turnaround times.',
             image: '/uploads/why/quality.jpg',
             href: '/about',
-            span: 'Quality',
+            span: 'xl',
             order: 1,
             isActive: true
           },
@@ -107,7 +107,7 @@ async function initDatabase() {
             text: 'Get your prints delivered quickly with our express service.',
             image: '/uploads/why/speed.jpg',
             href: '/delivery',
-            span: 'Speed',
+            span: '',
             order: 2,
             isActive: true
           }

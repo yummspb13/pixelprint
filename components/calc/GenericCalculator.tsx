@@ -22,8 +22,61 @@ export default function GenericCalculator({ model }: { model: Model }) {
   const [res, setRes] = useState<{ net: number | null; vat: number | null; gross: number | null; modifiers?: { add: number; items: any[] } } | null>(null);
   const [addedToCart, setAddedToCart] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [availableQuantities, setAvailableQuantities] = useState<number[]>([]);
+  const [minQty, setMinQty] = useState<number>(1);
+  const [maxQty, setMaxQty] = useState<number>(10000);
+  const [modelData, setModelData] = useState<any>(null);
   const { addItem, openCart } = useCart();
   const router = useRouter();
+
+  // Функция для обновления доступных количеств на основе выбранных параметров
+  const updateAvailableQuantities = (modelData: any, currentSelection: Record<string, string>) => {
+    if (!modelData || !modelData.rows) return;
+    
+    // Находим строку, которая соответствует выбранным параметрам
+    const matchingRow = modelData.rows.find((row: any) => {
+      const rowAttrs = row.attrs || {};
+      return Object.keys(currentSelection).every(key => 
+        rowAttrs[key] === currentSelection[key]
+      );
+    });
+    
+    if (matchingRow && matchingRow.rule && matchingRow.rule.tiers) {
+      const quantities = matchingRow.rule.tiers
+        .map((tier: any) => tier.qty)
+        .sort((a: number, b: number) => a - b);
+      
+      setAvailableQuantities(quantities);
+      
+      if (quantities.length > 0) {
+        setMinQty(quantities[0]);
+        setMaxQty(quantities[quantities.length - 1]);
+        
+        // Устанавливаем первое доступное количество, если текущее не подходит
+        if (qty < quantities[0] || qty > quantities[quantities.length - 1]) {
+          setQty(quantities[0]);
+        }
+      }
+    } else {
+      // Если не найдена подходящая строка, показываем все количества
+      const allQuantities = new Set<number>();
+      modelData.rows.forEach((row: any) => {
+        if (row.rule && row.rule.tiers) {
+          row.rule.tiers.forEach((tier: any) => {
+            allQuantities.add(tier.qty);
+          });
+        }
+      });
+      
+      const sortedQuantities = Array.from(allQuantities).sort((a, b) => a - b);
+      setAvailableQuantities(sortedQuantities);
+      
+      if (sortedQuantities.length > 0) {
+        setMinQty(sortedQuantities[0]);
+        setMaxQty(sortedQuantities[sortedQuantities.length - 1]);
+      }
+    }
+  };
 
   // Автоподбор дефолтов (первые значения)
   useEffect(() => {
@@ -35,7 +88,30 @@ export default function GenericCalculator({ model }: { model: Model }) {
     // Добавляем дополнительные поля для заказа (не для расчета цены)
     next["Rush"] = "standard";
     setSel(next);
+    
+    // Загружаем данные модели
+    const fetchModelData = async () => {
+      try {
+        const response = await fetch(`/api/pricing/models/${model.slug}`, { cache: 'no-store' });
+        const data = await response.json();
+        if (data.ok) {
+          setModelData(data.model);
+          updateAvailableQuantities(data.model, next);
+        }
+      } catch (error) {
+        console.error('Error fetching model data:', error);
+      }
+    };
+    
+    fetchModelData();
   }, [model]);
+
+  // Обновляем доступные количества при изменении выбора
+  useEffect(() => {
+    if (modelData && Object.keys(selection).length > 0) {
+      updateAvailableQuantities(modelData, selection);
+    }
+  }, [selection, modelData]);
 
   const canQuote = useMemo(() => qty > 0 && Object.keys(selection).length > 0, [qty, selection]);
 
@@ -111,13 +187,43 @@ export default function GenericCalculator({ model }: { model: Model }) {
             {/* Quantity */}
             <div className="grid gap-2">
               <label className="text-sm font-medium text-px-fg">Quantity</label>
+              
+              {/* Кнопки с доступными количествами */}
+              {availableQuantities.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {availableQuantities.map(n => (
+                    <Button
+                      key={n}
+                      variant={qty === n ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setQty(n)}
+                      className={`${qty === n ? "bg-px-cyan text-white" : ""} text-xs`}
+                    >
+                      {n}
+                    </Button>
+                  ))}
+                </div>
+              )}
+              
               <Input
                 type="number"
-                min={1}
+                min={minQty}
+                max={maxQty}
                 value={qty}
-                onChange={(e) => setQty(parseInt(e.target.value || "0", 10))}
+                onChange={(e) => {
+                  const newQty = parseInt(e.target.value || minQty.toString(), 10);
+                  // Ограничиваем введенное значение диапазоном
+                  const clampedQty = Math.max(minQty, Math.min(maxQty, newQty));
+                  setQty(clampedQty);
+                }}
                 className="border-zinc-200 focus:border-px-cyan focus:ring-px-cyan/20"
               />
+              
+              {availableQuantities.length > 0 && (
+                <div className="text-xs text-px-muted">
+                  Available range: {minQty} - {maxQty} pieces
+                </div>
+              )}
             </div>
 
             {/* Options */}

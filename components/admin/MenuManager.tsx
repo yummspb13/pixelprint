@@ -40,7 +40,7 @@ export default function MenuManager() {
 
   const fetchTiles = async () => {
     try {
-      const response = await fetch('/api/admin/menu/');
+      const response = await fetch('/api/admin/menu');
       const data = await response.json();
       setTiles(data.tiles || []);
     } catch (error) {
@@ -79,7 +79,7 @@ export default function MenuManager() {
     try {
       if (editingTile) {
         // Update existing tile
-        const response = await fetch(`/api/admin/menu/${editingTile.id}/`, {
+        const response = await fetch(`/api/admin/menu/${editingTile.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(formData)
@@ -92,7 +92,7 @@ export default function MenuManager() {
         toast.success('Menu tile updated successfully!');
       } else {
         // Create new tile
-        const response = await fetch('/api/admin/menu/', {
+        const response = await fetch('/api/admin/menu', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(formData)
@@ -117,7 +117,7 @@ export default function MenuManager() {
     if (!confirm('Are you sure you want to delete this menu tile?')) return;
 
     try {
-      const response = await fetch(`/api/admin/menu/${id}/`, {
+      const response = await fetch(`/api/admin/menu/${id}`, {
         method: 'DELETE'
       });
 
@@ -150,12 +150,12 @@ export default function MenuManager() {
 
       // Update both tiles
       await Promise.all([
-        fetch(`/api/admin/menu/${id}/`, {
+        fetch(`/api/admin/menu/${id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ order: tiles[currentIndex].order })
         }),
-        fetch(`/api/admin/menu/${tiles[newIndex].id}/`, {
+        fetch(`/api/admin/menu/${tiles[newIndex].id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ order: tiles[newIndex].order })

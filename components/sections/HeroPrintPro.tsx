@@ -5,9 +5,10 @@ import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { motion, useScroll, useTransform } from "framer-motion";
 import RevealTitle from "@/components/ux/RevealTitle";
-import { Search, Phone, ArrowRight } from "lucide-react";
+import { Search, Phone, ArrowRight, X } from "lucide-react";
 import { useLanguage } from '@/contexts/LanguageContext';
 import { getTextSize } from '@/lib/languageStyles';
+import { useRouter } from 'next/navigation';
 
 type Service = { service: string; slug: string; category: string };
 
@@ -29,7 +30,11 @@ function ParallaxVisuals({ variant }: { variant: "photo" | "collage" | "video" }
 
 export default function HeroPrintPro({
   variant = "collage", // "photo" | "collage" | "video"
-}: { variant?: "photo" | "collage" | "video" }) {
+  services: initialServices = []
+}: { 
+  variant?: "photo" | "collage" | "video";
+  services?: any[];
+}) {
   const [mounted, setMounted] = useState(false);
   const [services, setServices] = useState<Service[]>([]);
   const { t, language } = useLanguage();
@@ -39,13 +44,24 @@ export default function HeroPrintPro({
   }, []);
 
   useEffect(() => {
+    if (initialServices && initialServices.length > 0) {
+      // Используем переданные услуги
+      const filteredServices = initialServices
+        .filter((service: any) => service.isActive)
+        .map((service: any) => ({
+          service: service.name,
+          slug: service.slug,
+          category: service.category
+        }));
+      setServices(filteredServices);
+    } else {
+      // Fallback к API загрузке
     fetch("/api/pricing/services", { cache: "no-store" })
       .then((r) => r.json())
       .then((d) => {
         if (d.ok && Array.isArray(d.services)) {
-          // Фильтруем только услуги с ценами (calculatorAvailable) и активные
           const filteredServices = d.services
-            .filter((service: any) => service.isActive && service.calculatorAvailable)
+              .filter((service: any) => service.isActive)
             .map((service: any) => ({
               service: service.name,
               slug: service.slug,
@@ -57,21 +73,23 @@ export default function HeroPrintPro({
         }
       })
       .catch(() => setServices([]));
-  }, []);
+    }
+  }, [initialServices]);
 
   // параллакс для правого визуала (только на клиенте)
 
   return (
     <section className="relative bg-white overflow-hidden">
-      {/* Background Image */}
-      <div className="absolute inset-0 z-0">
+      <div className="mx-auto max-w-7xl relative px-4 sm:px-6">
+        {/* Background Image - ограничен шириной контента */}
+        <div className="absolute inset-0 z-0 rounded-3xl overflow-hidden mx-4 sm:mx-0">
         <Image
           src="/hero/hero-main.jpg"
           alt="Pixel Print production background"
           fill
           priority
           className="object-cover"
-          sizes="100vw"
+          sizes="(max-width: 1280px) 100vw, 1280px"
           quality={85}
           placeholder="blur"
           blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCdABmX/9k="
@@ -80,7 +98,7 @@ export default function HeroPrintPro({
         <div className="absolute inset-0 bg-white/80 backdrop-blur-sm" />
       </div>
       
-      <div className="relative z-10 mx-auto grid max-w-7xl grid-cols-1 items-center gap-6 px-4 py-8 sm:px-6 sm:py-14 md:grid-cols-2 md:gap-10 md:py-18">
+        <div className="relative z-10 grid grid-cols-1 items-center gap-6 py-8 sm:py-14 md:grid-cols-2 md:gap-10 md:py-18 px-4 sm:px-0">
         {/* LEFT */}
         <div>
           {/* Gradient Title */}
@@ -100,56 +118,40 @@ export default function HeroPrintPro({
             {t('hero.description') || 'Business stationery, flyers, posters, booklets, menus. Expert preflight, same-day options, secure checkout.'}
           </p>
 
-          <div className="mt-6 flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-center gap-3">
+          {/* Desktop buttons - hidden on mobile */}
+          <div className="hidden sm:flex flex-row flex-wrap items-center gap-3 mt-6">
             <div className="group relative">
               <Link
                 href="#quick-quote"
-                className={`inline-flex items-center justify-center rounded-lg bg-[linear-gradient(90deg,#00AEEF,#EC008C)] px-4 py-3 text-white shadow-sm transition hover:brightness-[1.05] w-full sm:w-auto ${getTextSize(language, 'button')} font-medium`}
+                className={`inline-flex items-center justify-center rounded-lg bg-[linear-gradient(90deg,#00AEEF,#EC008C)] px-4 py-3 text-white shadow-sm transition hover:brightness-[1.05] w-auto ${getTextSize(language, 'button')} font-medium`}
               >
                 {t('hero.calculateOrder')} <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
               {/* Tooltip - Desktop */}
-              <div className="hidden sm:block absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 max-w-xs">
+              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 max-w-xs">
                 <div className="text-center whitespace-normal">
                   {t('hero.chooseService')}
                 </div>
                 <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
               </div>
-              {/* Tooltip - Mobile */}
-              <div className="block sm:hidden absolute top-full left-1/2 transform -translate-x-1/2 mt-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 max-w-xs">
-                <div className="text-center whitespace-normal">
-                  {t('hero.chooseService')}
-                </div>
-                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-b-4 border-transparent border-b-gray-900"></div>
-              </div>
             </div>
             <Link
               href="/upload"
-              className={`inline-flex items-center justify-center rounded-lg border px-4 py-3 text-zinc-900 hover:bg-zinc-50 w-full sm:w-auto ${getTextSize(language, 'button')} font-medium`}
+              className={`inline-flex items-center justify-center rounded-lg border px-4 py-3 text-zinc-900 hover:bg-zinc-50 w-auto ${getTextSize(language, 'button')} font-medium`}
             >
               {t('hero.uploadArtwork')}
             </Link>
             <a
               href="tel:+442071234567"
-              className="inline-flex items-center justify-center gap-2 text-sm sm:text-base text-zinc-700 hover:text-black w-full sm:w-auto py-3"
+              className="inline-flex items-center justify-center gap-2 text-sm text-base text-zinc-700 hover:text-black w-auto py-3"
             >
               <Phone className="h-4 w-4" /> {t('hero.callNow')}
             </a>
           </div>
 
-          {/* Quick search / Command palette hint */}
-          <div className="mt-5 flex items-center gap-2 rounded-xl border bg-white/80 p-2 shadow-sm backdrop-blur">
-            <Search className="ml-1 h-4 w-4 text-zinc-500" />
-            <input
-              placeholder="Search services or calculators…  (Press ⌘K)"
-              className="w-full bg-transparent text-sm outline-none placeholder:text-zinc-400"
-              onFocus={() => {
-                // открываем палитру по фокусу (эмулируем ⌘K)
-                document.dispatchEvent(
-                  new KeyboardEvent("keydown", { key: "k", metaKey: true })
-                );
-              }}
-            />
+          {/* Hero Search Bar */}
+          <div className="mt-5">
+            <HeroSearchBar />
           </div>
 
           {/* Quick Quote: choose service + qty */}
@@ -200,7 +202,7 @@ export default function HeroPrintPro({
           )}
         </div>
       </div>
-    </section>
+      </div>    </section>
   );
 }
 
@@ -208,17 +210,33 @@ export default function HeroPrintPro({
 function QuickQuote({ services }: { services: Service[] }) {
   const [slug, setSlug] = useState<string>("");
   const [qty, setQty] = useState<number>(500);
+  const [isOpen, setIsOpen] = useState<boolean>(false);
   const { t } = useLanguage();
   
   useEffect(() => {
     if (!slug && services.length) setSlug(services[0].slug);
   }, [services, slug]);
 
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (!target.closest('.service-selector')) {
+        setIsOpen(false);
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [isOpen]);
+
   if (services.length === 0) {
     return (
       <div className="mt-4 space-y-3 sm:space-y-0 sm:grid sm:grid-cols-[1fr,120px,120px] sm:gap-2 rounded-xl border bg-white/70 p-3 shadow-sm backdrop-blur">
         <div className="w-full rounded-lg border px-3 py-3 text-sm text-gray-400 bg-gray-50">
-          Loading services...
+          Select Service
         </div>
         <input
           type="number"
@@ -240,17 +258,50 @@ function QuickQuote({ services }: { services: Service[] }) {
 
   return (
     <div className="mt-4 space-y-3 sm:space-y-0 sm:grid sm:grid-cols-[1fr,120px,120px] sm:gap-2 rounded-xl border bg-white/70 p-3 shadow-sm backdrop-blur">
-      <select
-        value={slug}
-        onChange={(e) => setSlug(e.target.value)}
-        className="w-full rounded-lg border px-3 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-zinc-300"
-      >
-        {services.map((s) => (
-          <option key={s.slug} value={s.slug}>
-            {s.service}
-          </option>
-        ))}
-      </select>
+      {/* Custom Service Selector */}
+      <div className="relative service-selector">
+        <button
+          type="button"
+          onClick={() => setIsOpen(!isOpen)}
+          className="w-full rounded-lg border border-gray-300 bg-white px-3 py-3 text-sm text-left focus:outline-none focus:ring-2 focus:ring-px-cyan focus:border-px-cyan hover:border-gray-400 transition-colors flex items-center justify-between"
+        >
+          <span className="text-gray-700">
+            {services.find(s => s.slug === slug)?.service || 'Select Service'}
+          </span>
+          <svg
+            className={`w-4 h-4 text-gray-500 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+        
+        {isOpen && (
+          <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-auto">
+            {services.map((service) => (
+              <button
+                key={service.slug}
+                onClick={() => {
+                  setSlug(service.slug);
+                  setIsOpen(false);
+                }}
+                className={`w-full px-3 py-3 text-sm text-left hover:bg-gray-50 transition-colors flex items-center justify-between ${
+                  slug === service.slug ? 'bg-px-cyan/10 text-px-cyan font-medium' : 'text-gray-700'
+                }`}
+              >
+                <span>{service.service}</span>
+                {slug === service.slug && (
+                  <svg className="w-4 h-4 text-px-cyan" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                )}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
       <input
         type="number"
         min={1}
@@ -361,6 +412,177 @@ function HeroVideo() {
         <source src="/hero/printshop.webm" type="video/webm" />
       </video>
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/15 to-transparent" />
+    </div>
+  );
+}
+
+/* ---------- HeroSearchBar ---------- */
+function HeroSearchBar() {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState(-1);
+  const router = useRouter();
+  const { t } = useLanguage();
+
+  // Debounced search function
+  useEffect(() => {
+    const timeoutId = setTimeout(async () => {
+      if (query.length >= 2) {
+        await performSearch(query);
+      } else {
+        setResults([]);
+        setIsOpen(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [query]);
+
+  const performSearch = async (searchQuery: string) => {
+    setIsLoading(true);
+    try {
+      // Логируем поисковый запрос
+      await fetch('/api/search/log', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: searchQuery.trim() }),
+        cache: 'no-store'
+      });
+
+      // Выполняем поиск
+      const searchUrl = `/api/search?q=${encodeURIComponent(searchQuery.trim())}&t=${Date.now()}`;
+      const response = await fetch(searchUrl, { cache: 'no-store' });
+      const data = await response.json();
+      
+      if (data.ok) {
+        setResults(data.results);
+        setIsOpen(data.results.length > 0);
+        setSelectedIndex(-1);
+      } else {
+        setResults([]);
+        setIsOpen(false);
+      }
+    } catch (error) {
+      console.error('🔍 HeroSearchBar: Search error:', error);
+      setResults([]);
+      setIsOpen(false);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSearch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!query.trim()) return;
+
+    if (results.length > 0 && selectedIndex >= 0) {
+      // Если есть выбранный результат, переходим к нему
+      handleResultClick(results[selectedIndex]);
+    } else if (results.length > 0) {
+      // Если есть результаты, но ничего не выбрано, переходим к первому
+      handleResultClick(results[0]);
+    } else {
+      // Если результатов нет, выполняем поиск
+      await performSearch(query);
+    }
+  };
+
+  const handleResultClick = (result: any) => {
+    router.push(`/services/${result.slug}`);
+    setIsOpen(false);
+    setQuery("");
+    setResults([]);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      setQuery('');
+      setIsOpen(false);
+      setResults([]);
+    } else if (results.length > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setSelectedIndex((prevIndex) => (prevIndex + 1) % results.length);
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setSelectedIndex((prevIndex) => (prevIndex - 1 + results.length) % results.length);
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (selectedIndex !== -1) {
+          handleResultClick(results[selectedIndex]);
+        }
+      }
+    }
+  };
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (!target.closest('.hero-search-container')) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  return (
+    <div className="hero-search-container relative">
+      <form onSubmit={handleSearch} className="flex items-center gap-2 rounded-xl border bg-white/80 p-2 shadow-sm backdrop-blur">
+        <Search className="ml-1 h-4 w-4 text-zinc-500" />
+        <input
+          id="hero-search-input"
+          type="text"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder="Search services or calculators…"
+          className="w-full bg-transparent text-sm outline-none placeholder:text-zinc-400"
+          disabled={isLoading}
+        />
+        {query && (
+          <button
+            type="button"
+            onClick={() => {
+              setQuery('');
+              setIsOpen(false);
+              setResults([]);
+            }}
+            className="p-1 text-zinc-400 hover:text-zinc-600 transition-colors"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
+        {isLoading && (
+          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-px-cyan"></div>
+        )}
+      </form>
+
+      {/* Search Results Dropdown */}
+      {isOpen && results.length > 0 && (
+        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-60 overflow-auto">
+          {results.map((result, index) => (
+            <button
+              key={result.id}
+              onClick={() => handleResultClick(result)}
+              className={`w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors flex items-center justify-between ${
+                index === selectedIndex ? 'bg-px-cyan/10 text-px-cyan' : 'text-gray-700'
+              }`}
+            >
+              <div>
+                <div className="font-medium">{result.name}</div>
+                <div className="text-sm text-gray-500">{result.category}</div>
+              </div>
+              {index === selectedIndex && (
+                <div className="w-2 h-2 bg-px-cyan rounded-full"></div>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

@@ -17,9 +17,9 @@ export default function AdminLayout({
     <AuthProvider>
       <div className="min-h-screen bg-px-bg">
         <Header />
-        <div className="flex">
+        <div className="flex flex-col lg:flex-row">
           <AdminSidebar />
-          <main className="flex-1 p-6">
+          <main className="flex-1 p-3 sm:p-4 lg:p-6 lg:ml-0">
             <div className="max-w-full">
               {children}
             </div>

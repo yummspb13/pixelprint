@@ -3,9 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider  = "sqlite"
+  url       = "file:./dev.db"
 }
 
 model Service {
@@ -207,6 +206,18 @@ model Settings {
   category    String   @default("general")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+model SearchLog {
+  id           Int      @id @default(autoincrement())
+  query        String
+  resultsCount Int      @default(0)
+  userAgent    String?
+  ip           String?
+  timestamp    DateTime @default(now())
+  
+  @@index([query])
+  @@index([timestamp])
 }
 
 enum PriceRuleKind {

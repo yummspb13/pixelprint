@@ -52,12 +52,66 @@ export default function ServicePage() {
   const [loading, setLoading] = useState(true);
   const [quoteLoading, setQuoteLoading] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+  const [availableQuantities, setAvailableQuantities] = useState<number[]>([]);
+  const [minQty, setMinQty] = useState<number>(1);
+  const [maxQty, setMaxQty] = useState<number>(10000);
+  const [modelData, setModelData] = useState<any>(null);
+
+  // Функция для получения доступных количеств на основе выбранных параметров
+  const updateAvailableQuantities = (modelData: any, currentSelection: Record<string, string>) => {
+    if (!modelData || !modelData.rows) return;
+    
+    // Находим строку, которая соответствует выбранным параметрам
+    const matchingRow = modelData.rows.find((row: any) => {
+      const rowAttrs = row.attrs || {};
+      return Object.keys(currentSelection).every(key => 
+        rowAttrs[key] === currentSelection[key]
+      );
+    });
+    
+    if (matchingRow && matchingRow.rule && matchingRow.rule.tiers) {
+      const quantities = matchingRow.rule.tiers
+        .map((tier: any) => tier.qty)
+        .sort((a: number, b: number) => a - b);
+      
+      setAvailableQuantities(quantities);
+      
+      if (quantities.length > 0) {
+        setMinQty(quantities[0]);
+        setMaxQty(quantities[quantities.length - 1]);
+        
+        // Устанавливаем первое доступное количество, если текущее не подходит
+        const currentQty = qty;
+        if (currentQty < quantities[0] || currentQty > quantities[quantities.length - 1]) {
+          setQty(quantities[0]);
+        }
+      }
+    } else {
+      // Если не найдена подходящая строка, показываем все количества
+      const allQuantities = new Set<number>();
+      modelData.rows.forEach((row: any) => {
+        if (row.rule && row.rule.tiers) {
+          row.rule.tiers.forEach((tier: any) => {
+            allQuantities.add(tier.qty);
+          });
+        }
+      });
+      
+      const sortedQuantities = Array.from(allQuantities).sort((a, b) => a - b);
+      setAvailableQuantities(sortedQuantities);
+      
+      if (sortedQuantities.length > 0) {
+        setMinQty(sortedQuantities[0]);
+        setMaxQty(sortedQuantities[sortedQuantities.length - 1]);
+      }
+    }
+  };
 
   useEffect(() => {
     const fetchService = async () => {
       try {
         // Сначала получаем данные услуги
-        const servicesResponse = await fetch('/api/pricing/services');
+        const servicesResponse = await fetch(`/api/pricing/services?t=${Date.now()}`, { cache: 'no-store' });
         const servicesData = await servicesResponse.json();
         
         if (servicesData.ok && servicesData.services) {
@@ -77,6 +131,14 @@ export default function ServicePage() {
             const defSel: Record<string, string> = {};
             d.attributes.forEach(a => { if (a.values.length) defSel[a.key] = a.values[0]; });
             setSelection(defSel);
+            
+            // Загружаем данные модели для расчета количеств
+            const modelResponse = await fetch(`/api/pricing/models/${slug}`, { cache: 'no-store' });
+            const modelData = await modelResponse.json();
+            if (modelData.ok) {
+              setModelData(modelData.model);
+              updateAvailableQuantities(modelData.model, defSel);
+            }
           } catch (e: any) { 
             console.error('Error fetching options:', e);
           }
@@ -90,6 +152,13 @@ export default function ServicePage() {
 
     fetchService();
   }, [slug, service?.calculatorAvailable]);
+
+  // Обновляем доступные количества при изменении выбора
+  useEffect(() => {
+    if (modelData && Object.keys(selection).length > 0) {
+      updateAvailableQuantities(modelData, selection);
+    }
+  }, [selection, modelData]);
 
   // Auto-scroll to calculator when coming from Quick Quote
   useEffect(() => {
@@ -337,7 +406,7 @@ export default function ServicePage() {
                         </div>
                         <div className="space-y-4">
                           <div className="flex flex-wrap gap-2">
-                            {[25, 50, 100, 250, 500, 1000, 2000].map(n => (
+                            {availableQuantities.map(n => (
                               <Button 
                                 key={n} 
                                 variant={qty === n ? "default" : "outline"} 
@@ -352,12 +421,21 @@ export default function ServicePage() {
                           <div className="flex items-center space-x-2">
                             <Input 
                               type="number" 
-                              min={1} 
+                              min={minQty} 
+                              max={maxQty}
                               value={qty} 
-                              onChange={e => setQty(Number(e.target.value || 1))} 
+                              onChange={e => {
+                                const newQty = Number(e.target.value || minQty);
+                                // Ограничиваем введенное значение диапазоном
+                                const clampedQty = Math.max(minQty, Math.min(maxQty, newQty));
+                                setQty(clampedQty);
+                              }} 
                               className="w-24 sm:w-32"
                             />
                             <span className="text-sm text-px-muted">pcs</span>
+                          </div>
+                          <div className="text-xs text-px-muted">
+                            Available range: {minQty} - {maxQty} pieces
                           </div>
                         </div>
                       </div>

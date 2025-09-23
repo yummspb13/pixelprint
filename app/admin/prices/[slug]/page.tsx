@@ -19,7 +19,8 @@ import {
   Package,
   BarChart3,
   TrendingUp,
-  RefreshCw
+  RefreshCw,
+  Save
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import AdminCard from "@/components/admin/AdminCard";
@@ -94,11 +95,26 @@ export default function Page() {
   async function load() {
     try {
       setLoading(true);
-    const r = await fetch(`/api/admin/prices/services/${slug}/rows`, { cache:"no-store" });
+    const r = await fetch(`/api/admin/prices/services/by-slug/${slug}/rows`, { cache:"no-store" });
+      
+      if (!r.ok) {
+        console.error('Response not ok:', r.status, r.statusText);
+        return;
+      }
+      
       const d = await r.json(); 
-      if (!d?.ok) return;
+      
+      if (!d?.ok) {
+        console.error('Data not ok:', d);
+        return;
+      }
+      
       setService(d.service); 
       setRows(d.rows);
+      
+      console.log('🔍 LOAD: Service loaded:', d.service);
+      console.log('🔍 LOAD: Rows loaded:', d.rows.length, 'rows');
+      console.log('🔍 LOAD: First row:', d.rows[0]);
       
       // Load change history
       await loadChangeHistory();
@@ -113,7 +129,7 @@ export default function Page() {
   async function loadChangeHistory() {
     try {
       console.log('Loading change history for slug:', slug);
-      const response = await fetch(`/api/admin/prices/services/${slug}/history`);
+      const response = await fetch(`/api/admin/prices/services/by-slug/${slug}/history`);
       const data = await response.json();
       console.log('History response:', data);
       if (data.history) {
@@ -165,7 +181,7 @@ export default function Page() {
     }
   }
   async function addRow() {
-    const r = await fetch(`/api/admin/prices/services/${slug}/rows`, { method:"POST", headers:{ "content-type":"application/json" }, body: JSON.stringify({ attrs:{}, ruleKind:"tiers", unit:0 }) });
+    const r = await fetch(`/api/admin/prices/services/by-slug/${slug}/rows`, { method:"POST", headers:{ "content-type":"application/json" }, body: JSON.stringify({ attrs:{}, ruleKind:"tiers", unit:0 }) });
     const d = await r.json(); 
     if (d.ok) {
       load();
@@ -176,7 +192,7 @@ export default function Page() {
   }
 
   async function addRowToGroup(groupAttrs: any) {
-    const r = await fetch(`/api/admin/prices/services/${slug}/rows`, { 
+    const r = await fetch(`/api/admin/prices/services/by-slug/${slug}/rows`, { 
       method:"POST", 
       headers:{ "content-type":"application/json" }, 
       body: JSON.stringify({ 
@@ -203,7 +219,7 @@ export default function Page() {
     const attrs: { Sides: string; Color?: string } = { Sides: sides };
     if (color) attrs.Color = color;
     
-    const r = await fetch(`/api/admin/prices/services/${slug}/rows`, { 
+    const r = await fetch(`/api/admin/prices/services/by-slug/${slug}/rows`, { 
       method:"POST", 
       headers:{ "content-type":"application/json" }, 
       body: JSON.stringify({ 
@@ -243,7 +259,7 @@ export default function Page() {
     try {
       console.log('Saving change history:', { change, changeType, rowId, slug });
       
-      const response = await fetch(`/api/admin/prices/services/${slug}/history/add`, {
+      const response = await fetch(`/api/admin/prices/services/by-slug/${slug}/history/add`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -335,13 +351,17 @@ export default function Page() {
 
   // Group rows by attributes (Color, Sides, etc.)
   function getGroupedRows() {
+    console.log('🔍 GET GROUPED ROWS: Processing', rows.length, 'rows');
+    
     const groups = new Map<string, Row[]>();
     
     rows.forEach(row => {
       const key = JSON.stringify({
         Sides: row.attrs?.Sides || '',
-        Color: row.attrs?.Color || ''
+        Color: row.attrs?.Color || '',
+        Size: row.attrs?.Size || ''
       });
+      console.log('🔍 GET GROUPED ROWS: Row attrs:', row.attrs, 'Key:', key);
       
       if (!groups.has(key)) {
         groups.set(key, []);
@@ -349,7 +369,7 @@ export default function Page() {
       groups.get(key)!.push(row);
     });
     
-    return Array.from(groups.entries()).map(([key, groupRows]) => {
+    const result = Array.from(groups.entries()).map(([key, groupRows]) => {
       const attrs = JSON.parse(key);
       
       // Sort rows within group by quantity (from attrs.Qty or tiers)
@@ -370,6 +390,11 @@ export default function Page() {
         rows: sortedRows
       };
     });
+    
+    console.log('🔍 GET GROUPED ROWS: Result:', result.length, 'groups');
+    console.log('🔍 GET GROUPED ROWS: First group:', result[0]);
+    
+    return result;
   }
 
   function getSortedRows() {
@@ -518,30 +543,30 @@ export default function Page() {
       {/* Header */}
       <ScrollReveal>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2 sm:space-x-4">
             <Button
               variant="outline"
               onClick={() => router.back()}
-              className="border-px-cyan text-px-cyan hover:bg-px-cyan hover:text-white"
+              className="border-px-cyan text-px-cyan hover:bg-px-cyan hover:text-white h-8 px-3 text-xs sm:h-10 sm:px-4 sm:text-sm"
             >
-              <ArrowLeft className="h-4 w-4 mr-2" />
+              <ArrowLeft className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
               Back
             </Button>
-            <div>
-              <h1 className="text-4xl md:text-5xl font-bold tracking-tight leading-tight font-playfair">
-                <span className="text-px-fg">{service?.name}</span>
+            <div className="min-w-0 flex-1">
+              <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-bold tracking-tight leading-tight font-playfair">
+                <span className="text-px-fg truncate">{service?.name}</span>
               </h1>
-              <p className="text-lg text-px-muted max-w-2xl mt-2">
-                <code className="text-sm bg-zinc-100 px-2 py-1 rounded">{slug}</code> • Manage pricing tiers and rules
+              <p className="text-xs sm:text-sm lg:text-base text-px-muted max-w-2xl mt-1 sm:mt-2">
+                <code className="text-xs bg-zinc-100 px-1.5 py-0.5 sm:px-2 sm:py-1 rounded">{slug}</code> • Manage pricing tiers and rules
               </p>
             </div>
           </div>
           <Button
             onClick={load}
             variant="outline"
-            className="border-px-cyan text-px-cyan hover:bg-px-cyan hover:text-white"
+            className="border-px-cyan text-px-cyan hover:bg-px-cyan hover:text-white h-8 px-3 text-xs sm:h-10 sm:px-4 sm:text-sm"
           >
-            <RefreshCw className="h-4 w-4 mr-2" />
+            <RefreshCw className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
             Refresh
           </Button>
         </div>
@@ -549,51 +574,51 @@ export default function Page() {
 
       {/* Stats Cards */}
       <ScrollReveal>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <AdminCard title="Price Rows" className="bg-gradient-to-br from-px-cyan/5 to-px-cyan/10 border-px-cyan/20">
-            <div className="flex items-center space-x-4">
-              <div className="p-3 bg-px-cyan/10 rounded-lg">
-                <Package className="h-6 w-6 text-px-cyan" />
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
+          <AdminCard title="Price Rows" className="bg-gradient-to-br from-px-cyan/5 to-px-cyan/10 border-px-cyan/20 p-3 sm:p-4">
+            <div className="flex items-center space-x-2 sm:space-x-3 lg:space-x-4">
+              <div className="p-1.5 sm:p-2 lg:p-3 bg-px-cyan/10 rounded-lg">
+                <Package className="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 text-px-cyan" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-px-cyan">{rows.length}</p>
-                <p className="text-sm text-px-muted">Price Rows</p>
+                <p className="text-lg sm:text-xl lg:text-2xl font-bold text-px-cyan">{rows.length}</p>
+                <p className="text-xs sm:text-sm text-px-muted">Price Rows</p>
               </div>
             </div>
           </AdminCard>
 
-          <AdminCard title="Total Tiers" className="bg-gradient-to-br from-px-magenta/5 to-px-magenta/10 border-px-magenta/20">
-            <div className="flex items-center space-x-4">
-              <div className="p-3 bg-px-magenta/10 rounded-lg">
-                <BarChart3 className="h-6 w-6 text-px-magenta" />
+          <AdminCard title="Total Tiers" className="bg-gradient-to-br from-px-magenta/5 to-px-magenta/10 border-px-magenta/20 p-3 sm:p-4">
+            <div className="flex items-center space-x-2 sm:space-x-3 lg:space-x-4">
+              <div className="p-1.5 sm:p-2 lg:p-3 bg-px-magenta/10 rounded-lg">
+                <BarChart3 className="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 text-px-magenta" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-px-magenta">{totalTiers}</p>
-                <p className="text-sm text-px-muted">Total Tiers</p>
+                <p className="text-lg sm:text-xl lg:text-2xl font-bold text-px-magenta">{totalTiers}</p>
+                <p className="text-xs sm:text-sm text-px-muted">Total Tiers</p>
               </div>
             </div>
           </AdminCard>
 
-          <AdminCard title="Min Price" className="bg-gradient-to-br from-px-yellow/5 to-px-yellow/10 border-px-yellow/20">
-            <div className="flex items-center space-x-4">
-              <div className="p-3 bg-px-yellow/10 rounded-lg">
-                <TrendingUp className="h-6 w-6 text-px-yellow" />
+          <AdminCard title="Min Price" className="bg-gradient-to-br from-px-yellow/5 to-px-yellow/10 border-px-yellow/20 p-3 sm:p-4">
+            <div className="flex items-center space-x-2 sm:space-x-3 lg:space-x-4">
+              <div className="p-1.5 sm:p-2 lg:p-3 bg-px-yellow/10 rounded-lg">
+                <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 text-px-yellow" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-px-yellow">£{minPrice.toFixed(2)}</p>
-                <p className="text-sm text-px-muted">Min Price</p>
+                <p className="text-lg sm:text-xl lg:text-2xl font-bold text-px-yellow">£{minPrice.toFixed(2)}</p>
+                <p className="text-xs sm:text-sm text-px-muted">Min Price</p>
               </div>
             </div>
           </AdminCard>
 
-          <AdminCard title="Max Price" className="bg-gradient-to-br from-green-500/5 to-green-500/10 border-green-500/20">
-            <div className="flex items-center space-x-4">
-              <div className="p-3 bg-green-500/10 rounded-lg">
-                <TrendingUp className="h-6 w-6 text-green-600" />
+          <AdminCard title="Max Price" className="bg-gradient-to-br from-green-500/5 to-green-500/10 border-green-500/20 p-3 sm:p-4">
+            <div className="flex items-center space-x-2 sm:space-x-3 lg:space-x-4">
+              <div className="p-1.5 sm:p-2 lg:p-3 bg-green-500/10 rounded-lg">
+                <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 text-green-600" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-green-600">£{maxPrice.toFixed(2)}</p>
-                <p className="text-sm text-px-muted">Max Price</p>
+                <p className="text-lg sm:text-xl lg:text-2xl font-bold text-green-600">£{maxPrice.toFixed(2)}</p>
+                <p className="text-xs sm:text-sm text-px-muted">Max Price</p>
               </div>
             </div>
           </AdminCard>
@@ -602,44 +627,46 @@ export default function Page() {
 
       {/* Table Controls */}
       <ScrollReveal>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <Badge variant="outline" className="text-px-muted">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 lg:gap-4">
+          <div className="flex items-center space-x-2 flex-wrap">
+            <Badge variant="outline" className="text-px-muted text-xs">
               {sortedRows.length} rows
             </Badge>
             {sortDirection && (
-              <Badge variant="outline" className="text-px-cyan border-px-cyan/20">
+              <Badge variant="outline" className="text-px-cyan border-px-cyan/20 text-xs">
                 Sorted by {sortField} ({sortDirection})
               </Badge>
             )}
           </div>
-          <div className="flex items-center space-x-4">
-            <div className="text-sm text-px-muted">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3 lg:gap-4">
+            <div className="text-xs sm:text-sm text-px-muted hidden lg:block">
               Click column headers to sort • Drag column edges to resize
             </div>
+            <div className="flex items-center gap-2 flex-wrap w-full">
             <Button
               variant="outline"
               size="sm"
               onClick={resetColumnSettings}
-              className="border-px-magenta text-px-magenta hover:bg-px-magenta hover:text-white"
+                className="border-px-magenta text-px-magenta hover:bg-px-magenta hover:text-white h-7 text-xs flex-1"
             >
-              <RotateCcw className="h-4 w-4 mr-1" />
-              Reset Layout
+                <RotateCcw className="h-3 w-3 mr-1" />
+                Reset
             </Button>
             <Button
               onClick={addNewType}
-              className="bg-gradient-to-r from-px-yellow to-px-magenta hover:from-px-yellow/90 hover:to-px-magenta/90 text-white"
+                className="bg-gradient-to-r from-px-yellow to-px-magenta hover:from-px-yellow/90 hover:to-px-magenta/90 text-white h-7 text-xs flex-1"
             >
-              <Plus className="h-4 w-4 mr-2" />
+                <Plus className="h-3 w-3 mr-1" />
               Add Type
             </Button>
             <Button
               onClick={addRow}
-              className="bg-gradient-to-r from-px-cyan to-px-magenta hover:from-px-cyan/90 hover:to-px-magenta/90 text-white"
+                className="bg-gradient-to-r from-px-cyan to-px-magenta hover:from-px-cyan/90 hover:to-px-magenta/90 text-white h-7 text-xs flex-1"
             >
-              <Plus className="h-4 w-4 mr-2" />
+                <Plus className="h-3 w-3 mr-1" />
               Add Row
             </Button>
+            </div>
           </div>
         </div>
       </ScrollReveal>
@@ -647,7 +674,162 @@ export default function Page() {
       {/* Pricing Table */}
       <ScrollReveal>
         <AdminCard title="Pricing Table" className="p-0">
-          <div className="overflow-x-auto">
+          {/* Mobile Card View */}
+          <div className="lg:hidden space-y-2 p-2">
+            {groupedRows.length === 0 ? (
+              <div className="text-center py-6 text-px-muted">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium">No pricing rows found</p>
+                  <p className="text-xs">Click "Add Row" to create your first pricing tier</p>
+                </div>
+              </div>
+            ) : (
+              groupedRows.map((group, groupIndex) => (
+                <div key={group.key} className="bg-gradient-to-r from-px-cyan/5 to-px-magenta/5 border border-px-cyan/20 rounded-lg p-2">
+                  {/* Group Header */}
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="min-w-0 flex-1 mr-2">
+                      <h3 className="text-xs font-semibold text-px-fg truncate">
+                        {group.attrs.Sides}
+                        {group.attrs.Size && ` - ${group.attrs.Size}`}
+                        {group.attrs.Color && ` (${group.attrs.Color})`}
+                      </h3>
+                      <Badge variant="outline" className="text-px-cyan border-px-cyan/20 text-xs mt-0.5">
+                        {group.rows.length} variant{group.rows.length !== 1 ? 's' : ''}
+                      </Badge>
+                    </div>
+                    <Button
+                      onClick={() => addRowToGroup(group.attrs)}
+                      size="sm"
+                      className="bg-gradient-to-r from-px-cyan to-px-magenta hover:from-px-cyan/90 hover:to-px-magenta/90 text-white h-5 w-[30%] text-xs flex-shrink-0"
+                      title="Add row to group"
+                    >
+                      <Plus className="h-2.5 w-2.5 mr-1" />
+                      Add
+                    </Button>
+                  </div>
+                  
+                  {/* Group Rows */}
+                  <div className="space-y-2">
+                    {group.rows.map((row, rowIndex) => {
+                      const hasTiers = row.tiers && row.tiers.length > 0;
+                      
+                      if (hasTiers) {
+                        const sortedTiers = [...(row.tiers || [])].sort((a, b) => a.qty - b.qty);
+                        
+                        return sortedTiers.map((tier, tierIndex) => (
+                          <div key={`${row.id}-${tier.id || tierIndex}`} className="bg-white border rounded-md p-1.5">
+                            <div className="grid grid-cols-4 gap-1 text-xs">
+                              <div className="text-center">
+                                <div className="text-zinc-400 text-[10px] mb-0.5">Qty</div>
+                                <div className="font-medium text-zinc-900 text-sm">{tier.qty.toLocaleString()}</div>
+                              </div>
+                              <div className="text-center">
+                                <div className="text-zinc-400 text-[10px] mb-0.5">Unit</div>
+                                <div className="font-medium text-zinc-900 text-sm">£{tier.unit.toFixed(2)}</div>
+                              </div>
+                              <div className="text-center">
+                                <div className="text-zinc-400 text-[10px] mb-0.5">Net</div>
+                                <div className="font-medium text-zinc-900 text-sm">£{(tier.qty * tier.unit).toFixed(2)}</div>
+                              </div>
+                              <div className="text-center">
+                                <div className="text-zinc-400 text-[10px] mb-0.5">Total</div>
+                                <div className="font-bold text-px-cyan text-sm">£{(tier.qty * tier.unit * 1.2).toFixed(2)}</div>
+                              </div>
+                            </div>
+                            
+                            <div className="flex items-center justify-between mt-1.5 pt-1 border-t border-zinc-100">
+                              <Badge className="bg-gradient-to-r from-px-cyan/10 to-px-magenta/10 text-px-cyan border-px-cyan/20 text-[10px] px-1.5 py-0.5">
+                                {row.ruleKind}
+                              </Badge>
+                              <div className="flex items-center gap-0.5 w-full">
+                                {tierIndex === 0 && (
+                                  <TierEditor 
+                                    row={row} 
+                                    onSaved={async (oldTiers, newTiers) => {
+                                      load();
+                                      await addTierChangeHistory(oldTiers, newTiers, row.id);
+                                    }} 
+                                  />
+                                )}
+                                {tierIndex === 0 && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={()=>delRow(row.id)}
+                                    className="border-red-500 text-red-500 hover:bg-red-500 hover:text-white h-5 flex-1"
+                                    title="Delete row"
+                                  >
+                                    <Trash2 className="h-2.5 w-2.5" />
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ));
+                      } else {
+                        const qty = parseInt(row.attrs?.Qty || '0');
+                        const price = parseFloat(row.attrs?.['PRICE'] || '0');
+                        const netPrice = parseFloat(row.attrs?.['NET PRICE'] || '0');
+                        const vat = parseFloat(row.attrs?.VAT || '0');
+                        const priceWithVat = parseFloat(row.attrs?.['Price +VAT'] || '0');
+                        
+                        return (
+                          <div key={row.id} className="bg-white border rounded-md p-1.5">
+                            <div className="grid grid-cols-4 gap-1 text-xs">
+                              <div className="text-center">
+                                <div className="text-zinc-400 text-[10px] mb-0.5">Qty</div>
+                                <div className="font-medium text-zinc-900 text-sm">{qty.toLocaleString()}</div>
+                              </div>
+                              <div className="text-center">
+                                <div className="text-zinc-400 text-[10px] mb-0.5">Unit</div>
+                                <div className="font-medium text-zinc-900 text-sm">£{price.toFixed(2)}</div>
+                              </div>
+                              <div className="text-center">
+                                <div className="text-zinc-400 text-[10px] mb-0.5">Net</div>
+                                <div className="font-medium text-zinc-900 text-sm">£{netPrice.toFixed(2)}</div>
+                              </div>
+                              <div className="text-center">
+                                <div className="text-zinc-400 text-[10px] mb-0.5">Total</div>
+                                <div className="font-bold text-px-cyan text-sm">£{priceWithVat.toFixed(2)}</div>
+                              </div>
+                            </div>
+                            
+                            <div className="flex items-center justify-between mt-1.5 pt-1 border-t border-zinc-100">
+                              <Badge className="bg-gradient-to-r from-px-cyan/10 to-px-magenta/10 text-px-cyan border-px-cyan/20 text-[10px] px-1.5 py-0.5">
+                                {row.ruleKind}
+                              </Badge>
+                              <div className="flex items-center gap-0.5 w-full">
+                                <TierEditor 
+                                  row={row} 
+                                  onSaved={async (oldTiers, newTiers) => {
+                                    load();
+                                    await addTierChangeHistory(oldTiers, newTiers, row.id);
+                                  }} 
+                                />
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={()=>delRow(row.id)}
+                                  className="border-red-500 text-red-500 hover:bg-red-500 hover:text-white h-5 flex-1"
+                                  title="Delete row"
+                                >
+                                  <Trash2 className="h-2.5 w-2.5" />
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      }
+                    })}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* Desktop Table View */}
+          <div className="hidden lg:block overflow-x-auto">
             <table className="w-full" style={{ tableLayout: 'fixed' }}>
               <thead className="bg-gradient-to-r from-zinc-50 to-zinc-100 border-b border-zinc-200">
                 <tr>
@@ -776,6 +958,7 @@ export default function Page() {
                             <div className="flex items-center space-x-4">
                               <h3 className="text-lg font-semibold text-px-fg">
                                 {service?.name} - {group.attrs.Sides}
+                                {group.attrs.Size && ` - ${group.attrs.Size}`}
                                 {group.attrs.Color && ` (${group.attrs.Color})`}
                               </h3>
                               <Badge variant="outline" className="text-px-cyan border-px-cyan/20">
@@ -920,31 +1103,33 @@ export default function Page() {
 
       {/* Change History */}
       <ScrollReveal>
-        <AdminCard title="Change History">
-          <div className="space-y-4">
+        <AdminCard title="Change History" className="p-3 sm:p-4">
+          <div className="space-y-3 sm:space-y-4">
             <div className="flex items-center space-x-2">
-              <h3 className="text-lg font-semibold text-px-fg">Change History</h3>
-              <Badge variant="outline" className="text-px-muted">
+              <h3 className="text-base sm:text-lg font-semibold text-px-fg">Change History</h3>
+              <Badge variant="outline" className="text-px-muted text-xs">
                 {changeHistory.length} entries
               </Badge>
       </div>
 
             {changeHistory.length === 0 ? (
-              <div className="text-center py-8 text-px-muted">
-                <p>No changes recorded yet</p>
-                <p className="text-sm">Changes will appear here as you modify pricing</p>
+              <div className="text-center py-6 sm:py-8 text-px-muted">
+                <p className="text-sm sm:text-base">No changes recorded yet</p>
+                <p className="text-xs sm:text-sm">Changes will appear here as you modify pricing</p>
               </div>
             ) : (
-              <div className="space-y-2 max-h-64 overflow-y-auto">
+              <div className="space-y-2 max-h-48 sm:max-h-64 overflow-y-auto">
                 {changeHistory.map((entry) => (
-                  <div key={entry.id} className="flex items-center space-x-3 py-2 px-3 bg-zinc-50 rounded-lg">
-                    <div className="text-sm text-zinc-500 font-mono min-w-[80px]">
+                  <div key={entry.id} className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-3 py-2 px-2 sm:px-3 bg-zinc-50 rounded-lg">
+                    <div className="flex items-center space-x-2 sm:space-x-0">
+                      <div className="text-xs sm:text-sm text-zinc-500 font-mono min-w-[60px] sm:min-w-[80px]">
                       {entry.date}
                     </div>
-                    <div className="text-sm text-zinc-500 font-mono min-w-[60px]">
+                      <div className="text-xs sm:text-sm text-zinc-500 font-mono min-w-[40px] sm:min-w-[60px]">
                       {entry.time}
                     </div>
-                    <div className="text-sm text-zinc-700 flex-1">
+                    </div>
+                    <div className="text-xs sm:text-sm text-zinc-700 flex-1 min-w-0">
                       {entry.change}
                     </div>
                   </div>
@@ -990,34 +1175,85 @@ function TierEditor({ row, onSaved }:{ row: Row; onSaved: (oldTiers: any[], newT
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm" title="Edit tiers">
-          <Edit className="h-4 w-4" />
+        <Button variant="outline" size="sm" title="Edit tiers" className="h-5 flex-1">
+          <Edit className="h-2.5 w-2.5 mr-1" />
+          Edit
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-lg">
-        <DialogHeader><DialogTitle>Tiers for row #{row.id}</DialogTitle></DialogHeader>
+      <DialogContent className="max-w-sm mx-2 sm:mx-4 w-[calc(100vw-1rem)] sm:w-auto">
+        <DialogHeader className="pb-2">
+          <DialogTitle className="text-sm sm:text-base">Tiers for row #{row.id}</DialogTitle>
+        </DialogHeader>
         <div className="space-y-3">
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-zinc-600 w-24">Setup</span>
-            <Input type="number" step="0.01" value={setup ?? ""} onChange={e=> setSetup(e.target.value==="" ? null : Number(e.target.value))} />
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+            <span className="text-xs sm:text-sm text-zinc-600 w-16 sm:w-20">Setup</span>
+            <Input 
+              type="number" 
+              step="0.01" 
+              value={setup ?? ""} 
+              onChange={e=> setSetup(e.target.value==="" ? null : Number(e.target.value))} 
+              className="h-8 text-xs sm:h-9 sm:text-sm"
+              placeholder="0.00"
+            />
           </div>
-          <div className="rounded border">
-            <table className="w-full text-sm">
-              <thead className="bg-zinc-50"><tr><th className="p-2 text-left">Qty ≥</th><th className="p-2 text-left">Unit £</th><th></th></tr></thead>
-              <tbody>
+          
+          <div className="space-y-2">
+            <div className="text-xs sm:text-sm font-medium text-zinc-700">Pricing Tiers</div>
+            <div className="space-y-2 max-h-48 overflow-y-auto">
                 {tiers.map((t,i)=>(
-                  <tr key={i} className="border-t">
-                    <td className="p-2"><Input type="number" value={t.qty} onChange={e=> setTiers(arr=> arr.map((x,k)=> k===i ? {...x, qty:Number(e.target.value)} : x))} /></td>
-                    <td className="p-2"><Input type="number" step="0.01" value={t.unit} onChange={e=> setTiers(arr=> arr.map((x,k)=> k===i ? {...x, unit:Number(e.target.value)} : x))} /></td>
-                    <td className="p-2 text-right"><Button variant="outline" onClick={()=>rm(i)}>Remove</Button></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                <div key={i} className="flex items-center gap-2 p-2 bg-zinc-50 rounded border">
+                  <div className="flex-1">
+                    <label className="text-xs text-zinc-500 block mb-1">Quantity</label>
+                    <Input 
+                      type="number" 
+                      value={t.qty} 
+                      onChange={e=> setTiers(arr=> arr.map((x,k)=> k===i ? {...x, qty:Number(e.target.value)} : x))} 
+                      className="h-7 text-xs"
+                      placeholder="100"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <label className="text-xs text-zinc-500 block mb-1">Unit Price</label>
+                    <Input 
+                      type="number" 
+                      step="0.01" 
+                      value={t.unit} 
+                      onChange={e=> setTiers(arr=> arr.map((x,k)=> k===i ? {...x, unit:Number(e.target.value)} : x))} 
+                      className="h-7 text-xs"
+                      placeholder="0.00"
+                    />
+                  </div>
+                  <div className="flex items-end">
+                    <Button 
+                      variant="outline" 
+                      onClick={()=>rm(i)}
+                      className="h-7 w-7 p-0 text-red-500 hover:bg-red-50 hover:border-red-300"
+                      title="Remove tier"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
           </div>
-          <div className="flex items-center justify-between">
-            <Button variant="outline" onClick={add}>Add tier</Button>
-            <Button onClick={save}>Save</Button>
+          </div>
+          
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Button 
+              variant="outline" 
+              onClick={add}
+              className="h-8 text-xs sm:h-9 sm:text-sm flex-1"
+            >
+              <Plus className="h-3 w-3 mr-1" />
+              Add tier
+            </Button>
+            <Button 
+              onClick={save}
+              className="h-8 text-xs sm:h-9 sm:text-sm flex-1"
+            >
+              <Save className="h-3 w-3 mr-1" />
+              Save
+            </Button>
           </div>
         </div>
       </DialogContent>

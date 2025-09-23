@@ -4,12 +4,15 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 export async function GET(request: NextRequest) {
+  console.log('🔍 API SETTINGS GET: Starting...');
   try {
     const settings = await prisma.settings.findMany({
       orderBy: {
         category: 'asc'
       }
     });
+
+    console.log('🔍 API SETTINGS GET: Found settings:', settings.length);
 
     // Convert to key-value object
     const settingsObject = settings.reduce((acc, setting) => {
@@ -21,13 +24,15 @@ export async function GET(request: NextRequest) {
       return acc;
     }, {} as Record<string, { value: string; description?: string; category: string }>);
 
+    console.log('✅ API SETTINGS GET: Success, returning settings');
+
     return NextResponse.json({
       ok: true,
       settings: settingsObject
     });
 
   } catch (error) {
-    console.error('Error fetching settings:', error);
+    console.error('💥 API SETTINGS GET ERROR:', error);
     return NextResponse.json(
       { ok: false, error: 'Failed to fetch settings' },
       { status: 500 }
