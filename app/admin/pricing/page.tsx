@@ -200,7 +200,7 @@ export default function AdminPrices() {
         console.error('💥 JSON Parse Error - likely HTML response');
         toast.error('Server returned invalid response - please check console');
       } else {
-        toast.error('Failed to update service: ' + error.message);
+        toast.error('Failed to update service: ' + (error instanceof Error ? error.message : 'Unknown error'));
       }
     }
   }
