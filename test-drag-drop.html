@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Drag & Drop</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .service { 
+            border: 1px solid #ccc; 
+            padding: 10px; 
+            margin: 5px 0; 
+            background: #f9f9f9;
+            cursor: move;
+        }
+        .service:hover { background: #e9e9e9; }
+        .arrow { 
+            display: inline-block; 
+            margin: 0 10px; 
+            cursor: pointer;
+            background: #007bff;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 3px;
+        }
+        .arrow:hover { background: #0056b3; }
+        .arrow:disabled { 
+            background: #ccc; 
+            cursor: not-allowed; 
+        }
+    </style>
+</head>
+<body>
+    <h1>Test Drag & Drop Functionality</h1>
+    <p>Testing the admin configurator drag and drop functionality</p>
+    
+    <div id="services">
+        <div class="service" data-id="189">
+            <span class="arrow" onclick="moveUp(189)">↑</span>
+            <span class="arrow" onclick="moveDown(189)">↓</span>
+            Flyers (ID: 189)
+        </div>
+        <div class="service" data-id="190">
+            <span class="arrow" onclick="moveUp(190)">↑</span>
+            <span class="arrow" onclick="moveDown(190)">↓</span>
+            Leaflets (ID: 190)
+        </div>
+        <div class="service" data-id="191">
+            <span class="arrow" onclick="moveUp(191)">↑</span>
+            <span class="arrow" onclick="moveDown(191)">↓</span>
+            Posters (ID: 191)
+        </div>
+    </div>
+    
+    <div id="log" style="margin-top: 20px; padding: 10px; background: #f0f0f0; border-radius: 5px;">
+        <h3>Log:</h3>
+        <div id="log-content"></div>
+    </div>
+
+    <script>
+        function log(message) {
+            const logContent = document.getElementById('log-content');
+            const time = new Date().toLocaleTimeString();
+            logContent.innerHTML += `<div>[${time}] ${message}</div>`;
+        }
+
+        async function moveUp(serviceId) {
+            log(`Moving service ${serviceId} up...`);
+            try {
+                const response = await fetch('https://pixelprint1.vercel.app/api/services/bulk-update-order', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        updates: [
+                            { id: serviceId, order: 1 },
+                            { id: serviceId === 189 ? 190 : 189, order: 2 }
+                        ],
+                        useTempSwap: false
+                    })
+                });
+                
+                const result = await response.json();
+                log(`Response: ${JSON.stringify(result)}`);
+                
+                if (result.success) {
+                    log('✅ Order updated successfully!');
+                    // Refresh the page to see changes
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1000);
+                } else {
+                    log('❌ Failed to update order');
+                }
+            } catch (error) {
+                log(`❌ Error: ${error.message}`);
+            }
+        }
+
+        async function moveDown(serviceId) {
+            log(`Moving service ${serviceId} down...`);
+            try {
+                const response = await fetch('https://pixelprint1.vercel.app/api/services/bulk-update-order', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        updates: [
+                            { id: serviceId, order: 2 },
+                            { id: serviceId === 189 ? 190 : 189, order: 1 }
+                        ],
+                        useTempSwap: false
+                    })
+                });
+                
+                const result = await response.json();
+                log(`Response: ${JSON.stringify(result)}`);
+                
+                if (result.success) {
+                    log('✅ Order updated successfully!');
+                    // Refresh the page to see changes
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1000);
+                } else {
+                    log('❌ Failed to update order');
+                }
+            } catch (error) {
+                log(`❌ Error: ${error.message}`);
+            }
+        }
+
+        // Test API on page load
+        window.onload = async function() {
+            log('Testing API connection...');
+            try {
+                const response = await fetch('https://pixelprint1.vercel.app/api/services?includeInactive=true');
+                const data = await response.json();
+                log(`✅ API connected. Found ${Object.keys(data.services).length} categories`);
+                
+                // Show current order
+                const advertising = data.services.Advertising;
+                if (advertising) {
+                    log('Current Advertising services order:');
+                    advertising.forEach((service, index) => {
+                        log(`  ${index + 1}. ${service.name} (order: ${service.order})`);
+                    });
+                }
+            } catch (error) {
+                log(`❌ API Error: ${error.message}`);
+            }
+        };
+    </script>
+</body>
+</html>

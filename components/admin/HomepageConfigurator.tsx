@@ -207,38 +207,42 @@ export default function HomepageConfigurator() {
       const service = Object.values(services).flat().find(s => s.id === serviceId);
       if (!service) return;
 
-      const categoryServices = services[service.category];
+      const categoryServices = services[service.category].sort((a, b) => a.order - b.order);
       const currentIndex = categoryServices.findIndex(s => s.id === serviceId);
       const newIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
 
       if (newIndex < 0 || newIndex >= categoryServices.length) return;
 
-      // Prepare bulk updates
-      const updates = [
-        {
-          id: serviceId,
-          order: categoryServices[newIndex].order
-        },
-        {
-          id: categoryServices[newIndex].id,
-          order: categoryServices[currentIndex].order
-        }
-      ];
+      // Create new order array
+      const newOrder = [...categoryServices];
+      const [movedService] = newOrder.splice(currentIndex, 1);
+      newOrder.splice(newIndex, 0, movedService);
 
-      // Simple direct update
-      const useTempSwap = false;
+      // Prepare updates with correct order values
+      const updates = newOrder.map((service, index) => ({
+        id: service.id,
+        order: index + 1
+      }));
+
+      console.log('Service order change:', {
+        serviceId,
+        direction,
+        currentIndex,
+        newIndex,
+        updates
+      });
 
       const response = await fetch('/api/services/bulk-update-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ updates, useTempSwap })
+        body: JSON.stringify({ updates, useTempSwap: false })
       });
 
       if (!response.ok) {
         throw new Error('Failed to update service order');
       }
 
-      // Simple refresh
+      toast.success('Order updated successfully!');
       fetchServices();
     } catch (error) {
       console.error('Error updating order:', error);
@@ -251,7 +255,6 @@ export default function HomepageConfigurator() {
       const categoryServices = services[category];
       if (!categoryServices || categoryServices.length === 0) return;
 
-      const currentCategoryOrder = categoryServices[0].categoryOrder;
       const allCategories = Object.keys(services).sort((a, b) => {
         const aOrder = services[a][0]?.categoryOrder || 0;
         const bOrder = services[b][0]?.categoryOrder || 0;
@@ -263,30 +266,36 @@ export default function HomepageConfigurator() {
 
       if (newIndex < 0 || newIndex >= allCategories.length) return;
 
+      // Create new category order array
+      const newCategoryOrder = [...allCategories];
+      const [movedCategory] = newCategoryOrder.splice(currentIndex, 1);
+      newCategoryOrder.splice(newIndex, 0, movedCategory);
+
+      // Prepare updates for all services in affected categories
+      const updates = [];
+      
+      // Update all services in the moved category
+      categoryServices.forEach(service => {
+        updates.push({
+          id: service.id,
+          categoryOrder: newIndex + 1
+        });
+      });
+
+      // Update all services in the target category
       const targetCategory = allCategories[newIndex];
-      const targetCategoryOrder = services[targetCategory][0]?.categoryOrder || 0;
-
-      // Prepare bulk updates - only update 2 services at a time to avoid conflicts
-      const updates = [
-        // Update first service from current category
-        {
-          id: categoryServices[0].id,
-          categoryOrder: targetCategoryOrder
-        },
-        // Update first service from target category
-        {
-          id: services[targetCategory][0].id,
-          categoryOrder: currentCategoryOrder
-        }
-      ];
-
-      // Simple direct update
-      const useTempSwap = false;
+      const targetCategoryServices = services[targetCategory];
+      targetCategoryServices.forEach(service => {
+        updates.push({
+          id: service.id,
+          categoryOrder: currentIndex + 1
+        });
+      });
 
       const response = await fetch('/api/services/bulk-update-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ updates, useTempSwap })
+        body: JSON.stringify({ updates, useTempSwap: false })
       });
 
       if (!response.ok) {
@@ -294,8 +303,6 @@ export default function HomepageConfigurator() {
       }
 
       toast.success('Category order updated!');
-      
-      // Simple refresh
       fetchServices();
     } catch (error) {
       console.error('Error updating category order:', error);
