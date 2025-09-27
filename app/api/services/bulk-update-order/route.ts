@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { revalidatePath } from 'next/cache';
 
 export const runtime = 'nodejs';
 
@@ -28,6 +29,10 @@ export async function POST(request: NextRequest) {
       )
     );
 
+    // Revalidate cache
+    revalidatePath('/api/services');
+    revalidatePath('/admin/configurator');
+    
     return NextResponse.json({ 
       success: true, 
       updated: result.length 

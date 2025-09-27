@@ -92,7 +92,7 @@ export async function GET(request: NextRequest) {
           }
         }, {
           headers: {
-            'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600', // 5 min cache, 10 min stale
+            'Cache-Control': includeInactive ? 'no-cache, no-store, must-revalidate' : 'public, s-maxage=300, stale-while-revalidate=600',
           }
         });
   } catch (error) {
