@@ -219,7 +219,7 @@ export default function HomepageConfigurator() {
       newOrder.splice(newIndex, 0, movedService);
 
       // Prepare updates with correct order values
-      const updates = newOrder.map((service, index) => ({
+      const updates: Array<{ id: number; order: number }> = newOrder.map((service, index) => ({
         id: service.id,
         order: index + 1
       }));
@@ -272,7 +272,7 @@ export default function HomepageConfigurator() {
       newCategoryOrder.splice(newIndex, 0, movedCategory);
 
       // Prepare updates for all services in affected categories
-      const updates = [];
+      const updates: Array<{ id: number; categoryOrder: number }> = [];
       
       // Update all services in the moved category
       categoryServices.forEach(service => {
