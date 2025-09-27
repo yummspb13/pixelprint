@@ -92,7 +92,9 @@ export async function GET(request: NextRequest) {
           }
         }, {
           headers: {
-            'Cache-Control': includeInactive ? 'no-cache, no-store, must-revalidate' : 'public, s-maxage=300, stale-while-revalidate=600',
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
           }
         });
   } catch (error) {
