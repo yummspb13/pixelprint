@@ -17,6 +17,7 @@ import RecentOrders from "@/components/admin/RecentOrders";
 import PopularServices from "@/components/admin/PopularServices";
 import RecentNotifications from "@/components/admin/RecentNotifications";
 import ScrollReveal from "@/components/ux/ScrollReveal";
+import { Suspense } from "react";
 
 export default function AdminDashboard() {
   logger.info("=== ADMIN DASHBOARD RENDERED ===");

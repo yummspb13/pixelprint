@@ -1,0 +1,34 @@
+[
+  {
+    "id": 1,
+    "key": "site_name",
+    "value": "PixelPrint",
+    "description": "Название сайта",
+    "createdAt": "2025-09-22T17:23:10.284Z",
+    "updatedAt": "2025-09-22T17:23:10.284Z"
+  },
+  {
+    "id": 2,
+    "key": "site_description",
+    "value": "Профессиональная печать в высоком качестве",
+    "description": "Описание сайта",
+    "createdAt": "2025-09-22T17:23:10.284Z",
+    "updatedAt": "2025-09-22T17:23:10.284Z"
+  },
+  {
+    "id": 3,
+    "key": "contact_email",
+    "value": "info@pixelprint.com",
+    "description": "Контактный email",
+    "createdAt": "2025-09-22T17:23:10.284Z",
+    "updatedAt": "2025-09-22T17:23:10.284Z"
+  },
+  {
+    "id": 4,
+    "key": "contact_phone",
+    "value": "+1 (555) 123-4567",
+    "description": "Контактный телефон",
+    "createdAt": "2025-09-22T17:23:10.284Z",
+    "updatedAt": "2025-09-22T17:23:10.284Z"
+  }
+]

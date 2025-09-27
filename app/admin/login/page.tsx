@@ -40,9 +40,8 @@ export default function AdminLoginPage() {
       if (response.ok && data.success) {
         console.log("✅ LOGIN SUCCESS:", data.user);
         toast.success(`Добро пожаловать, ${data.user.name}!`);
-        // Перенаправляем без ключа
-        console.log("🔄 Redirecting to /admin/orders/");
-        router.push("/admin/orders/");
+        // Убираем редирект - пусть middleware обработает
+        console.log("🔄 Login successful, middleware will handle redirect");
       } else {
         console.log("❌ LOGIN FAILED:", data.error);
         toast.error(data.error || "Неверные учетные данные");

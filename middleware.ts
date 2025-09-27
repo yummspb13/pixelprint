@@ -1,13 +1,15 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-export const config = { matcher: ["/admin/:path*"] };
+export const config = { 
+  matcher: ["/admin/:path*"]
+};
 
 export function middleware(request: NextRequest) {
   const url = new URL(request.url);
   
-  // Пропускаем страницу входа (с слэшем и без)
-  if (url.pathname === "/admin/login" || url.pathname === "/admin/login/") {
+  // Пропускаем страницу входа
+  if (url.pathname === "/admin/login") {
     return NextResponse.next();
   }
   
@@ -29,6 +31,7 @@ export function middleware(request: NextRequest) {
       console.error("Invalid session cookie:", error);
     }
   }
+  
   // Если сессии нет, перенаправляем на логин
   return NextResponse.redirect(new URL("/admin/login", request.url));
 }

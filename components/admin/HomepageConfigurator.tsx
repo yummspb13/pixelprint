@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
+import ImageOptimizationInfo from './ImageOptimizationInfo';
 
 interface Service {
   id: number;
@@ -58,6 +59,7 @@ export default function HomepageConfigurator() {
     isActive: true
   });
   const [isUploading, setIsUploading] = useState(false);
+  const [optimizationInfo, setOptimizationInfo] = useState<any>(null);
 
   useEffect(() => {
     fetchServices();
@@ -65,7 +67,15 @@ export default function HomepageConfigurator() {
 
   const fetchServices = async () => {
     try {
-      const response = await fetch('/api/services?includeInactive=true');
+      const response = await fetch(`${window.location.origin}/api/services?includeInactive=true`, {
+        method: 'GET',
+        cache: 'no-cache',
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
       const data = await response.json();
       setServices(data.services);
     } catch (error) {
@@ -134,6 +144,7 @@ export default function HomepageConfigurator() {
       }
       
       setIsModalOpen(false);
+      setOptimizationInfo(null);
       fetchServices();
     } catch (error) {
       console.error('Error saving service:', error);
@@ -175,7 +186,14 @@ export default function HomepageConfigurator() {
 
       const result = await response.json();
       setFormData(prev => ({ ...prev, image: result.imageUrl }));
-      toast.success('Image uploaded successfully');
+      setOptimizationInfo(result);
+      
+      // Show optimization info
+      if (result.compressionRatio > 0) {
+        toast.success(`Image uploaded and optimized! ${result.compressionRatio}% size reduction`);
+      } else {
+        toast.success('Image uploaded successfully');
+      }
     } catch (error) {
       console.error('Error uploading image:', error);
       toast.error('Failed to upload image');
@@ -195,25 +213,32 @@ export default function HomepageConfigurator() {
 
       if (newIndex < 0 || newIndex >= categoryServices.length) return;
 
-      // Swap orders
-      const tempOrder = categoryServices[currentIndex].order;
-      categoryServices[currentIndex].order = categoryServices[newIndex].order;
-      categoryServices[newIndex].order = tempOrder;
+      // Prepare bulk updates
+      const updates = [
+        {
+          id: serviceId,
+          order: categoryServices[newIndex].order
+        },
+        {
+          id: categoryServices[newIndex].id,
+          order: categoryServices[currentIndex].order
+        }
+      ];
 
-      // Update both services
-      await Promise.all([
-        fetch(`/api/services/${serviceId}/`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ order: categoryServices[currentIndex].order })
-        }),
-        fetch(`/api/services/${categoryServices[newIndex].id}/`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ order: categoryServices[newIndex].order })
-        })
-      ]);
+      // Simple direct update
+      const useTempSwap = false;
 
+      const response = await fetch('/api/services/bulk-update-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ updates, useTempSwap })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update service order');
+      }
+
+      // Simple refresh
       fetchServices();
     } catch (error) {
       console.error('Error updating order:', error);
@@ -241,38 +266,37 @@ export default function HomepageConfigurator() {
       const targetCategory = allCategories[newIndex];
       const targetCategoryOrder = services[targetCategory][0]?.categoryOrder || 0;
 
-      // Update all services in both categories
+      // Prepare bulk updates - only update 2 services at a time to avoid conflicts
       const updates = [
-        ...categoryServices.map(service => 
-          fetch(`/api/services/${service.id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ categoryOrder: targetCategoryOrder })
-          }).catch(error => {
-            console.error(`Failed to update service ${service.id}:`, error);
-            return null;
-          })
-        ),
-        ...services[targetCategory].map(service =>
-          fetch(`/api/services/${service.id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ categoryOrder: currentCategoryOrder })
-          }).catch(error => {
-            console.error(`Failed to update service ${service.id}:`, error);
-            return null;
-          })
-        )
+        // Update first service from current category
+        {
+          id: categoryServices[0].id,
+          categoryOrder: targetCategoryOrder
+        },
+        // Update first service from target category
+        {
+          id: services[targetCategory][0].id,
+          categoryOrder: currentCategoryOrder
+        }
       ];
 
-      const results = await Promise.all(updates);
-      const failedUpdates = results.filter(result => result === null).length;
-      
-      if (failedUpdates > 0) {
-        toast.error(`Failed to update ${failedUpdates} services`);
+      // Simple direct update
+      const useTempSwap = false;
+
+      const response = await fetch('/api/services/bulk-update-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ updates, useTempSwap })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update category order');
       }
-      fetchServices();
+
       toast.success('Category order updated!');
+      
+      // Simple refresh
+      fetchServices();
     } catch (error) {
       console.error('Error updating category order:', error);
       toast.error('Failed to update category order');
@@ -294,6 +318,7 @@ export default function HomepageConfigurator() {
       </Card>
     );
   }
+
 
   // Sort categories by categoryOrder
   const categories = Object.keys(services || {}).sort((a, b) => {
@@ -567,6 +592,17 @@ export default function HomepageConfigurator() {
                       className="mt-1"
                     />
                   </div>
+                  
+                  {/* Optimization Info */}
+                  {optimizationInfo && (
+                    <ImageOptimizationInfo
+                      originalSize={optimizationInfo.originalSize}
+                      optimizedSize={optimizationInfo.optimizedSize}
+                      compressionRatio={optimizationInfo.compressionRatio}
+                      format={optimizationInfo.format}
+                      dimensions={optimizationInfo.dimensions}
+                    />
+                  )}
                 </div>
               </div>
               
@@ -611,7 +647,10 @@ export default function HomepageConfigurator() {
               </div>
               
               <div className="flex justify-end space-x-2 pt-4">
-                <Button variant="outline" onClick={() => setIsModalOpen(false)}>
+                <Button variant="outline" onClick={() => {
+                  setIsModalOpen(false);
+                  setOptimizationInfo(null);
+                }}>
                   <X className="h-4 w-4 mr-2" />
                   Cancel
                 </Button>

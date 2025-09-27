@@ -99,14 +99,30 @@ function TiltCard({ service, index, onServiceClick }: TiltCardProps) {
             }`}
           >
             <Image
-              src={service.image || 'https://via.placeholder.com/320x240/f3f4f6/9ca3af?text=No+Image'}
+              src={service.image || '/placeholder-service.jpg'}
               alt={service.name}
               width={280}
               height={160}
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                const currentSrc = target.src;
+                
+                // Try different formats in order of preference
+                if (currentSrc.includes('.webp')) {
+                  target.src = currentSrc.replace('.webp', '.jpg');
+                } else if (currentSrc.includes('.jpg')) {
+                  target.src = currentSrc.replace('.jpg', '.png');
+                } else if (currentSrc.includes('.png')) {
+                  target.src = currentSrc.replace('.png', '.gif');
+                } else {
+                  target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjgwIiBoZWlnaHQ9IjE2MCIgdmlld0JveD0iMCAwIDI4MCAxNjAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIyODAiIGhlaWdodD0iMTYwIiBmaWxsPSIjRjNGNEY2Ii8+Cjx0ZXh0IHg9IjE0MCIgeT0iODAiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzlDQTNBRiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+Tm8gSW1hZ2U8L3RleHQ+Cjwvc3ZnPg==';
+                }
+              }}
               className="block w-[200px] h-[120px] md:w-[280px] md:h-[160px] object-cover rounded-md shadow-xl"
               loading="lazy"
-              quality={75}
+              quality={85}
               sizes="(max-width: 768px) 200px, 280px"
+              unoptimized={service.image?.includes('.webp') || service.image?.includes('.gif')}
             />
           </div>
         </div>

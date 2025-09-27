@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Admin API</title>
+</head>
+<body>
+    <h1>Test Admin API</h1>
+    <div id="results">Loading...</div>
+    
+    <script>
+        async function testAdminAPI() {
+            const results = document.getElementById('results');
+            results.innerHTML = 'Testing admin API...<br>';
+            
+            try {
+                // Test admin API directly
+                const response = await fetch('/api/admin/prices/services/by-slug/leaflets/rows');
+                results.innerHTML += `Response status: ${response.status}<br>`;
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    results.innerHTML += `✅ API Response: ${JSON.stringify(data, null, 2)}<br>`;
+                    
+                    if (data.ok) {
+                        results.innerHTML += `✅ Data OK: ${data.rows.length} rows found<br>`;
+                        if (data.rows.length > 0) {
+                            results.innerHTML += `First row: ${JSON.stringify(data.rows[0], null, 2)}<br>`;
+                        }
+                    } else {
+                        results.innerHTML += `❌ Data not OK: ${data.error}<br>`;
+                    }
+                } else {
+                    results.innerHTML += `❌ Response not OK: ${response.statusText}<br>`;
+                }
+            } catch (error) {
+                results.innerHTML += `❌ Error: ${error.message}<br>`;
+            }
+        }
+        
+        testAdminAPI();
+    </script>
+</body>
+</html>

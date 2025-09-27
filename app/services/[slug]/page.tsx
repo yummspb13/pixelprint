@@ -127,9 +127,17 @@ export default function ServicePage() {
           try {
             const d = await fetchOptions(slug);
             setAttrs(d.attributes);
-            // дефолты — первое значение
+            // дефолты — первое значение для основных параметров, модификаторы по умолчанию "None"
             const defSel: Record<string, string> = {};
-            d.attributes.forEach(a => { if (a.values.length) defSel[a.key] = a.values[0]; });
+            d.attributes.forEach(a => { 
+              if (a.values.length && a.isMain) {
+                // Основные параметры выбираем по умолчанию
+                defSel[a.key] = a.values[0]; 
+                console.log(`Setting default for main param ${a.key}: ${a.values[0]}`);
+              }
+              // Модификаторы по умолчанию "None" (не добавляем в selection)
+            });
+            console.log('Default selection:', defSel);
             setSelection(defSel);
             
             // Загружаем данные модели для расчета количеств
@@ -178,12 +186,36 @@ export default function ServicePage() {
   // fetch quote
   async function recalc() {
     if (!meta || !service?.calculatorAvailable) return;
+    
+    // Проверяем, что selection не пустой
+    if (!selection || Object.keys(selection).length === 0) {
+      console.log('🔍 Recalc skipped - selection is empty');
+      return;
+    }
+    
     setQuoteLoading(true);
     try {
+      console.log('🔍 Recalc called with:', { slug, qty, selection, extras: { turnaround, delivery } });
+      
+      // Проверяем, что selection содержит основные параметры
+      const mainAttrs = attrs.filter(a => a.isMain);
+      const hasMainSelection = mainAttrs.every(attr => 
+        selection[attr.key] && selection[attr.key].trim() !== ''
+      );
+      
+      if (!hasMainSelection) {
+        console.warn('Missing main parameter selection:', { mainAttrs, selection });
+        toast.error('Please select all required options');
+        setQuote(null);
+        return;
+      }
+      
       const q = await fetchQuote({ slug, qty, selection, extras: { turnaround, delivery } });
       setQuote(q);
     } catch (e: any) { 
       console.error('Quote calculation error:', e);
+      console.error('Selection data:', selection);
+      console.error('Service data:', service);
       toast.error(e.message || t('service.messages.failedCalculate'));
       setQuote(null);
     }
@@ -193,7 +225,7 @@ export default function ServicePage() {
   }
   
   useEffect(() => { 
-    if (service?.calculatorAvailable) {
+    if (service?.calculatorAvailable && selection && Object.keys(selection).length > 0) {
       recalc(); 
     }
     /* eslint-disable-next-line */ 
@@ -372,10 +404,80 @@ export default function ServicePage() {
                       <CardDescription>{t('service.messages.configureService')} {service.name.toLowerCase()} {t('service.messages.getInstantQuote')}</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-6">
-                      {/* Options */}
-                      {attrs.length > 0 && (
+                      {/* Main Options */}
+                      {attrs.filter(a => a.isMain).length > 0 && (
+                        <div className="space-y-4">
+                          <div className="flex items-center gap-2 mb-4">
+                            <div className="w-2 h-2 bg-px-cyan rounded-full"></div>
+                            <h3 className="text-lg font-semibold text-px-fg">Main Options</h3>
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {attrs.filter(a => a.isMain).map(a => (
+                              <div key={a.key}>
+                                <label className="block text-sm font-medium text-px-fg mb-2">{a.key}</label>
+                                <Select 
+                                  value={selection[a.key] ?? ""} 
+                                  onValueChange={(v) => setSelection({ ...selection, [a.key]: v })}
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue placeholder={`${t('service.messages.chooseOption')} ${a.key}`} />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {a.values.map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Modifier Options */}
+                      {attrs.filter(a => a.isModifier).length > 0 && (
+                        <div className="space-y-4">
+                          <div className="flex items-center gap-2 mb-4">
+                            <div className="w-2 h-2 bg-px-magenta rounded-full"></div>
+                            <h3 className="text-lg font-semibold text-px-fg">Add-ons (optional)</h3>
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {attrs.filter(a => a.isModifier).map(a => (
+                              <div key={a.key}>
+                                <label className="block text-sm font-medium text-px-fg mb-2">{a.key}</label>
+                                <Select 
+                                  value={selection[a.key] || "None"} 
+                                  onValueChange={(v) => {
+                                    if (v === "None") {
+                                      const newSelection = { ...selection };
+                                      delete newSelection[a.key];
+                                      setSelection(newSelection);
+                                    } else {
+                                      setSelection({ ...selection, [a.key]: v });
+                                    }
+                                  }}
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue placeholder={`Choose ${a.key}`} />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="None">None</SelectItem>
+                                    {a.values.map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Fallback for non-main, non-modifier attributes */}
+                      {attrs.filter(a => !a.isMain && !a.isModifier).length > 0 && (
+                        <div className="space-y-4">
+                          <div className="flex items-center gap-2 mb-4">
+                            <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+                            <h3 className="text-lg font-semibold text-px-fg">Additional Options</h3>
+                          </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          {attrs.map(a => (
+                            {attrs.filter(a => !a.isMain && !a.isModifier).map(a => (
                             <div key={a.key}>
                               <label className="block text-sm font-medium text-px-fg mb-2">{a.key}</label>
                               <Select 
@@ -391,6 +493,7 @@ export default function ServicePage() {
                               </Select>
                             </div>
                           ))}
+                          </div>
                         </div>
                       )}
 
@@ -421,21 +524,19 @@ export default function ServicePage() {
                           <div className="flex items-center space-x-2">
                             <Input 
                               type="number" 
-                              min={minQty} 
-                              max={maxQty}
+                              min={1}
                               value={qty} 
                               onChange={e => {
-                                const newQty = Number(e.target.value || minQty);
-                                // Ограничиваем введенное значение диапазоном
-                                const clampedQty = Math.max(minQty, Math.min(maxQty, newQty));
-                                setQty(clampedQty);
+                                const newQty = Number(e.target.value || 1);
+                                // Убираем ограничения - клиент может ввести любое количество
+                                setQty(Math.max(1, newQty));
                               }} 
                               className="w-24 sm:w-32"
                             />
                             <span className="text-sm text-px-muted">pcs</span>
                           </div>
                           <div className="text-xs text-px-muted">
-                            Available range: {minQty} - {maxQty} pieces
+                            Enter any quantity - pricing will be calculated automatically
                           </div>
                         </div>
                       </div>

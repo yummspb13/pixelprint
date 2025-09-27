@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Service Page</title>
+</head>
+<body>
+    <h1>Test Service Page</h1>
+    <div id="status">Loading...</div>
+    
+    <script>
+        async function testServicePage() {
+            const status = document.getElementById('status');
+            
+            try {
+                // Test API services
+                const servicesResponse = await fetch('/api/pricing/services');
+                const servicesData = await servicesResponse.json();
+                
+                if (servicesData.ok) {
+                    const leaflets = servicesData.services.find(s => s.slug === 'leaflets');
+                    if (leaflets) {
+                        status.innerHTML += '<br>✅ Leaflets service found: ' + leaflets.name;
+                        
+                        // Test API options
+                        const optionsResponse = await fetch('/api/pricing/options?slug=leaflets');
+                        const optionsData = await optionsResponse.json();
+                        
+                        if (optionsData.ok) {
+                            status.innerHTML += '<br>✅ Options API works: ' + optionsData.attributes.length + ' attributes';
+                            
+                            // Test API models
+                            const modelsResponse = await fetch('/api/pricing/models/leaflets');
+                            const modelsData = await modelsResponse.json();
+                            
+                            if (modelsData.ok) {
+                                status.innerHTML += '<br>✅ Models API works: ' + modelsData.model.rows.length + ' rows';
+                                
+                                // Test API quote
+                                const quoteResponse = await fetch('/api/quote', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                        slug: 'leaflets',
+                                        qty: 100,
+                                        selection: { Size: 'A4', Sides: 'Single Sided (S/S)', Paper: '100gsm Matt' }
+                                    })
+                                });
+                                const quoteData = await quoteResponse.json();
+                                
+                                if (quoteData.ok) {
+                                    status.innerHTML += '<br>✅ Quote API works: £' + quoteData.breakdown.gross;
+                                } else {
+                                    status.innerHTML += '<br>❌ Quote API error: ' + quoteData.error;
+                                }
+                            } else {
+                                status.innerHTML += '<br>❌ Models API error: ' + modelsData.error;
+                            }
+                        } else {
+                            status.innerHTML += '<br>❌ Options API error: ' + optionsData.error;
+                        }
+                    } else {
+                        status.innerHTML += '<br>❌ Leaflets service not found';
+                    }
+                } else {
+                    status.innerHTML += '<br>❌ Services API error: ' + servicesData.error;
+                }
+            } catch (error) {
+                status.innerHTML += '<br>❌ Error: ' + error.message;
+            }
+        }
+        
+        testServicePage();
+    </script>
+</body>
+</html>

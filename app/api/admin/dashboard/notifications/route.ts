@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/db';
 
 export const runtime = 'nodejs';
-
-const prisma = new PrismaClient();
 
 export async function GET(request: NextRequest) {
   try {
@@ -85,7 +83,5 @@ export async function GET(request: NextRequest) {
       { ok: false, error: 'Failed to fetch notifications' },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 }

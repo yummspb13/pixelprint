@@ -1,6 +1,6 @@
 {
-  "buildCommand": "pnpm run vercel-build",
-  "installCommand": "pnpm install",
+  "buildCommand": "npm run vercel-build",
+  "installCommand": "npm install",
   "framework": "nextjs",
   "functions": {
     "app/api/**/*.ts": {

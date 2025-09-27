@@ -1,0 +1,33 @@
+{
+  "timestamp": "2025-09-23T17:29:18.099Z",
+  "stats": {
+    "totalClasses": 7037,
+    "unusedRules": 0,
+    "tailwindClasses": 4024,
+    "customClasses": 3013,
+    "suggestions": [],
+    "totalRules": 63,
+    "cssVariables": 82,
+    "animations": 10
+  },
+  "recommendations": [
+    {
+      "priority": "high",
+      "title": "Оптимизация изображений",
+      "description": "Время загрузки изображений составляет 5 секунд",
+      "action": "Используйте WebP формат и lazy loading"
+    },
+    {
+      "priority": "medium",
+      "title": "Очистка неиспользуемого CSS",
+      "description": "62.9% CSS правил не используются",
+      "action": "Настройте PurgeCSS для автоматической очистки"
+    },
+    {
+      "priority": "low",
+      "title": "CSS переменные",
+      "description": "CSS переменные не используются",
+      "action": "Добавьте CSS custom properties для темизации"
+    }
+  ]
+}

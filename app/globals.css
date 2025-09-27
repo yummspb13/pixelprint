@@ -1,18 +1,29 @@
+
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,500;1,600;1,700;1,800;1,900&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* CSS переменные для темной темы */
+/* CSS переменные для старой цветовой схемы Pixel Print */
 :root {
+  /* Старые основные цвета Pixel Print */
+  --px-bg: #fafafa;
+  --px-fg: #1a1a1a;
+  --px-muted: #6b7280;
+  --px-cyan: #00AEEF; /* Старый голубой из кнопки */
+  --px-magenta: #EC008C; /* Старый розовый из кнопки */
+  --px-yellow: #eab308;
+  --px-key: #1a1a1a;
+  
+  /* shadcn/ui переменные на основе старых Pixel Print цветов */
   --background: 0 0% 100%;
   --foreground: 222.2 84% 4.9%;
   --card: 0 0% 100%;
   --card-foreground: 222.2 84% 4.9%;
   --popover: 0 0% 100%;
   --popover-foreground: 222.2 84% 4.9%;
-  --primary: 221.2 83.2% 53.3%;
+  --primary: 195 100% 47%; /* #00AEEF - старый px-cyan */
   --primary-foreground: 210 40% 98%;
   --secondary: 210 40% 96%;
   --secondary-foreground: 222.2 84% 4.9%;
@@ -24,7 +35,7 @@
   --destructive-foreground: 210 40% 98%;
   --border: 214.3 31.8% 91.4%;
   --input: 214.3 31.8% 91.4%;
-  --ring: 221.2 83.2% 53.3%;
+  --ring: 195 100% 47%; /* старый px-cyan */
   --radius: 0.5rem;
 }
 
@@ -39,16 +50,22 @@ html {
   scroll-behavior: smooth;
 }
 
-/* анимация для beams */
-@keyframes beam-float { 
+/* Оптимизированные анимации */
+@keyframes beam-float {
   from { transform: translate3d(0,0,0) scale(1); }
   50% { transform: translate3d(0,-10px,0) scale(1.02); }
-  to { transform: translate3d(0,0,0) scale(1); } 
+  to { transform: translate3d(0,0,0) scale(1); }
 }
-.animate-beam-slow   { animation: beam-float 14s ease-in-out infinite; }
-.animate-beam-slower { animation: beam-float 18s ease-in-out infinite; }
+.animate-beam-slow   { 
+  animation: beam-float 14s ease-in-out infinite;
+  will-change: transform;
+}
+.animate-beam-slower { 
+  animation: beam-float 18s ease-in-out infinite;
+  will-change: transform;
+}
 
-/* анимация для градиентного текста */
+/* Анимация для градиентного текста */
 @keyframes gradient-shift {
   0% { background-position: 0% 50%; }
   50% { background-position: 100% 50%; }
@@ -57,287 +74,46 @@ html {
 .animate-gradient {
   background-size: 200% 200%;
   animation: gradient-shift 3s ease-in-out infinite;
+  will-change: background-position;
 }
 
-/* аккуратное сглаживание */
-html { scroll-behavior: smooth; }
-
-/* подчеркивание ссылок */
-.link-underline {
-  background: linear-gradient(currentColor,currentColor) no-repeat left bottom/0 1px;
-  transition: background-size .2s ease;
-}
-.link-underline:hover { background-size: 100% 1px; }
-
-/* ================= Smart Hover ================= */
-.smart-hover { position: relative; }
-.smart-hover::before,
-.smart-hover::after{
-  content:""; position:absolute; inset:0; border-radius:inherit; pointer-events:none;
-  transition: opacity .25s ease, transform .25s ease;
-  opacity:0;
-}
-
-/* мягкое «свечение», центр — там, где курсор */
-.smart-hover::before{
-  background:
-    radial-gradient(180px 180px at var(--mx, -100px) var(--my, -100px),
-      rgba(0,0,0,.08), transparent 60%);
-  transform: translateZ(0);
-}
-
-/* тонкая градиентная рамка (CMYK), аккуратно через mask */
-.smart-hover::after{
-  padding:1px; /* толщина рамки */
-  background:
-    conic-gradient(from 180deg at var(--mx, 50%) var(--my, 50%),
-      rgba(0,174,239,.55), rgba(236,0,140,.55), rgba(255,242,0,.55), rgba(0,174,239,.55));
-  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor; mask-composite: exclude;
-}
-
-/* активное состояние */
-.smart-hover:hover::before{ opacity:.8; }
-.smart-hover:hover::after { opacity:.9; }
-
-/* prefers-reduced-motion — эффект «тихий» */
-@media (prefers-reduced-motion: reduce) {
-  .smart-hover::before,.smart-hover::after{ transition:none }
-}
-
-/* Навигационная панель мегаменю — чистые углы и мягкая тень */
-[data-radix-popper-content-wrapper] > div {
-  border-radius: 16px;
-  box-shadow: 0 8px 30px rgba(0,0,0,.08);
-  border: 1px solid rgba(24,24,27,.08);
-}
-
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
+/* Оптимизированная анимация fade-in */
+@keyframes fadeIn {
+  from { 
+    opacity: 0; 
+    transform: translateY(20px); 
   }
-  
-  /* Стиль для таблицы заказов в админ панели */
-  .admin-orders-table .table-container {
-    max-width: 100% !important;
-    overflow-x: auto !important;
+  to { 
+    opacity: 1; 
+    transform: translateY(0); 
   }
-  
-  /* Мобильная адаптация для админ панели */
-  @media (max-width: 768px) {
-    .admin-orders-table {
-      padding: 1rem !important;
-    }
-    
-    .admin-orders-table .table-container {
-      max-width: 100% !important;
-    }
-    
-    .admin-orders-table table {
-      min-width: 600px !important;
-    }
-  }
-  
-  /* Общие мобильные улучшения */
-  @media (max-width: 640px) {
-    /* Улучшенные отступы для мобильных */
-    .container {
-      padding-left: 1rem;
-      padding-right: 1rem;
-    }
-    
-    /* Улучшенные кнопки для мобильных */
-    button, .btn {
-      min-height: 44px; /* Минимальная высота для удобного нажатия */
-    }
-    
-    /* Улучшенные поля ввода */
-    input, textarea, select {
-      min-height: 44px;
-      font-size: 16px; /* Предотвращает зум на iOS */
-    }
-    
-    /* Улучшенные модальные окна */
-    [role="dialog"] {
-      margin: 1rem;
-      max-width: calc(100vw - 2rem);
-    }
-    
-    /* Улучшенная прокрутка */
-    .overflow-x-auto {
-      -webkit-overflow-scrolling: touch;
-    }
-  }
-}
-
-
-
-@layer base {
-  :root {
-    --background: 0 0% 100%;
-    --foreground: 0 0% 3.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 0 0% 3.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 3.9%;
-    --primary: 0 0% 9%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 0 0% 96.1%;
-    --secondary-foreground: 0 0% 9%;
-    --muted: 0 0% 96.1%;
-    --muted-foreground: 0 0% 45.1%;
-    --accent: 0 0% 96.1%;
-    --accent-foreground: 0 0% 9%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 89.8%;
-    --input: 0 0% 89.8%;
-    --ring: 0 0% 3.9%;
-    --chart-1: 12 76% 61%;
-    --chart-2: 173 58% 39%;
-    --chart-3: 197 37% 24%;
-    --chart-4: 43 74% 66%;
-    --chart-5: 27 87% 67%;
-    --radius: 0.5rem;
-    
-    /* Pixel Print London Typography Design Tokens */
-    --px-bg: #ffffff;
-    --px-fg: #0b0b0b;
-    --px-muted: #6b7280;
-    --px-cyan: #00AEEF;
-    --px-magenta: #EC008C;
-    --px-yellow: #FFF200;
-    --px-key: #111111;
-  }
-  .dark {
-    --background: 0 0% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 0 0% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 0 0% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 0 0% 9%;
-    --secondary: 0 0% 14.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 0 0% 14.9%;
-    --muted-foreground: 0 0% 63.9%;
-    --accent: 0 0% 14.9%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 14.9%;
-    --input: 0 0% 14.9%;
-    --ring: 0 0% 83.1%;
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
-  }
-}
-
-
-
-/* анимация fade-in */
-@keyframes fade-in {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
 }
 .animate-fade-in {
-  animation: fade-in 0.3s ease-out;
+  animation: fadeIn 0.6s ease-out;
+  will-change: opacity, transform;
 }
 
-/* анимация для градиентного текста */
-@keyframes gradient-shift {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
+/* Анимация для скелетона */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
 }
-.animate-gradient {
-  background-size: 200% 200%;
-  animation: gradient-shift 3s ease-in-out infinite;
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
-/* анимация для пульсирующих элементов */
-@keyframes pixel-pulse {
-  0%, 100% { transform: scale(1); opacity: 1; }
-  50% { transform: scale(1.1); opacity: 0.8; }
+/* Оптимизированные hover эффекты */
+.hover-lift {
+  transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
+  will-change: transform, box-shadow;
 }
-.animate-pixel-pulse {
-  animation: pixel-pulse 2s ease-in-out infinite;
-}
-
-/* анимация для волн */
-@keyframes wave-ripple {
-  0% { transform: scale(0.8); opacity: 1; }
-  100% { transform: scale(1.2); opacity: 0; }
-}
-.animate-wave-ripple {
-  animation: wave-ripple 1.5s ease-out infinite;
+.hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
 }
 
-/* анимация для карточек */
-@keyframes scale-102 {
-  0% { transform: scale(1); }
-  100% { transform: scale(1.02); }
-}
-.hover\:scale-102:hover {
-  animation: scale-102 0.2s ease-out forwards;
-}
-
-/* анимация для мокапов */
-@keyframes slide-in-right {
-  0% { 
-    opacity: 0; 
-    transform: translateX(100%) rotate(var(--angle, 0deg)); 
-  }
-  100% { 
-    opacity: 1; 
-    transform: translateX(0) rotate(var(--angle, 0deg)); 
-  }
-}
-.animate-slide-in-right {
-  animation: slide-in-right 0.7s ease-out forwards;
-}
-
-/* анимация для раскрывающихся элементов */
-@keyframes expand-down {
-  0% { 
-    max-height: 0; 
-    opacity: 0; 
-    transform: translateY(-10px);
-  }
-  100% { 
-    max-height: 200px; 
-    opacity: 1; 
-    transform: translateY(0);
-  }
-}
-.animate-expand-down {
-  animation: expand-down 0.5s ease-out forwards;
-}
-
-/* анимация для мозаики */
-@keyframes mosaic-rearrange {
-  0% { transform: scale(0.95); opacity: 0.8; }
-  100% { transform: scale(1); opacity: 1; }
-}
-.animate-mosaic-rearrange {
-  animation: mosaic-rearrange 0.6s ease-out forwards;
-}
-
-@layer base {
-  * {
-    @apply border-border;
-  }
-  body {
-    @apply bg-background text-foreground;
-  }
-}
-
-/* Playfair Display шрифт */
-.font-playfair {
-  font-family: 'Playfair Display', serif;
-}
-
+/* Принудительно добавляем основные классы */
+.bg-px-cyan { background-color: var(--px-cyan) !important; }
+.text-px-fg { color: var(--px-fg) !important; }
+.text-px-muted { color: var(--px-muted) !important; }
+.font-playfair { font-family: 'Playfair Display', serif !important; }

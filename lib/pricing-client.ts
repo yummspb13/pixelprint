@@ -1,4 +1,9 @@
-export type Attribute = { key: string; values: string[] };
+export type Attribute = { 
+  key: string; 
+  values: string[];
+  isMain?: boolean;
+  isModifier?: boolean;
+};
 export type QuoteInput = {
   slug: string;
   qty: number;
@@ -14,12 +19,16 @@ export async function fetchOptions(slug: string) {
 }
 
 export async function fetchQuote(input: QuoteInput) {
+  console.log('🔍 fetchQuote called with:', input);
   const r = await fetch("/api/quote", {
     method: "POST", 
     headers: { "content-type": "application/json" },
-    body: JSON.stringify(input)
+    body: JSON.stringify(input),
+    cache: "no-store"
   });
+  console.log('🔍 fetchQuote response status:', r.status);
   const d = await r.json();
+  console.log('🔍 fetchQuote response data:', d);
   if (!d?.ok) throw new Error(d?.error || "Quote failed");
   return d as {
     ok: true;

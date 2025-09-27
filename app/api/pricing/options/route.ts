@@ -21,19 +21,74 @@ export async function GET(req: NextRequest) {
 
   // собрать уникальные значения по каждому атрибуту (только для выбора, не цены)
   const map = new Map<string, Set<string>>();
-  for (const r of svc.rows) {
-    const a = (r.attrs ?? {}) as Record<string, string>;
+  const mainParams = new Set<string>();
+  const modifierParams = new Set<string>();
+  
+  // Сначала находим все строки с главными элементами
+  const mainRows = svc.rows.filter(row => {
+    const a = typeof row.attrs === 'string' ? JSON.parse(row.attrs) : (row.attrs ?? {}) as Record<string, string>;
+    return a._isMain === 'true';
+  });
+  
+  console.log('Main rows found:', mainRows.length);
+  
+  // Определяем основные параметры из главных строк
+  for (const r of mainRows) {
+    const a = typeof r.attrs === 'string' ? JSON.parse(r.attrs) : (r.attrs ?? {}) as Record<string, string>;
     Object.entries(a).forEach(([k, v]) => {
-      if (!v) return;
-      // Исключаем поля с ценами и количеством - они рассчитываются калькулятором
+      if (!v || k === '_isMain') return;
       if (['PRICE', 'NET PRICE', 'VAT', 'Price +VAT', 'Qty'].includes(k)) return;
+      mainParams.add(k);
+    });
+  }
+  
+  console.log('Main params identified:', Array.from(mainParams));
+  
+  // Если нет главных параметров, делаем первый параметр основным
+  if (mainParams.size === 0) {
+    const allParams = new Set<string>();
+    for (const r of svc.rows) {
+      const a = typeof r.attrs === 'string' ? JSON.parse(r.attrs) : (r.attrs ?? {}) as Record<string, string>;
+      Object.entries(a).forEach(([k, v]) => {
+        if (!v || k === '_isMain') return;
+        if (['PRICE', 'NET PRICE', 'VAT', 'Price +VAT', 'Qty'].includes(k)) return;
+        allParams.add(k);
+      });
+    }
+    
+    // Берем первый параметр как основной
+    const firstParam = Array.from(allParams)[0];
+    if (firstParam) {
+      mainParams.add(firstParam);
+      console.log('No main params found, using first param as main:', firstParam);
+    }
+  }
+  
+  // Теперь обрабатываем все строки для сбора значений
+  for (const r of svc.rows) {
+    const a = typeof r.attrs === 'string' ? JSON.parse(r.attrs) : (r.attrs ?? {}) as Record<string, string>;
+    
+    Object.entries(a).forEach(([k, v]) => {
+      if (!v || k === '_isMain') return;
+      if (['PRICE', 'NET PRICE', 'VAT', 'Price +VAT', 'Qty'].includes(k)) return;
+      
       if (!map.has(k)) map.set(k, new Set());
       map.get(k)!.add(String(v));
+      
+      // Если параметр не основной, то он модификатор
+      if (!mainParams.has(k)) {
+        modifierParams.add(k);
+      }
     });
   }
   
   const attributes = Array.from(map.entries())
-    .map(([key, set]) => ({ key, values: Array.from(set).sort() }))
+    .map(([key, set]) => ({ 
+      key, 
+      values: Array.from(set).sort(),
+      isMain: mainParams.has(key),
+      isModifier: modifierParams.has(key)
+    }))
     // разумный порядок, если есть знакомые ключи
     .sort((a, b) => {
       const order = ["Size", "Sides", "Paper", "Stock", "GSM", "Colour", "Lamination", "Fold", "Corners"];
@@ -48,6 +103,8 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ 
     ok: true, 
     service: { slug, name: svc.name, category: svc.category }, 
-    attributes 
+    attributes,
+    mainParams: Array.from(mainParams),
+    modifierParams: Array.from(modifierParams)
   });
 }

@@ -1,18 +1,12 @@
-import { prisma } from '@/lib/db';
+import { getCachedServices } from '@/lib/cache';
 import ServicesGridNew from './ServicesGridNew';
+import { ServicesGridSkeleton } from '@/components/ux/SkeletonLoader';
 
 // Серверный компонент для предзагрузки данных с кэшированием
 export default async function ServicesGridSSR() {
   try {
     // Предзагружаем данные на сервере с кэшированием
-    const services = await prisma.service.findMany({
-      where: { isActive: true },
-      orderBy: [
-        { categoryOrder: 'asc' },
-        { order: 'asc' },
-        { clickCount: 'desc' }
-      ]
-    });
+    const services = await getCachedServices();
 
     // Группируем по категориям
     const groupedServices = services.reduce((acc, service) => {
@@ -27,7 +21,7 @@ export default async function ServicesGridSSR() {
     return <ServicesGridNew initialData={groupedServices as any} />;
   } catch (error) {
     console.error('Error preloading services:', error);
-    // Fallback к клиентской загрузке
-    return <ServicesGridNew />;
+    // Fallback к скелетону загрузки
+    return <ServicesGridSkeleton />;
   }
 }

@@ -25,6 +25,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import AdminCard from "@/components/admin/AdminCard";
 import ScrollReveal from "@/components/ux/ScrollReveal";
+import ServiceEditor from "@/components/admin/ServiceEditor";
 
 type Row = { id:number; attrs:Record<string,string>; ruleKind:"tiers"|"perUnit"|"fixed"; unit?:number|null; setup?:number|null; fixed?:number|null; tiers?:{id:number;qty:number;unit:number}[] };
 
@@ -34,6 +35,20 @@ type SortDirection = 'asc' | 'desc' | null;
 export default function Page() {
   const { slug } = useParams() as { slug: string };
   const router = useRouter();
+  
+  // Функция для парсинга attrs (может быть строкой JSON или объектом)
+  function parseAttrs(attrs: any): Record<string, string> {
+    if (!attrs) return {};
+    if (typeof attrs === 'string') {
+      try {
+        return JSON.parse(attrs);
+      } catch (e) {
+        console.warn('Failed to parse attrs JSON:', attrs);
+        return {};
+      }
+    }
+    return attrs;
+  }
   const [service, setService] = useState<any>(null);
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
@@ -82,6 +97,10 @@ export default function Page() {
   });
   const [isResizing, setIsResizing] = useState<string | null>(null);
   
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  
   // Change history state
   const [changeHistory, setChangeHistory] = useState<Array<{
     id: string;
@@ -91,6 +110,9 @@ export default function Page() {
     changeType: string;
     rowId?: number;
   }>>([]);
+  
+  // Service editor state
+  const [showServiceEditor, setShowServiceEditor] = useState(false);
 
   async function load() {
     try {
@@ -192,11 +214,12 @@ export default function Page() {
   }
 
   async function addRowToGroup(groupAttrs: any) {
+    const attrs = parseAttrs(groupAttrs);
     const r = await fetch(`/api/admin/prices/services/by-slug/${slug}/rows`, { 
       method:"POST", 
       headers:{ "content-type":"application/json" }, 
       body: JSON.stringify({ 
-        attrs: groupAttrs, 
+        attrs: attrs, 
         ruleKind:"tiers", 
         unit:0 
       }) 
@@ -349,52 +372,109 @@ export default function Page() {
     return <ArrowUpDown className="h-4 w-4" />;
   }
 
-  // Group rows by attributes (Color, Sides, etc.)
+  // Group rows by attributes (Sides, Size, Paper, etc.)
   function getGroupedRows() {
     console.log('🔍 GET GROUPED ROWS: Processing', rows.length, 'rows');
     
+    if (rows.length === 0) {
+      console.log('🔍 GET GROUPED ROWS: No rows to process');
+      return [];
+    }
+    
     const groups = new Map<string, Row[]>();
     
-    rows.forEach(row => {
-      const key = JSON.stringify({
-        Sides: row.attrs?.Sides || '',
-        Color: row.attrs?.Color || '',
-        Size: row.attrs?.Size || ''
-      });
-      console.log('🔍 GET GROUPED ROWS: Row attrs:', row.attrs, 'Key:', key);
-      
-      if (!groups.has(key)) {
-        groups.set(key, []);
-      }
-      groups.get(key)!.push(row);
-    });
-    
-    const result = Array.from(groups.entries()).map(([key, groupRows]) => {
-      const attrs = JSON.parse(key);
-      
-      // Sort rows within group by quantity (from attrs.Qty or tiers)
-      const sortedRows = groupRows.sort((a, b) => {
-        const aQtyFromAttrs = parseInt(a.attrs?.Qty || '0');
-        const bQtyFromAttrs = parseInt(b.attrs?.Qty || '0');
-        const aQtyFromTiers = a.tiers?.length ? Math.min(...a.tiers.map(t => t.qty)) : 999999;
-        const bQtyFromTiers = b.tiers?.length ? Math.min(...b.tiers.map(t => t.qty)) : 999999;
+    try {
+      rows.forEach((row, index) => {
+        // Создаем ключ из основных атрибутов для группировки
+        const attrs = parseAttrs(row.attrs);
+        const keyAttrs: Record<string, string> = {};
         
-        const aQty = aQtyFromAttrs > 0 ? aQtyFromAttrs : aQtyFromTiers;
-        const bQty = bQtyFromAttrs > 0 ? bQtyFromAttrs : bQtyFromTiers;
-        return aQty - bQty;
+        // Определяем приоритетные атрибуты для группировки
+        const excludeFields = ['Qty', 'PRICE', 'NET PRICE', 'VAT', 'Price +VAT'];
+        
+        // Определяем приоритетные атрибуты для группировки
+        const priorityFields = ['Sides', 'Color', 'Paper', 'Size'];
+        
+        // Сначала добавляем приоритетные поля
+        priorityFields.forEach(field => {
+          if (attrs[field] && !excludeFields.includes(field)) {
+            keyAttrs[field] = attrs[field];
+          }
+        });
+        
+        // Если нет приоритетных полей, добавляем все остальные (кроме исключенных)
+        if (Object.keys(keyAttrs).length === 0) {
+          Object.entries(attrs).forEach(([key, value]) => {
+            if (!excludeFields.includes(key) && value) {
+              keyAttrs[key] = value;
+            }
+          });
+        }
+        
+        const key = JSON.stringify(keyAttrs);
+        console.log(`🔍 GET GROUPED ROWS: Row ${index} attrs:`, attrs, 'Key attrs:', keyAttrs, 'Key:', key);
+        
+        if (!groups.has(key)) {
+          groups.set(key, []);
+        }
+        groups.get(key)!.push(row);
       });
       
-      return {
-        key,
-        attrs,
-        rows: sortedRows
-      };
-    });
-    
-    console.log('🔍 GET GROUPED ROWS: Result:', result.length, 'groups');
-    console.log('🔍 GET GROUPED ROWS: First group:', result[0]);
-    
-    return result;
+      const result = Array.from(groups.entries()).map(([key, groupRows]) => {
+        const attrs = JSON.parse(key);
+        
+        // Sort rows within group by quantity (from attrs.Qty or tiers)
+        const sortedRows = groupRows.sort((a, b) => {
+          const aQtyFromAttrs = parseInt(a.attrs?.Qty || '0');
+          const bQtyFromAttrs = parseInt(b.attrs?.Qty || '0');
+          const aQtyFromTiers = a.tiers?.length ? Math.min(...a.tiers.map(t => t.qty)) : 999999;
+          const bQtyFromTiers = b.tiers?.length ? Math.min(...b.tiers.map(t => t.qty)) : 999999;
+          
+          const aQty = aQtyFromAttrs > 0 ? aQtyFromAttrs : aQtyFromTiers;
+          const bQty = bQtyFromAttrs > 0 ? bQtyFromAttrs : bQtyFromTiers;
+          return aQty - bQty;
+        });
+        
+        return {
+          key,
+          attrs,
+          rows: sortedRows
+        };
+      });
+      
+      // Сортируем группы по типу параметра, чтобы одинаковые параметры были рядом
+      const sortedResult = result.sort((a, b) => {
+        const aAttrs = a.attrs;
+        const bAttrs = b.attrs;
+        
+        // Получаем первый ключ из каждого объекта для сравнения
+        const aFirstKey = Object.keys(aAttrs)[0];
+        const bFirstKey = Object.keys(bAttrs)[0];
+        
+        if (!aFirstKey || !bFirstKey) return 0;
+        
+        // Сортируем по типу параметра (например, все "Color" сначала, потом все "Sides")
+        if (aFirstKey !== bFirstKey) {
+          return aFirstKey.localeCompare(bFirstKey);
+        }
+        
+        // Если тип параметра одинаковый, сортируем по значению
+        const aValue = aAttrs[aFirstKey];
+        const bValue = bAttrs[bFirstKey];
+        
+        return aValue.localeCompare(bValue);
+      });
+      
+      console.log('🔍 GET GROUPED ROWS: Result:', sortedResult.length, 'groups');
+      if (sortedResult.length > 0) {
+        console.log('🔍 GET GROUPED ROWS: First group:', sortedResult[0]);
+      }
+      
+      return sortedResult;
+    } catch (error) {
+      console.error('🔍 GET GROUPED ROWS ERROR:', error);
+      return [];
+    }
   }
 
   function getSortedRows() {
@@ -523,6 +603,23 @@ export default function Page() {
 
   const groupedRows = getGroupedRows();
   const sortedRows = getSortedRows();
+  
+  // Pagination calculations
+  const totalItems = groupedRows.length;
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedGroupedRows = groupedRows.slice(startIndex, endIndex);
+  
+  console.log('🔍 RENDER: groupedRows.length:', groupedRows.length);
+  console.log('🔍 RENDER: paginatedGroupedRows.length:', paginatedGroupedRows.length);
+  console.log('🔍 RENDER: totalItems:', totalItems, 'totalPages:', totalPages);
+  console.log('🔍 RENDER: currentPage:', currentPage, 'itemsPerPage:', itemsPerPage);
+  console.log('🔍 RENDER: startIndex:', startIndex, 'endIndex:', endIndex);
+  console.log('🔍 RENDER: service:', service);
+  console.log('🔍 RENDER: rows.length:', rows.length);
+  console.log('🔍 RENDER: loading:', loading);
+  
   const totalTiers = rows.reduce((sum, row) => sum + (row.tiers?.length || 0), 0);
   const minPrice = Math.min(...rows.flatMap(row => row.tiers?.map(t => t.qty * t.unit * 1.2) || [0]));
   const maxPrice = Math.max(...rows.flatMap(row => row.tiers?.map(t => t.qty * t.unit * 1.2) || [0]));
@@ -533,6 +630,31 @@ export default function Page() {
         <div className="text-center space-y-4">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-px-cyan mx-auto"></div>
           <p className="text-px-muted">Loading service details...</p>
+        </div>
+      </div>
+    );
+  }
+
+
+  if (!service) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="text-center space-y-4">
+          <div className="text-gray-400 text-6xl">📄</div>
+          <h2 className="text-xl font-semibold text-px-fg">Service not found</h2>
+          <p className="text-px-muted">The requested service could not be found.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (rows.length === 0) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="text-center space-y-4">
+          <div className="text-gray-400 text-6xl">📊</div>
+          <h2 className="text-xl font-semibold text-px-fg">No pricing data</h2>
+          <p className="text-px-muted">No pricing information available for this service.</p>
         </div>
       </div>
     );
@@ -646,11 +768,11 @@ export default function Page() {
             <Button
               variant="outline"
               size="sm"
-              onClick={resetColumnSettings}
-                className="border-px-magenta text-px-magenta hover:bg-px-magenta hover:text-white h-7 text-xs flex-1"
+              onClick={() => setShowServiceEditor(true)}
+                className="border-px-cyan text-px-cyan hover:bg-px-cyan hover:text-white h-7 text-xs flex-1"
             >
-                <RotateCcw className="h-3 w-3 mr-1" />
-                Reset
+                <Edit className="h-3 w-3 mr-1" />
+                Edit Service
             </Button>
             <Button
               onClick={addNewType}
@@ -672,11 +794,11 @@ export default function Page() {
       </ScrollReveal>
 
       {/* Pricing Table */}
-      <ScrollReveal>
+      <div>
         <AdminCard title="Pricing Table" className="p-0">
           {/* Mobile Card View */}
           <div className="lg:hidden space-y-2 p-2">
-            {groupedRows.length === 0 ? (
+            {paginatedGroupedRows.length === 0 ? (
               <div className="text-center py-6 text-px-muted">
                 <div className="space-y-1">
                   <p className="text-sm font-medium">No pricing rows found</p>
@@ -684,15 +806,16 @@ export default function Page() {
                 </div>
               </div>
             ) : (
-              groupedRows.map((group, groupIndex) => (
+              paginatedGroupedRows.map((group, groupIndex) => (
                 <div key={group.key} className="bg-gradient-to-r from-px-cyan/5 to-px-magenta/5 border border-px-cyan/20 rounded-lg p-2">
                   {/* Group Header */}
                   <div className="flex items-center justify-between mb-2">
                     <div className="min-w-0 flex-1 mr-2">
                       <h3 className="text-xs font-semibold text-px-fg truncate">
-                        {group.attrs.Sides}
-                        {group.attrs.Size && ` - ${group.attrs.Size}`}
-                        {group.attrs.Color && ` (${group.attrs.Color})`}
+                        {Object.entries(group.attrs)
+                          .filter(([key, value]) => value && !['Qty', 'PRICE', 'NET PRICE', 'VAT', 'Price +VAT'].includes(key))
+                          .map(([key, value]) => `${key}: ${value}`)
+                          .join(' - ')}
                       </h3>
                       <Badge variant="outline" className="text-px-cyan border-px-cyan/20 text-xs mt-0.5">
                         {group.rows.length} variant{group.rows.length !== 1 ? 's' : ''}
@@ -739,7 +862,7 @@ export default function Page() {
                             </div>
                             
                             <div className="flex items-center justify-between mt-1.5 pt-1 border-t border-zinc-100">
-                              <Badge className="bg-gradient-to-r from-px-cyan/10 to-px-magenta/10 text-px-cyan border-px-cyan/20 text-[10px] px-1.5 py-0.5">
+                              <Badge className="bg-gray-100 text-gray-700 border-gray-200 text-[10px] px-1.5 py-0.5">
                                 {row.ruleKind}
                               </Badge>
                               <div className="flex items-center gap-0.5 w-full">
@@ -768,11 +891,12 @@ export default function Page() {
                           </div>
                         ));
                       } else {
-                        const qty = parseInt(row.attrs?.Qty || '0');
-                        const price = parseFloat(row.attrs?.['PRICE'] || '0');
-                        const netPrice = parseFloat(row.attrs?.['NET PRICE'] || '0');
-                        const vat = parseFloat(row.attrs?.VAT || '0');
-                        const priceWithVat = parseFloat(row.attrs?.['Price +VAT'] || '0');
+                        const attrs = parseAttrs(row.attrs);
+                        const qty = parseInt(attrs.Qty || '0');
+                        const price = parseFloat(attrs['PRICE'] || '0');
+                        const netPrice = parseFloat(attrs['NET PRICE'] || '0');
+                        const vat = parseFloat(attrs.VAT || '0');
+                        const priceWithVat = parseFloat(attrs['Price +VAT'] || '0');
                         
                         return (
                           <div key={row.id} className="bg-white border rounded-md p-1.5">
@@ -796,7 +920,7 @@ export default function Page() {
                             </div>
                             
                             <div className="flex items-center justify-between mt-1.5 pt-1 border-t border-zinc-100">
-                              <Badge className="bg-gradient-to-r from-px-cyan/10 to-px-magenta/10 text-px-cyan border-px-cyan/20 text-[10px] px-1.5 py-0.5">
+                              <Badge className="bg-gray-100 text-gray-700 border-gray-200 text-[10px] px-1.5 py-0.5">
                                 {row.ruleKind}
                               </Badge>
                               <div className="flex items-center gap-0.5 w-full">
@@ -830,6 +954,15 @@ export default function Page() {
 
           {/* Desktop Table View */}
           <div className="hidden lg:block overflow-x-auto">
+            {paginatedGroupedRows.length === 0 ? (
+              <div className="text-center py-12 text-px-muted">
+                <div className="space-y-2">
+                  <p className="text-lg font-medium">No pricing groups found</p>
+                  <p className="text-sm">Click "Add Row" to create your first pricing tier</p>
+                  <p className="text-xs text-px-muted">Debug: groupedRows={groupedRows.length}, paginated={paginatedGroupedRows.length}</p>
+                </div>
+              </div>
+            ) : (
             <table className="w-full" style={{ tableLayout: 'fixed' }}>
               <thead className="bg-gradient-to-r from-zinc-50 to-zinc-100 border-b border-zinc-200">
                 <tr>
@@ -939,7 +1072,7 @@ export default function Page() {
             </tr>
           </thead>
               <tbody className="divide-y divide-zinc-200">
-                {groupedRows.length === 0 ? (
+                {paginatedGroupedRows.length === 0 ? (
                   <tr>
                     <td colSpan={8} className="px-6 py-12 text-center text-px-muted">
                       <div className="space-y-2">
@@ -949,7 +1082,7 @@ export default function Page() {
                     </td>
                   </tr>
                 ) : (
-                  groupedRows.map((group, groupIndex) => (
+                  paginatedGroupedRows.map((group, groupIndex) => (
                     <React.Fragment key={group.key}>
                       {/* Group Header */}
                       <tr className="bg-gradient-to-r from-px-cyan/5 to-px-magenta/5 border-b-2 border-px-cyan/20">
@@ -957,9 +1090,10 @@ export default function Page() {
                           <div className="flex items-center justify-between">
                             <div className="flex items-center space-x-4">
                               <h3 className="text-lg font-semibold text-px-fg">
-                                {service?.name} - {group.attrs.Sides}
-                                {group.attrs.Size && ` - ${group.attrs.Size}`}
-                                {group.attrs.Color && ` (${group.attrs.Color})`}
+                                {service?.name} - {Object.entries(group.attrs)
+                                  .filter(([key, value]) => value && !['Qty', 'PRICE', 'NET PRICE', 'VAT', 'Price +VAT'].includes(key))
+                                  .map(([key, value]) => `${key}: ${value}`)
+                                  .join(' - ')}
                               </h3>
                               <Badge variant="outline" className="text-px-cyan border-px-cyan/20">
                                 {group.rows.length} variant{group.rows.length !== 1 ? 's' : ''}
@@ -1004,7 +1138,7 @@ export default function Page() {
                                 <span className="font-bold text-px-cyan">£{(tier.qty * tier.unit * 1.2).toFixed(2)}</span>
                               </td>
                               <td className="px-6 py-4 text-center">
-                                <Badge className="bg-gradient-to-r from-px-cyan/10 to-px-magenta/10 text-px-cyan border-px-cyan/20">
+                                <Badge className="bg-gray-100 text-gray-700 border-gray-200">
                                   {row.ruleKind}
                                 </Badge>
                               </td>
@@ -1038,11 +1172,12 @@ export default function Page() {
                           ));
                         } else {
                           // Fallback to attrs data
-                          const qty = parseInt(row.attrs?.Qty || '0');
-                          const price = parseFloat(row.attrs?.['PRICE'] || '0');
-                          const netPrice = parseFloat(row.attrs?.['NET PRICE'] || '0');
-                          const vat = parseFloat(row.attrs?.VAT || '0');
-                          const priceWithVat = parseFloat(row.attrs?.['Price +VAT'] || '0');
+                          const attrs = parseAttrs(row.attrs);
+                          const qty = parseInt(attrs.Qty || '0');
+                          const price = parseFloat(attrs['PRICE'] || '0');
+                          const netPrice = parseFloat(attrs['NET PRICE'] || '0');
+                          const vat = parseFloat(attrs.VAT || '0');
+                          const priceWithVat = parseFloat(attrs['Price +VAT'] || '0');
                     
                     return (
                       <tr key={row.id} className="hover:bg-zinc-50/50 transition-colors">
@@ -1062,7 +1197,7 @@ export default function Page() {
                                 <span className="font-bold text-px-cyan">£{priceWithVat.toFixed(2)}</span>
                   </td>
                         <td className="px-6 py-4 text-center">
-                          <Badge className="bg-gradient-to-r from-px-cyan/10 to-px-magenta/10 text-px-cyan border-px-cyan/20">
+                          <Badge className="bg-gray-100 text-gray-700 border-gray-200">
                             {row.ruleKind}
                           </Badge>
                 </td>
@@ -1097,9 +1232,77 @@ export default function Page() {
                 )}
           </tbody>
         </table>
+            )}
       </div>
         </AdminCard>
-      </ScrollReveal>
+        
+        {/* Pagination Controls */}
+        {totalItems > itemsPerPage && (
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 bg-zinc-50 border-t">
+            <div className="flex items-center space-x-2">
+              <span className="text-sm text-px-muted">Items per page:</span>
+              <Select value={itemsPerPage.toString()} onValueChange={(value) => {
+                setItemsPerPage(Number(value));
+                setCurrentPage(1);
+              }}>
+                <SelectTrigger className="w-20">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="5">5</SelectItem>
+                  <SelectItem value="10">10</SelectItem>
+                  <SelectItem value="20">20</SelectItem>
+                  <SelectItem value="50">50</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <span className="text-sm text-px-muted">
+                Showing {startIndex + 1}-{Math.min(endIndex, totalItems)} of {totalItems} groups
+              </span>
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(1)}
+                disabled={currentPage === 1}
+              >
+                First
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(currentPage - 1)}
+                disabled={currentPage === 1}
+              >
+                Previous
+              </Button>
+              <span className="text-sm text-px-muted px-2">
+                Page {currentPage} of {totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(currentPage + 1)}
+                disabled={currentPage === totalPages}
+              >
+                Next
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(totalPages)}
+                disabled={currentPage === totalPages}
+              >
+                Last
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Change History */}
       <ScrollReveal>
@@ -1139,6 +1342,19 @@ export default function Page() {
           </div>
         </AdminCard>
       </ScrollReveal>
+
+      {/* Service Editor Modal */}
+      {showServiceEditor && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <ServiceEditor
+              serviceSlug={slug}
+              serviceName={service?.name || 'Service'}
+              onClose={() => setShowServiceEditor(false)}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

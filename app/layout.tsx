@@ -3,6 +3,7 @@ import { Manrope, Inter, Playfair_Display } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "sonner";
 import ClientProviders from "@/components/ClientProviders";
+import AnalyticsProvider from "@/components/analytics/AnalyticsProvider";
 
 const manrope = Manrope({
   subsets: ["latin"],
@@ -61,6 +62,11 @@ export const metadata: Metadata = {
   },
 };
 
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -74,6 +80,7 @@ export default function RootLayout({
         <ClientProviders>
           <div className="relative z-10">{children}</div>
           <Toaster richColors position="top-right" />
+          <AnalyticsProvider />
         </ClientProviders>
       </body>
     </html>

@@ -1,0 +1,43 @@
+-- Импорт Services в Supabase
+-- Сначала очищаем таблицу
+DELETE FROM "Service";
+
+-- Вставляем данные
+INSERT INTO "Service" (id, slug, name, description, image, category, "order", "categoryOrder", "isActive", "configuratorEnabled", "calculatorAvailable", "clickCount", "createdAt", "updatedAt") VALUES
+(180, 'certificates', 'Certificates', 'Professional certificates in A4 and A5 sizes on 250gsm card', null, 'Business Stationery', 0, 0, true, true, true, 0, '2025-09-22T23:20:52.176Z', '2025-09-22T23:20:52.176Z'),
+(181, 'digital-business-cards', 'Digital Business Cards', 'Professional digital business cards in single sided and double sided options', null, 'Business Stationery', 0, 0, true, true, true, 0, '2025-09-22T23:37:32.290Z', '2025-09-22T23:37:32.290Z'),
+(182, 'appointment-cards', 'Appointment Cards', 'Professional appointment cards in black & white, color, and mixed options', null, 'Business Stationery', 0, 0, true, true, true, 0, '2025-09-22T23:37:51.470Z', '2025-09-22T23:37:51.470Z'),
+(183, 'letterheads', 'Letterheads', 'Professional letterheads in A4 and A5 sizes, black & white and color options', null, 'Business Stationery', 0, 0, true, true, true, 0, '2025-09-22T23:39:35.284Z', '2025-09-22T23:39:35.284Z'),
+(184, 'compliment-slips', 'Compliment Slips', 'Professional compliment slips in black & white and color options, single and double sided', null, 'Business Stationery', 0, 0, true, true, true, 0, '2025-09-22T23:39:59.256Z', '2025-09-22T23:39:59.256Z'),
+(185, 'loyalty-cards', 'Loyalty Cards', 'Professional loyalty cards in single sided and double sided options', null, 'Business Stationery', 0, 0, true, true, true, 0, '2025-09-22T23:40:18.448Z', '2025-09-22T23:40:18.448Z'),
+(186, 'overprint-envelopes', 'Overprint Envelopes', 'Professional overprint envelopes in single sided and double sided options', null, 'Business Stationery', 0, 0, true, true, true, 0, '2025-09-22T23:40:36.096Z', '2025-09-22T23:40:36.096Z'),
+(189, 'flyers', 'Flyers', 'Professional flyers in various sizes on 100gsm matte or 150gsm gloss paper', null, 'Advertising', 0, 0, true, true, true, 1, '2025-09-22T23:51:49.150Z', '2025-09-22T23:52:30.932Z'),
+(190, 'leaflets', 'Leaflets', 'Professional leaflets printing, BW on coloured paper on 150gsm gloss or 100gsm matt', null, 'Advertising', 0, 0, true, true, true, 1, '2025-09-23T00:06:38.812Z', '2025-09-23T00:07:21.126Z'),
+(191, 'posters', 'Posters', 'Professional posters in various sizes on 190gsm gloss, 170gsm gloss, or 90gsm paper', null, 'Advertising', 0, 0, true, true, true, 0, '2025-09-23T00:15:53.336Z', '2025-09-23T00:15:53.336Z'),
+(192, 'waterproof-menu', 'Waterproof Menu', 'Professional waterproof menus for restaurants and cafes', null, 'Menu printing', 0, 0, true, false, false, 0, '2025-09-23T00:33:35.745Z', '2025-09-23T00:33:35.745Z'),
+(193, 'placemat-menu', 'Placemat menu', 'Professional placemat menus for restaurants', null, 'Menu printing', 0, 0, true, false, false, 0, '2025-09-23T00:33:35.756Z', '2025-09-23T00:33:35.756Z'),
+(194, 'folded-restaurant-menu', 'Folded restaurant menu', 'Professional folded restaurant menus, booklet style with various page counts', null, 'Menu printing', 0, 0, true, true, true, 0, '2025-09-23T00:33:35.757Z', '2025-09-23T00:33:35.757Z'),
+(195, 'flat-restaurant-menu', 'Flat restaurant menu', 'Professional flat restaurant menus in color and black & white', null, 'Menu printing', 0, 0, true, true, true, 0, '2025-09-23T00:33:35.870Z', '2025-09-23T00:33:35.870Z'),
+(196, 'takeaway-menu', 'Takeaway Menu', 'Professional takeaway menus for restaurants and cafes', null, 'Menu printing', 0, 0, true, true, true, 0, '2025-09-23T00:33:36.075Z', '2025-09-23T00:33:36.075Z'),
+(198, 'booklets', 'Booklets', 'Professional booklets, programmes and fixture books in black & white and color', null, 'Booklet printing', 0, 0, true, true, true, 0, '2025-09-23T00:48:47.876Z', '2025-09-23T00:48:47.876Z'),
+(199, 'bw-photocopying', 'BW Photocopying', 'Professional black & white photocopying on 90gsm paper', null, 'Photocopying', 0, 0, true, true, true, 0, '2025-09-23T00:57:01.503Z', '2025-09-23T00:57:01.503Z'),
+(200, 'colour-photocopying', 'Colour Photocopying', 'Professional colour photocopying on 100gsm paper', null, 'Photocopying', 0, 0, true, true, true, 0, '2025-09-23T00:57:01.507Z', '2025-09-23T00:57:01.507Z'),
+(201, 'drawing-printing', 'Drawing Printing', 'Professional engineering drawings printing in A0, A1, A2 sizes, black & white and color', null, 'Large Format Printing', 0, 0, true, true, true, 0, '2025-09-23T01:08:59.662Z', '2025-09-23T01:08:59.662Z'),
+(202, 'poster-printing', 'Poster Printing', 'Professional poster printing in A0, A1, A2 sizes on 190gsm gloss paper', null, 'Large Format Printing', 0, 0, true, true, true, 0, '2025-09-23T01:08:59.671Z', '2025-09-23T01:08:59.671Z'),
+(203, 'wedding-stationery', 'Wedding Stationery', 'Professional wedding stationery including invitations, place cards, and order of service booklets', null, 'Events Printing', 0, 0, true, true, true, 0, '2025-09-23T01:09:37.800Z', '2025-09-23T01:09:37.800Z'),
+(204, 'invitations', 'Invitations', 'Professional invitations for birthdays, weddings, and special events', null, 'Events Printing', 0, 0, true, true, true, 0, '2025-09-23T01:09:37.804Z', '2025-09-23T01:09:37.804Z'),
+(205, 'order-of-service', 'Order of Service', 'Professional order of service booklets for weddings and ceremonies', null, 'Events Printing', 0, 0, true, true, true, 0, '2025-09-23T01:09:37.805Z', '2025-09-23T01:09:37.805Z'),
+(206, 'place-cards', 'Place Cards', 'Professional place cards for weddings and events', null, 'Events Printing', 0, 0, true, true, true, 0, '2025-09-23T01:09:37.807Z', '2025-09-23T01:09:37.807Z'),
+(207, 'bookmarks', 'Bookmarks', 'Professional bookmarks for events and promotions', null, 'Events Printing', 0, 0, true, true, true, 0, '2025-09-23T01:09:37.808Z', '2025-09-23T01:09:37.808Z'),
+(208, 'greetings-cards', 'Greetings Cards', 'Professional greeting cards in various sizes and formats for all occasions', null, 'Seasonal Printing', 0, 0, true, true, true, 0, '2025-09-23T01:10:14.337Z', '2025-09-23T01:10:14.337Z'),
+(209, 'postcards', 'Postcards', 'Professional postcards for travel and seasonal greetings', null, 'Seasonal Printing', 0, 0, true, true, true, 0, '2025-09-23T01:10:14.341Z', '2025-09-23T01:10:14.341Z'),
+(210, 'calendar', 'Calendar', 'Professional calendars in various sizes for businesses and personal use', null, 'Seasonal Printing', 0, 0, true, true, true, 0, '2025-09-23T01:10:14.342Z', '2025-09-23T01:10:14.342Z'),
+(211, 'wrapping-paper', 'Wrapping Paper', 'Professional wrapping paper for gifts and seasonal packaging', null, 'Seasonal Printing', 0, 0, true, false, false, 0, '2025-09-23T01:10:14.343Z', '2025-09-23T01:10:14.343Z'),
+(213, 'laminating', 'Laminating', 'Professional laminating services for A5 to A1 sizes', null, 'Laminating', 0, 0, true, true, true, 0, '2025-09-23T01:11:02.073Z', '2025-09-23T01:11:02.073Z'),
+(214, 'binding', 'Binding', 'Professional binding services for documents and booklets', null, 'Print Finishing Services', 0, 0, true, true, true, 0, '2025-09-23T01:11:54.190Z', '2025-09-23T01:11:54.190Z'),
+(215, 'stapling', 'Stapling', 'Professional stapling services for documents', null, 'Print Finishing Services', 0, 0, true, true, true, 0, '2025-09-23T01:11:54.194Z', '2025-09-23T01:11:54.194Z'),
+(216, 'folding', 'Folding', 'Professional folding services for documents and leaflets', null, 'Print Finishing Services', 0, 0, true, true, true, 0, '2025-09-23T01:11:54.195Z', '2025-09-23T01:11:54.195Z'),
+(217, 'gluing', 'Gluing', 'Professional gluing services for documents and booklets', null, 'Print Finishing Services', 0, 0, true, true, true, 0, '2025-09-23T01:11:54.196Z', '2025-09-23T01:11:54.196Z'),
+(218, 'perforating', 'Perforating', 'Professional perforating services for tear-off documents', null, 'Print Finishing Services', 0, 0, true, true, true, 0, '2025-09-23T01:11:54.198Z', '2025-09-23T01:11:54.198Z'),
+(219, 'hole-punching', 'Hole Punching', 'Professional hole punching services for ring binders', null, 'Print Finishing Services', 0, 0, true, true, true, 0, '2025-09-23T01:11:54.200Z', '2025-09-23T01:11:54.200Z'),
+(220, 'rounding-corners', 'Rounding Corners', 'Professional corner rounding services for cards and documents', null, 'Print Finishing Services', 0, 0, true, true, true, 0, '2025-09-23T01:11:54.202Z', '2025-09-23T01:11:54.202Z');

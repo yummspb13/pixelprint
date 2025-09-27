@@ -26,7 +26,7 @@ export async function fetchAllServiceRecordsFromDB(): Promise<ServiceRecord[]> {
         slug    : s.slug,
         variant : undefined,
         rule,
-        attrs   : (r.attrs ?? {}) as Record<string,string>,
+        attrs   : typeof r.attrs === 'string' ? JSON.parse(r.attrs) : (r.attrs ?? {}) as Record<string,string>,
       });
     }
   }

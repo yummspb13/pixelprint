@@ -33,14 +33,15 @@ export async function GET(_: Request, context: { params: Promise<any> }) {
     const options: Record<string, string[]> = {};
     
     for (const row of service.rows) {
-      const attrs = row.attrs as Record<string, string>;
+      // Правильно парсим JSON строку в объект
+      const attrs = typeof row.attrs === 'string' ? JSON.parse(row.attrs) : (row.attrs ?? {}) as Record<string, string>;
       
       for (const [key, value] of Object.entries(attrs)) {
         optionKeys.add(key);
         if (!options[key]) {
           options[key] = [];
         }
-        if (!options[key].includes(value)) {
+        if (typeof value === 'string' && !options[key].includes(value)) {
           options[key].push(value);
         }
       }
@@ -58,7 +59,8 @@ export async function GET(_: Request, context: { params: Promise<any> }) {
       optionKeys: Array.from(optionKeys),
       options: options,
       rows: service.rows.map(row => ({
-        attrs: row.attrs,
+        id: row.id,
+        attrs: typeof row.attrs === 'string' ? JSON.parse(row.attrs) : (row.attrs ?? {}),
         rule: {
           kind: row.ruleKind,
           tiers: row.tiers.map(tier => ({

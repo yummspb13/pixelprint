@@ -34,13 +34,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     
     try {
+      // Добавляем timeout и обработку ошибок
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 секунд timeout
+      
       const response = await fetch('/api/admin/auth', {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
         },
-        credentials: 'include', // Важно для cookies
+        credentials: 'include',
+        signal: controller.signal,
+        redirect: 'manual' // Предотвращаем автоматические редиректы
       });
+      
+      clearTimeout(timeoutId);
       console.log("🔍 AUTH CHECK: Response status:", response.status);
       
       if (response.status === 200) {
@@ -54,6 +62,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           console.log("❌ AUTH CHECK: User not authenticated");
           setUser(null);
         }
+      } else if (response.status === 0 || response.type === 'opaqueredirect') {
+        // Это означает редирект - пользователь не авторизован
+        console.log("🔄 AUTH CHECK: Redirect detected, user not authenticated");
+        setUser(null);
       } else {
         console.log("❌ AUTH CHECK: Auth check failed with status:", response.status);
         setUser(null);
@@ -109,12 +121,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         credentials: 'include', // Важно для cookies
       });
       setUser(null);
-      router.push('/admin/login');
+      // Убираем редирект - пусть middleware обработает
     } catch (error) {
       console.error("Logout error:", error);
       // Даже если logout не удался, сбрасываем пользователя локально
       setUser(null);
-      router.push('/admin/login');
     }
   };
 

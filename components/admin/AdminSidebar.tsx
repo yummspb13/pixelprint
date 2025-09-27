@@ -76,7 +76,7 @@ export default function AdminSidebar() {
               className="h-8 w-auto"
             />
             <div>
-              <p className="text-sm text-px-muted">Admin Panel</p>
+              <p className="text-sm text-gray-500">Admin Panel</p>
             </div>
           </div>
         </div>
@@ -95,8 +95,8 @@ export default function AdminSidebar() {
                   isActive
                     ? "bg-gradient-to-r from-px-cyan to-px-magenta text-white"
                     : isComingSoon
-                    ? "text-px-muted opacity-50 cursor-not-allowed"
-                    : "text-px-muted hover:bg-gray-100 hover:text-px-fg"
+                    ? "text-gray-500 opacity-50 cursor-not-allowed"
+                    : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
                 }`}
                 onClick={(e) => {
                   if (isComingSoon) {
@@ -127,15 +127,15 @@ export default function AdminSidebar() {
               </span>
             </div>
             <div className="flex-1">
-              <p className="text-sm font-medium text-px-fg">{user?.name || 'Пользователь'}</p>
-              <p className="text-xs text-px-muted">{user?.email || 'user@pixelprint.com'}</p>
+              <p className="text-sm font-medium text-gray-900">{user?.name || 'Пользователь'}</p>
+              <p className="text-xs text-gray-500">{user?.email || 'user@pixelprint.com'}</p>
             </div>
           </div>
           <Button
             onClick={logout}
             variant="outline"
             size="sm"
-            className="w-full justify-start text-px-muted hover:text-px-fg"
+            className="w-full justify-start text-gray-600 hover:text-gray-900"
           >
             <LogOut className="h-4 w-4 mr-2" />
             Выйти

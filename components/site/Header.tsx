@@ -154,7 +154,7 @@ export default function Header() {
           <nav className="hidden lg:flex items-center">
             <button 
               onClick={() => scrollToArticles('about pixel digital')}
-              className="text-sm font-medium text-zinc-700 hover:text-px-cyan transition-colors px-4 py-2"
+              className="text-sm font-medium text-gray-700 hover:text-px-cyan transition-colors px-4 py-2"
             >
               {t('header.navigation.about')}
             </button>
@@ -163,17 +163,17 @@ export default function Header() {
             </div>
             <button 
               onClick={() => scrollToArticles('same-day express')}
-              className="text-sm font-medium text-zinc-700 hover:text-px-cyan transition-colors px-4 py-2 -ml-[18px]"
+              className="text-sm font-medium text-gray-700 hover:text-px-cyan transition-colors px-4 py-2 -ml-[18px]"
             >
               {t('header.navigation.urgent')}
             </button>
             <button 
               onClick={() => scrollToArticles('frequently asked questions faq')}
-              className="text-sm font-medium text-zinc-700 hover:text-px-cyan transition-colors px-4 py-2"
+              className="text-sm font-medium text-gray-700 hover:text-px-cyan transition-colors px-4 py-2"
             >
               {t('header.navigation.faq')}
             </button>
-            <a href="#footer" className="text-sm font-medium text-zinc-700 hover:text-px-cyan transition-colors px-4 py-2">
+            <a href="#footer" className="text-sm font-medium text-gray-700 hover:text-px-cyan transition-colors px-4 py-2">
               {t('header.navigation.contacts')}
             </a>
           </nav>
@@ -189,7 +189,7 @@ export default function Header() {
             <button 
               data-search-button
               onClick={handleSearchToggle}
-              className="hidden md:flex rounded-full p-2 text-zinc-600 hover:text-px-cyan hover:bg-px-cyan/10 transition-all duration-200 group"
+              className="hidden md:flex rounded-full p-2 text-gray-600 hover:text-px-cyan hover:bg-px-cyan/10 transition-all duration-200 group"
               title={t('header.search')}
             >
               <Search className="h-5 w-5 group-hover:scale-110 transition-transform" />
@@ -198,7 +198,7 @@ export default function Header() {
             {/* Cart Icon */}
             <button 
               onClick={openCart}
-              className="hidden sm:flex rounded-full p-2 text-zinc-600 hover:text-px-magenta hover:bg-px-magenta/10 transition-all duration-200 group relative"
+              className="hidden sm:flex rounded-full p-2 text-gray-600 hover:text-px-magenta hover:bg-px-magenta/10 transition-all duration-200 group relative"
               title={t('header.cart')}
             >
               <ShoppingCart className="h-5 w-5 group-hover:scale-110 transition-transform" />
@@ -220,7 +220,7 @@ export default function Header() {
               <Button 
                 variant="outline" 
                 onClick={() => setIsLoginOpen(true)}
-                className="hidden sm:flex border-zinc-300 text-zinc-700 hover:bg-zinc-50 rounded-full px-4 py-2"
+                className="hidden sm:flex border-gray-300 text-gray-700 hover:bg-gray-50 rounded-full px-4 py-2"
               >
                 <User className="mr-2 h-4 w-4" />
                 {t('header.login')}

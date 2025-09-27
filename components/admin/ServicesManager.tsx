@@ -162,25 +162,32 @@ export default function ServicesManager() {
 
       if (newIndex < 0 || newIndex >= categoryServices.length) return;
 
-      // Swap orders
-      const tempOrder = categoryServices[currentIndex].order;
-      categoryServices[currentIndex].order = categoryServices[newIndex].order;
-      categoryServices[newIndex].order = tempOrder;
+      // Prepare bulk updates
+      const updates = [
+        {
+          id: serviceId,
+          order: categoryServices[newIndex].order
+        },
+        {
+          id: categoryServices[newIndex].id,
+          order: categoryServices[currentIndex].order
+        }
+      ];
 
-      // Update both services
-      await Promise.all([
-        fetch(`/api/services/${serviceId}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ order: categoryServices[currentIndex].order })
-        }),
-        fetch(`/api/services/${categoryServices[newIndex].id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ order: categoryServices[newIndex].order })
-        })
-      ]);
+      // Simple direct update
+      const useTempSwap = false;
 
+      const response = await fetch('/api/services/bulk-update-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ updates, useTempSwap })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update service order');
+      }
+
+      // Simple refresh
       fetchServices();
     } catch (error) {
       console.error('Error updating order:', error);

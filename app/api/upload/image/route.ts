@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { writeFile } from 'fs/promises';
 import { join } from 'path';
+import { optimizeImage, validateImageFile } from '@/lib/image-optimization';
 
 export async function POST(request: NextRequest) {
   try {
@@ -11,23 +12,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
     }
 
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      return NextResponse.json({ error: 'File must be an image' }, { status: 400 });
-    }
-
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      return NextResponse.json({ error: 'File size must be less than 5MB' }, { status: 400 });
+    // Validate image file
+    const validation = validateImageFile(file);
+    if (!validation.valid) {
+      return NextResponse.json({ error: validation.error }, { status: 400 });
     }
 
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    // Generate simple filename with timestamp
-    const fileExtension = file.name.split('.').pop() || 'jpg';
+    // Generate optimized filename with timestamp
     const timestamp = Date.now();
-    const fileName = `service-${timestamp}.${fileExtension}`;
+    const fileName = `service-${timestamp}.webp`;
     const path = join(process.cwd(), 'public', 'uploads', 'services', fileName);
 
     // Ensure directory exists
@@ -37,14 +33,69 @@ export async function POST(request: NextRequest) {
       fs.mkdirSync(uploadDir, { recursive: true });
     }
 
-    await writeFile(path, buffer);
+    // Save multiple formats for maximum compatibility
+    const baseName = fileName.replace('.webp', '');
+    
+    // WebP version (best compression)
+    const webpResult = await optimizeImage(buffer, {
+      width: 800,
+      height: 600,
+      quality: 85,
+      format: 'webp',
+      fit: 'inside'
+    });
+    await writeFile(path, webpResult.buffer);
+
+    // JPG version (universal compatibility)
+    const jpgPath = path.replace('.webp', '.jpg');
+    const jpgResult = await optimizeImage(buffer, {
+      width: 800,
+      height: 600,
+      quality: 85,
+      format: 'jpeg',
+      fit: 'inside'
+    });
+    await writeFile(jpgPath, jpgResult.buffer);
+
+    // PNG version (lossless for graphics)
+    const pngPath = path.replace('.webp', '.png');
+    const pngResult = await optimizeImage(buffer, {
+      width: 800,
+      height: 600,
+      quality: 90,
+      format: 'png',
+      fit: 'inside'
+    });
+    await writeFile(pngPath, pngResult.buffer);
+
+    // GIF version (for animations, if applicable)
+    const gifPath = path.replace('.webp', '.gif');
+    const gifResult = await optimizeImage(buffer, {
+      width: 800,
+      height: 600,
+      quality: 80,
+      format: 'gif',
+      fit: 'inside'
+    });
+    await writeFile(gifPath, gifResult.buffer);
 
     const imageUrl = `/uploads/services/${fileName}`;
 
     return NextResponse.json({ 
       success: true, 
       imageUrl,
-      fileName 
+      fileName,
+      formats: {
+        webp: imageUrl,
+        jpg: imageUrl.replace('.webp', '.jpg'),
+        png: imageUrl.replace('.webp', '.png'),
+        gif: imageUrl.replace('.webp', '.gif')
+      },
+      originalSize: webpResult.originalSize,
+      optimizedSize: webpResult.optimizedSize,
+      compressionRatio: webpResult.compressionRatio,
+      format: webpResult.format,
+      dimensions: webpResult.dimensions
     });
   } catch (error) {
     console.error('Error uploading image:', error);

@@ -15,7 +15,7 @@ export default function AdminLayout({
 }) {
   return (
     <AuthProvider>
-      <div className="min-h-screen bg-px-bg">
+      <div className="min-h-screen bg-gray-50">
         <Header />
         <div className="flex flex-col lg:flex-row">
           <AdminSidebar />
