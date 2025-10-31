@@ -106,9 +106,10 @@ export async function POST(request: NextRequest) {
     console.log('🔍 Modifier params:', modifierParams);
     
     // ПРОСТАЯ И ПРАВИЛЬНАЯ ЛОГИКА: ищем строку где ВСЕ параметры из selection точно совпадают
-    const selectionKeys = Object.keys(selection).filter(k => !['PRICE', 'NET PRICE', 'VAT', 'Price +VAT', 'Qty', 'Rush'].includes(k));
+    const selectionKeys = Object.keys(selection).filter(k => !['PRICE', 'NET PRICE', 'VAT', 'Price +VAT', 'Qty', 'Rush', 'turnaround', 'delivery'].includes(k));
     
     console.log('🔍 Looking for exact match. Selection:', Object.fromEntries(selectionKeys.map(k => [k, selection[k]])));
+    console.log('🔍 Available rows count:', service.rows.length);
     
     for (const row of service.rows) {
       const attrs = typeof row.attrs === 'string' ? JSON.parse(row.attrs) : (row.attrs ?? {}) as Record<string, string>;
@@ -119,19 +120,32 @@ export async function POST(request: NextRequest) {
       );
       
       // ПРОВЕРЯЕМ ТОЧНОЕ СОВПАДЕНИЕ: все параметры из selection должны быть в attrs с теми же значениями
+      // И количество параметров должно совпадать
       let isExactMatch = true;
       const mismatchDetails: string[] = [];
       
-      for (const key of selectionKeys) {
-        if (!(key in rowAttrsForMatch)) {
-          isExactMatch = false;
-          mismatchDetails.push(`Missing: ${key}`);
-          break;
-        }
-        if (rowAttrsForMatch[key] !== selection[key]) {
-          isExactMatch = false;
-          mismatchDetails.push(`${key}: "${selection[key]}" ≠ "${rowAttrsForMatch[key]}"`);
-          break;
+      // Сначала проверяем количество параметров
+      const rowParamCount = Object.keys(rowAttrsForMatch).length;
+      const selectionParamCount = selectionKeys.length;
+      
+      if (rowParamCount !== selectionParamCount) {
+        isExactMatch = false;
+        mismatchDetails.push(`Param count mismatch: selection has ${selectionParamCount}, row has ${rowParamCount}`);
+      }
+      
+      // Затем проверяем каждый параметр
+      if (isExactMatch) {
+        for (const key of selectionKeys) {
+          if (!(key in rowAttrsForMatch)) {
+            isExactMatch = false;
+            mismatchDetails.push(`Missing: ${key}`);
+            break;
+          }
+          if (rowAttrsForMatch[key] !== selection[key]) {
+            isExactMatch = false;
+            mismatchDetails.push(`${key}: "${selection[key]}" ≠ "${rowAttrsForMatch[key]}"`);
+            break;
+          }
         }
       }
       
@@ -189,13 +203,26 @@ export async function POST(request: NextRequest) {
     console.log('Modifier rows found:', modifierRows.length);
 
     if (!mainRow) {
-      console.error('No main row found!');
+      console.error('❌ No main row found!');
       console.error('Selection:', selection);
+      console.error('Selection keys:', selectionKeys);
       console.error('Main params:', mainParams);
-      console.error('Available rows:', service.rows.map(r => ({ id: r.id, attrs: r.attrs })));
+      console.error('Available rows:', service.rows.map(r => {
+        const attrs = typeof r.attrs === 'string' ? JSON.parse(r.attrs) : r.attrs;
+        const cleanAttrs = Object.fromEntries(Object.entries(attrs).filter(([k]) => k !== '_isMain'));
+        return { id: r.id, attrs: cleanAttrs, paramCount: Object.keys(cleanAttrs).length };
+      }));
       return NextResponse.json({ 
         ok: false, 
-        error: "No matching main price configuration found" 
+        error: "No matching main price configuration found",
+        debug: {
+          selection,
+          selectionKeys,
+          availableRows: service.rows.map(r => {
+            const attrs = typeof r.attrs === 'string' ? JSON.parse(r.attrs) : r.attrs;
+            return Object.fromEntries(Object.entries(attrs).filter(([k]) => k !== '_isMain'));
+          })
+        }
       }, { status: 404 });
     }
 
