@@ -115,28 +115,46 @@ export async function POST(request: NextRequest) {
       console.log(`Row ${row.id}:`, { attrs, hasMainParams, hasModifierParams });
       
       if (hasMainParams) {
-        // Это главный элемент - проверяем соответствие основным параметрам
-        const mainSelection = Object.fromEntries(
-          Object.entries(selection).filter(([key, value]) => 
-            !['PRICE', 'NET PRICE', 'VAT', 'Price +VAT', 'Qty'].includes(key) && 
-            mainParams.includes(key) && 
-            key in attrs && 
-            attrs[key] === value
-          )
+        // Это главный элемент - проверяем ТОЧНОЕ соответствие ВСЕХ основных параметров
+        // Игнорируем системные поля
+        const rowAttrsForMatch = Object.fromEntries(
+          Object.entries(attrs).filter(([k]) => !['_isMain'].includes(k))
         );
         
-        console.log(`Row ${row.id} main selection:`, mainSelection);
+        // Фильтруем selection - только основные параметры, исключаем системные поля
+        const selectionKeys = Object.keys(selection).filter(k => 
+          !['PRICE', 'NET PRICE', 'VAT', 'Price +VAT', 'Qty', 'turnaround', 'delivery', 'notes'].includes(k) &&
+          mainParams.includes(k)
+        );
         
-        // Проверяем, что все основные параметры совпадают
-        const mainMatches = Object.entries(mainSelection).every(([key, value]) => {
-          return attrs[key] === value;
-        });
+        // ПРОВЕРЯЕМ ТОЧНОЕ СОВПАДЕНИЕ: все параметры из selection должны быть в attrs с теми же значениями
+        // И количество параметров должно совпадать
+        let isExactMatch = true;
+        const selectionParamCount = selectionKeys.length;
+        const rowParamCount = Object.keys(rowAttrsForMatch).length;
         
-        console.log(`Row ${row.id} main matches:`, mainMatches);
+        // Количество параметров должно совпадать
+        if (rowParamCount !== selectionParamCount) {
+          isExactMatch = false;
+        }
         
-        if (mainMatches && Object.keys(mainSelection).length > 0) {
+        // Проверяем каждый параметр
+        if (isExactMatch) {
+          for (const key of selectionKeys) {
+            if (!(key in rowAttrsForMatch) || rowAttrsForMatch[key] !== selection[key]) {
+              isExactMatch = false;
+              break;
+            }
+          }
+        }
+        
+        if (isExactMatch && selectionKeys.length > 0) {
           mainRow = row;
-          console.log('Found main row:', { id: row.id, attrs: row.attrs });
+          console.log('✅✅✅ EXACT MATCH found - Row', row.id, ':', {
+            attrs: rowAttrsForMatch,
+            selection: Object.fromEntries(selectionKeys.map(k => [k, selection[k]]))
+          });
+          break; // Нашли точное совпадение - прерываем поиск
         }
       } else if (hasModifierParams) {
         // Это модификатор - проверяем соответствие выбранным модификаторам
