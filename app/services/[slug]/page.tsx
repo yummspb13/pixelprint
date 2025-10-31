@@ -203,14 +203,26 @@ export default function ServicePage() {
             const defSel: Record<string, string> = {};
             d.attributes.forEach(a => { 
               if (a.values.length && a.isMain) {
-                // Основные параметры выбираем по умолчанию
-                defSel[a.key] = a.values[0]; 
-                console.log(`Setting default for main param ${a.key}: ${a.values[0]}`);
+                // Основные параметры выбираем по умолчанию только для первого параметра
+                // Остальные будут загружаться динамически после выбора предыдущих
+                const mainParams = d.attributes.filter(attr => attr.isMain);
+                const isFirst = mainParams[0]?.key === a.key;
+                if (isFirst) {
+                  defSel[a.key] = a.values[0]; 
+                  console.log(`Setting default for first main param ${a.key}: ${a.values[0]}`);
+                }
               }
               // Модификаторы по умолчанию "None" (не добавляем в selection)
             });
             console.log('Default selection:', defSel);
             setSelection(defSel);
+            
+            // Инициализируем доступные опции для всех параметров (сначала показываем все)
+            const initialOptions: Record<string, string[]> = {};
+            d.attributes.forEach(a => {
+              initialOptions[a.key] = a.values;
+            });
+            setAvailableOptions(initialOptions);
             
             // Загружаем данные модели для расчета количеств
             const modelResponse = await fetch(`/api/pricing/models/${slug}`, { cache: 'no-store' });
