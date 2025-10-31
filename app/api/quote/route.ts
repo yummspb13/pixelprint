@@ -128,10 +128,10 @@ export async function POST(request: NextRequest) {
         );
         
         // ПРОВЕРЯЕМ СОВПАДЕНИЕ: все параметры из selection (основные) должны быть в attrs с теми же значениями
-        // НЕ требуем, чтобы количество параметров точно совпадало - в attrs могут быть дополнительные поля
+        // И все основные параметры из attrs должны быть в selection с теми же значениями
         let isMatch = true;
         
-        // Проверяем каждый параметр из selection
+        // 1. Проверяем, что все параметры из selection совпадают с attrs
         for (const key of selectionKeys) {
           if (!(key in rowAttrsForMatch) || rowAttrsForMatch[key] !== selection[key]) {
             isMatch = false;
@@ -139,14 +139,16 @@ export async function POST(request: NextRequest) {
           }
         }
         
-        // Также проверяем, что в rowAttrsForMatch нет лишних основных параметров, которых нет в selection
-        // (это означает, что строка имеет параметры, которые не были выбраны)
+        // 2. Проверяем, что все основные параметры из attrs присутствуют в selection
+        // (это гарантирует, что мы не выберем строку с дополнительными параметрами)
         if (isMatch) {
           for (const key of mainParams) {
-            // Если это основной параметр, который есть в attrs, но не выбран - это несовпадение
-            if (key in rowAttrsForMatch && !(key in selection) && selectionKeys.length > 0) {
-              isMatch = false;
-              break;
+            if (key in rowAttrsForMatch) {
+              // Этот параметр есть в строке - он должен быть выбран и совпадать
+              if (!(key in selection) || rowAttrsForMatch[key] !== selection[key]) {
+                isMatch = false;
+                break;
+              }
             }
           }
         }
