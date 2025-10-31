@@ -519,10 +519,6 @@ export default function ServicePage() {
                           </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {attrs.filter(a => !a.isMain && !a.isModifier).map(a => {
-                              const availableValues = availableOptions[a.key]?.length > 0 
-                                ? availableOptions[a.key] 
-                                : a.values;
-                              
                               return (
                                 <div key={a.key}>
                                   <label className="block text-sm font-medium text-px-fg mb-2">{a.key}</label>
