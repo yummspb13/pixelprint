@@ -16,8 +16,8 @@ export const dynamic = 'force-dynamic'
 
 // Добавляем метаданные для SEO и производительности
 export const metadata = {
-  title: 'Pixel Print - Premium Digital & Large-Format Printing in London',
-  description: 'Professional printing services in London. Business stationery, flyers, posters, booklets, menus. Expert preflight, same-day options, secure checkout.',
+  title: 'Pixel Print - Premium Digital & Large-Format Printing Company in Surrey',
+  description: 'The details matter. That\'s why every dot counts and our quality is guaranteed. Since 2020, Pixel Digital Printing has been providing full-service printing to all our clients.',
   keywords: 'printing, digital printing, large format, London, business cards, flyers, posters, booklets, menus, same-day printing',
   authors: [{ name: 'Pixel Print London' }],
   creator: 'Pixel Print London',

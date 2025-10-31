@@ -16,13 +16,18 @@ export default function ParallaxHero() {
       <div className="mx-auto grid max-w-7xl grid-cols-1 items-center gap-10 px-6 py-16 md:grid-cols-2">
         <div>
           <RevealTitle 
-            text="Premium Digital & Large-Format Printing" 
+            text="Premium Digital & Large-Format Printing Company in Surrey" 
             as="h1"
             className="text-4xl md:text-5xl font-semibold tracking-tight font-heading text-px-fg"
           />
-          <p className="mt-4 text-zinc-600">
-            Business stationery, flyers, posters, booklets, menus. Preflight check, same-day options, secure checkout.
-          </p>
+          <div className="mt-4 text-zinc-600">
+            <p>
+              <strong className="font-semibold text-px-fg">The details matter.</strong> That's why every dot counts and our quality is guaranteed.
+            </p>
+            <p className="mt-2">
+              Since 2020, Pixel Digital Printing has been providing full-service printing to all our clients. That experience is working on your behalf for all your printing needs.
+            </p>
+          </div>
           <div className="mt-6 flex gap-3">
             <MagneticButton>
               <Link href="/services/business-cards" className="rounded-md bg-px-cyan px-4 py-2 text-white hover:bg-px-cyan/90">

@@ -110,13 +110,34 @@ export default function HeroPrintPro({
                 {t('hero.title')?.split(' & ')[1]?.split(' in ')[0] || 'Large-Format Printing'}
               </span>
               <br />
-              <span className="text-px-fg">{t('hero.subtitle') || 'in London'}</span>
+              <span className="text-px-fg">{t('hero.subtitle') || 'in Surrey'}</span>
             </h1>
           </div>
           
-          <p className={`mt-4 max-w-xl text-zinc-600 ${getTextSize(language, 'description')}`}>
-            {t('hero.description') || 'Business stationery, flyers, posters, booklets, menus. Expert preflight, same-day options, secure checkout.'}
-          </p>
+          <div className={`mt-4 max-w-xl text-zinc-600 space-y-2 ${getTextSize(language, 'description')}`}>
+            {(() => {
+              const description = t('hero.description') || "The details matter. That's why every dot counts and our quality is guaranteed.\n\nSince 2020, Pixel Digital Printing has been providing full-service printing to all our clients. That experience is working on your behalf for all your printing needs.";
+              
+              // Split by double newlines first to separate paragraphs
+              const paragraphs = description.split(/\n\n/);
+              
+              return paragraphs.map((paragraph, pIndex) => {
+                // Parse HTML-like tags for bold within each paragraph
+                const parts = paragraph.split(/(<strong>.*?<\/strong>)/);
+                return (
+                  <p key={pIndex}>
+                    {parts.map((part, index) => {
+                      if (part.startsWith('<strong>') && part.endsWith('</strong>')) {
+                        const text = part.replace(/<\/?strong>/g, '');
+                        return <strong key={index} className="font-semibold text-px-fg">{text}</strong>;
+                      }
+                      return <span key={index}>{part}</span>;
+                    })}
+                  </p>
+                );
+              });
+            })()}
+          </div>
 
           {/* Desktop buttons - hidden on mobile */}
           <div className="hidden sm:flex flex-row flex-wrap items-center gap-3 mt-6">
@@ -172,33 +193,42 @@ export default function HeroPrintPro({
           {!mounted ? (
             <div className="h-[320px] w-full md:h-[420px] bg-white/60 rounded-3xl animate-pulse backdrop-blur-sm" />
           ) : (
-            <div className="relative h-[320px] w-full md:h-[420px] overflow-hidden rounded-3xl shadow-2xl">
-              {/* Background with gradient overlay */}
-              <div className="absolute inset-0 bg-gradient-to-br from-px-cyan/20 via-px-magenta/10 to-px-yellow/20" />
-              
-              {/* Content overlay */}
-              <div className="relative z-10 flex h-full flex-col items-center justify-center p-8 text-center">
-                <div className="mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-px-cyan to-px-magenta p-0.5">
-                  <div className="flex h-full w-full items-center justify-center rounded-full bg-white">
-                    <span className="text-2xl font-bold text-px-fg">P</span>
+            <>
+              <div className="relative h-[320px] w-full md:h-[420px] overflow-hidden rounded-3xl shadow-2xl">
+                {/* Background with gradient overlay */}
+                <div className="absolute inset-0 bg-gradient-to-br from-px-cyan/20 via-px-magenta/10 to-px-yellow/20" />
+                
+                {/* Content overlay */}
+                <div className="relative z-10 flex h-full flex-col items-center justify-center p-8 text-center">
+                  <div className="mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-px-cyan to-px-magenta p-0.5">
+                    <div className="flex h-full w-full items-center justify-center rounded-full bg-white">
+                      <span className="text-2xl font-bold text-px-fg">P</span>
+                    </div>
+                  </div>
+                  <h3 className="mb-2 text-2xl font-bold text-px-fg font-playfair">Pixel Print</h3>
+                  <p className="text-sm text-px-muted">Professional Printing Services</p>
+                  
+                  {/* Decorative elements */}
+                  <div className="mt-6 flex space-x-2">
+                    <div className="h-2 w-2 rounded-full bg-px-cyan" />
+                    <div className="h-2 w-2 rounded-full bg-px-magenta" />
+                    <div className="h-2 w-2 rounded-full bg-px-yellow" />
                   </div>
                 </div>
-                <h3 className="mb-2 text-2xl font-bold text-px-fg font-playfair">Pixel Print</h3>
-                <p className="text-sm text-px-muted">Professional Printing Services</p>
                 
-                {/* Decorative elements */}
-                <div className="mt-6 flex space-x-2">
-                  <div className="h-2 w-2 rounded-full bg-px-cyan" />
-                  <div className="h-2 w-2 rounded-full bg-px-magenta" />
-                  <div className="h-2 w-2 rounded-full bg-px-yellow" />
+                {/* Subtle pattern overlay */}
+                <div className="absolute inset-0 opacity-5">
+                  <div className="h-full w-full bg-[radial-gradient(circle_at_50%_50%,rgba(0,174,239,0.1),transparent_50%)]" />
                 </div>
               </div>
               
-              {/* Subtle pattern overlay */}
-              <div className="absolute inset-0 opacity-5">
-                <div className="h-full w-full bg-[radial-gradient(circle_at_50%_50%,rgba(0,174,239,0.1),transparent_50%)]" />
+              {/* Text below the image block */}
+              <div className="mt-6 text-zinc-700 text-sm md:text-base leading-relaxed">
+                <p>
+                  Whether you need essential <strong className="font-semibold text-px-fg">Business Stationery</strong> (invoices, letterheads, compliment slips, loyalty cards, appointment cards, or business cards); <strong className="font-semibold text-px-fg">Pricing & Service Assets</strong> (restaurant menus, price lists, or gift vouchers); <strong className="font-semibold text-px-fg">Promotional Items</strong> (eye-catching flyers, booklets, or greetings cards); or <strong className="font-semibold text-px-fg">Large-Format Printing</strong> (posters and engineering drawings), we are here to look after all your printing and finishing requirements.
+                </p>
               </div>
-            </div>
+            </>
           )}
         </div>
       </div>

@@ -324,9 +324,9 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
             }
           },
           "hero": {
-            "title": "Premium Digital & Large-Format Printing",
-            "subtitle": "in London",
-            "description": "Business stationery, flyers, posters, booklets, menus. Expert preflight, same-day options, secure checkout.",
+            "title": "Premium Digital & Large-Format Printing Company",
+            "subtitle": "in Surrey",
+            "description": "<strong>The details matter.</strong> That's why every dot counts and our quality is guaranteed.\n\nSince 2020, Pixel Digital Printing has been providing full-service printing to all our clients. That experience is working on your behalf for all your printing needs.",
             "calculateOrder": "Calculate Order",
             "uploadArtwork": "Upload Artwork",
             "callNow": "Call Now",

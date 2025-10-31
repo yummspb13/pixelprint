@@ -11,7 +11,7 @@ export default function StructuredData({
     '@context': 'https://schema.org',
     '@type': type,
     name: 'Pixel Print',
-    description: 'Professional printing services in London. Business stationery, flyers, posters, booklets, menus. Expert preflight, same-day options, secure checkout.',
+    description: 'The details matter. That\'s why every dot counts and our quality is guaranteed. Since 2020, Pixel Digital Printing has been providing full-service printing to all our clients.',
     url: 'http://localhost:3010',
     logo: 'http://localhost:3010/logo.png',
     image: 'http://localhost:3010/og-image.jpg',
