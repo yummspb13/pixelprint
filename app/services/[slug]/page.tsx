@@ -129,23 +129,11 @@ export default function ServicePage() {
           try {
             const d = await fetchOptions(slug);
             setAttrs(d.attributes);
-            // дефолты — первое значение для основных параметров, модификаторы по умолчанию "None"
-            const defSel: Record<string, string> = {};
-            d.attributes.forEach(a => { 
-              if (a.values.length && a.isMain) {
-                // Основные параметры выбираем по умолчанию только для первого параметра
-                // Остальные будут загружаться динамически после выбора предыдущих
-                const mainParams = d.attributes.filter(attr => attr.isMain);
-                const isFirst = mainParams[0]?.key === a.key;
-                if (isFirst) {
-                  defSel[a.key] = a.values[0]; 
-                  console.log(`Setting default for first main param ${a.key}: ${a.values[0]}`);
-                }
-              }
-              // Модификаторы по умолчанию "None" (не добавляем в selection)
-            });
-            console.log('Default selection:', defSel);
-            setSelection(defSel);
+            
+            // Не устанавливаем автоматический выбор по умолчанию
+            // Пользователь должен сам выбрать параметры или использовать бейджи
+            setSelection({});
+            console.log('No default selection - user should select from badges or manually');
             
             // Загружаем готовые комбинации параметров (пресеты)
             try {
@@ -605,7 +593,9 @@ export default function ServicePage() {
                                             );
                                           })
                                         ) : (
-                                          <SelectItem value="" disabled>No options available</SelectItem>
+                                          a.values.map(v => (
+                                            <SelectItem key={v} value={v} disabled>No options available</SelectItem>
+                                          ))
                                         );
                                       })()}
                                     </SelectContent>
