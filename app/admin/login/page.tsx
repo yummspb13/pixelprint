@@ -34,14 +34,25 @@ export default function AdminLoginPage() {
       console.log("📡 Response status:", response.status);
       console.log("📡 Response headers:", Object.fromEntries(response.headers.entries()));
 
-      const data = await response.json();
-      console.log("📡 Response data:", data);
+      let data;
+      try {
+        data = await response.json();
+        console.log("📡 Response data:", data);
+      } catch (jsonError) {
+        console.error("💥 JSON Parse Error:", jsonError);
+        const text = await response.text();
+        console.error("📡 Response text:", text);
+        throw new Error("Invalid response from server");
+      }
 
       if (response.ok && data.success) {
         console.log("✅ LOGIN SUCCESS:", data.user);
         toast.success(`Добро пожаловать, ${data.user.name}!`);
-        // Убираем редирект - пусть middleware обработает
-        console.log("🔄 Login successful, middleware will handle redirect");
+        // Редирект на админ панель после успешного входа
+        setTimeout(() => {
+          router.push('/admin');
+          router.refresh();
+        }, 500);
       } else {
         console.log("❌ LOGIN FAILED:", data.error);
         toast.error(data.error || "Неверные учетные данные");
