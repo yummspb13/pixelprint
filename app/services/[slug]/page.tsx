@@ -311,22 +311,34 @@ export default function ServicePage() {
     
     setQuoteLoading(true);
     try {
-      console.log('🔍 Recalc called with:', { slug, qty, selection, extras: { turnaround, delivery } });
+      // Очищаем selection от пустых значений и служебных полей
+      const cleanSelection: Record<string, string> = {};
+      const excludedKeys = ['turnaround', 'delivery', 'notes', 'Quantity', 'Qty'];
+      
+      Object.entries(selection).forEach(([key, value]) => {
+        if (value && value.trim() !== '' && !excludedKeys.includes(key)) {
+          cleanSelection[key] = value.trim();
+        }
+      });
+      
+      console.log('🔍 Recalc called with:', { slug, qty, originalSelection: selection, cleanSelection, extras: { turnaround, delivery } });
       
       // Проверяем, что selection содержит основные параметры
       const mainAttrs = attrs.filter(a => a.isMain);
       const hasMainSelection = mainAttrs.every(attr => 
-        selection[attr.key] && selection[attr.key].trim() !== ''
+        cleanSelection[attr.key] && cleanSelection[attr.key].trim() !== ''
       );
       
       if (!hasMainSelection) {
-        console.warn('Missing main parameter selection:', { mainAttrs, selection });
+        console.warn('Missing main parameter selection:', { mainAttrs, cleanSelection });
         toast.error('Please select all required options');
         setQuote(null);
         return;
       }
       
-      const q = await fetchQuote({ slug, qty, selection, extras: { turnaround, delivery } });
+      console.log('🔍 Sending to API:', { slug, qty, selection: cleanSelection, extras: { turnaround, delivery } });
+      
+      const q = await fetchQuote({ slug, qty, selection: cleanSelection, extras: { turnaround, delivery } });
       setQuote(q);
     } catch (e: any) { 
       console.error('Quote calculation error:', e);
