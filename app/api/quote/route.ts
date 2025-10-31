@@ -195,14 +195,21 @@ export async function POST(request: NextRequest) {
         console.log('Quantity below minimum tier, using minimum tier:', { qty, selectedTier });
       } else {
         // Находим подходящий тир для количества
+        // Выбираем максимальный тир, для которого qty >= tier.qty
+        let bestTier = sortedTiers[0];
         for (const tier of sortedTiers) {
           if (qty >= tier.qty) {
-            selectedTier = tier;
+            bestTier = tier;
           } else {
             break;
           }
         }
-        console.log('Using main tier price:', { qty, selectedTier });
+        selectedTier = bestTier;
+        console.log('Using main tier price:', { 
+          qty, 
+          selectedTier: { qty: selectedTier.qty, unit: selectedTier.unit },
+          allAvailableTiers: sortedTiers.map(t => ({ qty: t.qty, unit: t.unit }))
+        });
       }
       
       baseUnitPrice = selectedTier.unit;
