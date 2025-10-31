@@ -150,11 +150,18 @@ export async function POST(request: NextRequest) {
       if (exactMatch && selectionKeys.length > 0) {
         // Нашли точное совпадение - это главная строка
         mainRow = row;
-        console.log('✅✅✅ EXACT MATCH found - Row', row.id, ':', {
-          rowAttrs,
-          selection: Object.fromEntries(selectionKeys.map(k => [k, selection[k]]))
-        });
+        console.log('✅✅✅ EXACT MATCH found - Row', row.id);
+        console.log('   Row attrs:', rowAttrs);
+        console.log('   Selection:', Object.fromEntries(selectionKeys.map(k => [k, selection[k]])));
+        console.log('   Match confirmed!');
         break; // Нашли точное совпадение - прекращаем поиск
+      } else if (selectionKeys.length > 0) {
+        // Логируем почему не совпало
+        const missingInRow = selectionKeys.filter(k => !(k in rowAttrs) || rowAttrs[k] !== selection[k]);
+        const extraInRow = Object.keys(rowAttrs).filter(k => mainParams.includes(k) && (!(k in selection) || selection[k] !== rowAttrs[k]));
+        if (missingInRow.length > 0 || extraInRow.length > 0) {
+          console.log(`❌ Row ${row.id} no match - missing in row:`, missingInRow, 'extra in row:', extraInRow);
+        }
       }
     }
     
@@ -217,19 +224,29 @@ export async function POST(request: NextRequest) {
 
 
     // Вычисляем базовую цену из главного элемента
-    const mainAttrs = mainRow.attrs as Record<string, string>;
+    const mainAttrs = typeof mainRow.attrs === 'string' ? JSON.parse(mainRow.attrs) : (mainRow.attrs ?? {}) as Record<string, string>;
+    
+    console.log('💰 CALCULATING PRICE FOR MAIN ROW:');
+    console.log('   Row ID:', mainRow.id);
+    console.log('   Row attrs:', mainAttrs);
+    console.log('   Selection:', selection);
+    console.log('   Quantity:', qty);
+    console.log('   Tiers count:', mainRow.tiers?.length || 0);
+    
     let baseUnitPrice = 0;
     let sortedTiers: any[] = [];
     
     if (mainRow.tiers && mainRow.tiers.length > 0) {
       // Используем тиры - находим подходящий тир для количества
       sortedTiers = mainRow.tiers.sort((a, b) => a.qty - b.qty);
+      console.log('   All tiers:', sortedTiers.map(t => ({ qty: t.qty, unit: t.unit })));
+      
       let selectedTier = sortedTiers[0];
       
       // Если количество меньше минимального тира, используем минимальный тир
       if (qty < sortedTiers[0].qty) {
         selectedTier = sortedTiers[0];
-        console.log('Quantity below minimum tier, using minimum tier:', { qty, selectedTier });
+        console.log('⚠️ Quantity below minimum tier, using minimum tier:', { qty, selectedTier: { qty: selectedTier.qty, unit: selectedTier.unit } });
       } else {
         // Находим подходящий тир для количества
         for (const tier of sortedTiers) {
@@ -239,13 +256,14 @@ export async function POST(request: NextRequest) {
             break;
           }
         }
-        console.log('Using main tier price:', { qty, selectedTier });
+        console.log('✅ Using tier for qty:', { qty, selectedTier: { qty: selectedTier.qty, unit: selectedTier.unit } });
       }
       
       baseUnitPrice = selectedTier.unit;
+      console.log('   Selected baseUnitPrice:', baseUnitPrice);
     } else {
       // Если нет тиров, это ошибка - все цены должны быть в тирах
-      console.error('No tiers found for main row:', mainRow.id);
+      console.error('❌ No tiers found for main row:', mainRow.id);
       return NextResponse.json({ 
         ok: false, 
         error: "No pricing tiers found for main configuration" 
@@ -258,11 +276,10 @@ export async function POST(request: NextRequest) {
       ? sortedTiers[0].unit * qty  // Используем цену минимального тира, но считаем по количеству
       : baseUnitPrice * qty;  // Платим по выбранному тиру
     
-    console.log('Base price calculation:', {
-      baseUnitPrice,
-      qty,
-      basePrice
-    });
+    console.log('💰 BASE PRICE CALCULATION:');
+    console.log('   baseUnitPrice:', baseUnitPrice);
+    console.log('   qty:', qty);
+    console.log('   basePrice:', basePrice);
 
     // Применяем модификаторы из базы данных
     let modifierTotal = 0;
@@ -380,6 +397,15 @@ export async function POST(request: NextRequest) {
     const vat = netTotal * 0.20;
     const grossTotal = netTotal + vat;
     const finalUnitPrice = grossTotal / qty;
+
+    console.log('💰 FINAL CALCULATION:');
+    console.log('   basePrice:', basePrice);
+    console.log('   modifierTotal:', modifierTotal);
+    console.log('   netTotal:', netTotal);
+    console.log('   vat (20%):', vat);
+    console.log('   grossTotal:', grossTotal);
+    console.log('   finalUnitPrice:', finalUnitPrice);
+    console.log('=====================================');
 
     return NextResponse.json({
       ok: true,
