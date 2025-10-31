@@ -237,6 +237,71 @@ export default function ServicePage() {
     }
   }
   
+  // Загружаем доступные опции при изменении выбора
+  useEffect(() => {
+    if (!slug || attrs.length === 0) return;
+    
+    // Определяем порядок основных параметров
+    const mainAttrs = attrs.filter(a => a.isMain);
+    
+    // Для каждого основного параметра загружаем доступные опции на основе предыдущих выборов
+    mainAttrs.forEach((attr, index) => {
+      if (index === 0) {
+        // Первый параметр - всегда доступны все опции
+        if (!availableOptions[attr.key]) {
+          setAvailableOptions(prev => ({ ...prev, [attr.key]: attr.values }));
+        }
+      } else {
+        // Для последующих - загружаем динамически на основе предыдущих выборов
+        const previousSelection: Record<string, string> = {};
+        for (let i = 0; i < index; i++) {
+          const prevKey = mainAttrs[i].key;
+          if (selection[prevKey]) {
+            previousSelection[prevKey] = selection[prevKey];
+          }
+        }
+        
+        // Загружаем доступные опции для текущего параметра только если есть предыдущие выборы
+        if (Object.keys(previousSelection).length > 0) {
+          const params = new URLSearchParams({
+            slug,
+            paramKey: attr.key,
+            selectedParams: JSON.stringify(previousSelection)
+          });
+          
+          fetch(`/api/pricing/options/available?${params}`)
+            .then(res => res.json())
+            .then(data => {
+              if (data.ok) {
+                setAvailableOptions(prev => ({ ...prev, [attr.key]: data.values }));
+                
+                // Если текущее значение не в доступных - сбрасываем его
+                if (selection[attr.key] && !data.values.includes(selection[attr.key])) {
+                  const newSelection = { ...selection };
+                  delete newSelection[attr.key];
+                  
+                  // Также сбрасываем все последующие параметры
+                  for (let i = index; i < mainAttrs.length; i++) {
+                    delete newSelection[mainAttrs[i].key];
+                  }
+                  setSelection(newSelection);
+                }
+              }
+            })
+            .catch(err => console.error(`Error loading options for ${attr.key}:`, err));
+        } else {
+          // Если нет предыдущих выборов - очищаем опции для этого параметра
+          setAvailableOptions(prev => {
+            const newOptions = { ...prev };
+            delete newOptions[attr.key];
+            return newOptions;
+          });
+        }
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(selection), slug, attrs.length]);
+  
   useEffect(() => { 
     if (service?.calculatorAvailable && selection && Object.keys(selection).length > 0) {
       recalc(); 
