@@ -56,9 +56,13 @@ export async function GET(req: NextRequest) {
         )
       ) as Record<string, string>;
 
-      // Создаем пресет только для строк с основными параметрами (_isMain === 'true')
-      // Или если это не модификатор (нет модификаторных параметров)
-      const isMainRow = attrs._isMain === 'true' || attrs._isMain === true;
+      // Определяем, является ли строка основной (не модификатором)
+      // Основная строка: имеет _isMain === 'true' ИЛИ содержит несколько параметров (комбинация)
+      // Модификатор: обычно содержит только один параметр (add-on)
+      const isMainRow = 
+        attrs._isMain === 'true' || 
+        attrs._isMain === true ||
+        Object.keys(cleanAttrs).length > 1; // Комбинация из нескольких параметров = основная строка
       
       // Если это строка с основными параметрами, создаем пресет
       if (Object.keys(cleanAttrs).length > 0 && isMainRow) {

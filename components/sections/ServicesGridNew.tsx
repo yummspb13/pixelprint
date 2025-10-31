@@ -105,17 +105,10 @@ function TiltCard({ service, index, onServiceClick }: TiltCardProps) {
               height={160}
               onError={(e) => {
                 const target = e.target as HTMLImageElement;
-                const currentSrc = target.src;
-                
-                // Try different formats in order of preference
-                if (currentSrc.includes('.webp')) {
-                  target.src = currentSrc.replace('.webp', '.jpg');
-                } else if (currentSrc.includes('.jpg')) {
-                  target.src = currentSrc.replace('.jpg', '.png');
-                } else if (currentSrc.includes('.png')) {
-                  target.src = currentSrc.replace('.png', '.gif');
-                } else {
+                // Если изображение не загрузилось, показываем placeholder SVG
+                if (!target.src.includes('data:image/svg+xml')) {
                   target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjgwIiBoZWlnaHQ9IjE2MCIgdmlld0JveD0iMCAwIDI4MCAxNjAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIyODAiIGhlaWdodD0iMTYwIiBmaWxsPSIjRjNGNEY2Ii8+Cjx0ZXh0IHg9IjE0MCIgeT0iODAiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzlDQTNBRiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+Tm8gSW1hZ2U8L3RleHQ+Cjwvc3ZnPg==';
+                  target.onerror = null; // Предотвращаем бесконечный цикл ошибок
                 }
               }}
               className="block w-[200px] h-[120px] md:w-[280px] md:h-[160px] object-cover rounded-md shadow-xl"
