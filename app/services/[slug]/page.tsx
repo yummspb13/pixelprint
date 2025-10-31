@@ -267,16 +267,27 @@ export default function ServicePage() {
   
   // Загружаем доступные опции при изменении выбора (каскадный выбор)
   useEffect(() => {
-    if (!slug || attrs.length === 0) return;
+    if (!slug || attrs.length === 0 || presets.length === 0) return;
     
     const mainAttrs = attrs.filter(a => a.isMain);
+    console.log('🔄 Cascading selection update:', {
+      selectionKeys: Object.keys(selection),
+      mainAttrs: mainAttrs.map(a => a.key),
+      presetsCount: presets.length
+    });
     
     // Для каждого основного параметра загружаем доступные опции на основе предыдущих выборов
     mainAttrs.forEach((attr, index) => {
       if (index === 0) {
         // Первый параметр - всегда доступны все опции
         if (!availableOptions[attr.key]) {
-          setAvailableOptions(prev => ({ ...prev, [attr.key]: attr.values }));
+          const allValues = new Set<string>();
+          presets.forEach(p => {
+            if (p.selection[attr.key]) allValues.add(p.selection[attr.key]);
+          });
+          const options = allValues.size > 0 ? Array.from(allValues).sort() : attr.values;
+          setAvailableOptions(prev => ({ ...prev, [attr.key]: options }));
+          console.log(`✅ First param "${attr.key}": ${options.length} options available`);
         }
       } else {
         // Для последующих - загружаем динамически на основе предыдущих выборов
@@ -294,10 +305,14 @@ export default function ServicePage() {
           // Опция доступна, если есть пресет, где предыдущие параметры совпадают
           const availableForThisParam = new Set<string>();
           
+          console.log(`🔍 Finding options for "${attr.key}" based on:`, previousSelection);
+          
           presets.forEach(preset => {
             // Проверяем, совпадают ли предыдущие параметры
             const prevMatch = mainAttrs.slice(0, index).every(prevAttr => {
-              return preset.selection[prevAttr.key] === previousSelection[prevAttr.key];
+              const prevValue = previousSelection[prevAttr.key];
+              const presetValue = preset.selection[prevAttr.key];
+              return prevValue && presetValue && prevValue === presetValue;
             });
             
             if (prevMatch && preset.selection[attr.key]) {
@@ -306,13 +321,16 @@ export default function ServicePage() {
           });
           
           if (availableForThisParam.size > 0) {
+            const sortedOptions = Array.from(availableForThisParam).sort();
             setAvailableOptions(prev => ({ 
               ...prev, 
-              [attr.key]: Array.from(availableForThisParam).sort() 
+              [attr.key]: sortedOptions 
             }));
+            console.log(`✅ Param "${attr.key}": ${sortedOptions.length} options available:`, sortedOptions);
             
             // Если текущее значение не в доступных - сбрасываем его
             if (selection[attr.key] && !availableForThisParam.has(selection[attr.key])) {
+              console.log(`⚠️ Current value "${selection[attr.key]}" for "${attr.key}" is not available, resetting`);
               const newSelection = { ...selection };
               delete newSelection[attr.key];
               
@@ -324,6 +342,7 @@ export default function ServicePage() {
             }
           } else {
             // Нет доступных опций - очищаем
+            console.log(`⚠️ No options available for "${attr.key}"`);
             setAvailableOptions(prev => {
               const newOptions = { ...prev };
               delete newOptions[attr.key];
