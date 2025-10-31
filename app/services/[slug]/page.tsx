@@ -73,10 +73,14 @@ export default function ServicePage() {
         selectedParams: JSON.stringify(selectedParams)
       });
       
+      console.log(`📡 Loading available options for ${paramKey} with selection:`, selectedParams);
+      
       const response = await fetch(`/api/pricing/options/available?${params}`);
       const data = await response.json();
       
       if (data.ok) {
+        console.log(`✅ Available options for ${paramKey}:`, data.values);
+        
         setAvailableOptions(prev => ({
           ...prev,
           [paramKey]: data.values
@@ -84,28 +88,38 @@ export default function ServicePage() {
         
         // Если текущее значение параметра не входит в доступные - сбрасываем его
         if (currentSelection[paramKey] && !data.values.includes(currentSelection[paramKey])) {
+          console.log(`⚠️ Current value "${currentSelection[paramKey]}" for ${paramKey} is not available, resetting`);
           const newSelection = { ...currentSelection };
           delete newSelection[paramKey];
           
           // Также сбрасываем все последующие параметры
-          const paramIndex = attrs.findIndex(a => a.key === paramKey);
+          const orderedAttrs = [
+            ...attrs.filter(a => a.isMain),
+            ...attrs.filter(a => !a.isMain && !a.isModifier),
+            ...attrs.filter(a => a.isModifier)
+          ];
+          const paramIndex = orderedAttrs.findIndex(a => a.key === paramKey);
           if (paramIndex !== -1) {
-            for (let i = paramIndex + 1; i < attrs.length; i++) {
-              delete newSelection[attrs[i].key];
+            for (let i = paramIndex + 1; i < orderedAttrs.length; i++) {
+              delete newSelection[orderedAttrs[i].key];
             }
           }
           
           setSelection(newSelection);
         }
+      } else {
+        console.error(`❌ Error loading options for ${paramKey}:`, data.error);
       }
     } catch (error) {
-      console.error(`Error loading available options for ${paramKey}:`, error);
+      console.error(`❌ Error loading available options for ${paramKey}:`, error);
     }
   };
 
   // Обновляем доступные опции при изменении выбора
   useEffect(() => {
     if (!slug || attrs.length === 0) return;
+    
+    console.log('🔄 Updating available options for selection:', selection);
     
     // Определяем порядок параметров (основные первыми)
     const orderedAttrs = [
@@ -125,9 +139,13 @@ export default function ServicePage() {
         }
       }
       
-      loadAvailableOptions(attr.key, { ...previousSelection, ...selection });
+      // Загружаем опции только если есть предыдущие выбранные параметры (или это первый параметр)
+      if (index === 0 || Object.keys(previousSelection).length > 0) {
+        loadAvailableOptions(attr.key, { ...previousSelection, ...selection });
+      }
     });
-  }, [selection, slug, attrs]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(selection), slug, attrs.length]);
 
   // Функция для получения доступных количеств на основе выбранных параметров
   const updateAvailableQuantities = (modelData: any, currentSelection: Record<string, string>) => {
