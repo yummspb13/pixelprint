@@ -117,9 +117,13 @@ export default function ServicePage() {
 
   // Обновляем доступные опции при изменении выбора
   useEffect(() => {
-    if (!slug || attrs.length === 0) return;
+    if (!slug || attrs.length === 0 || Object.keys(availableOptions).length === 0) {
+      // Если опции еще не инициализированы, ждем
+      return;
+    }
     
     console.log('🔄 Updating available options for selection:', selection);
+    console.log('🔄 Current availableOptions:', availableOptions);
     
     // Определяем порядок параметров (основные первыми)
     const orderedAttrs = [
@@ -139,14 +143,19 @@ export default function ServicePage() {
         }
       }
       
-      // Загружаем опции для первого параметра всегда, для остальных только если есть предыдущие выбранные
-      if (index === 0 || Object.keys(previousSelection).length > 0) {
+      // Для первого параметра не нужно фильтровать (показываем все опции)
+      // Для остальных - загружаем только доступные на основе предыдущих
+      if (index === 0) {
+        // Первый параметр - используем все опции из attrs (уже установлены в availableOptions)
+        console.log(`First param ${attr.key}: using all ${availableOptions[attr.key]?.length || 0} options`);
+      } else if (Object.keys(previousSelection).length > 0) {
+        // Загружаем динамические опции для последующих параметров
         console.log(`Loading options for ${attr.key} (index ${index}) with previous selection:`, previousSelection);
         loadAvailableOptions(attr.key, { ...previousSelection, ...selection });
       }
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [JSON.stringify(selection), slug]);
+  }, [JSON.stringify(selection), slug, attrs.length, JSON.stringify(availableOptions)]);
 
   // Функция для получения доступных количеств на основе выбранных параметров
   const updateAvailableQuantities = (modelData: any, currentSelection: Record<string, string>) => {
