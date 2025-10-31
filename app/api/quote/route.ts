@@ -117,8 +117,9 @@ export async function POST(request: NextRequest) {
     for (const row of service.rows) {
       const attrs = typeof row.attrs === 'string' ? JSON.parse(row.attrs) : (row.attrs ?? {}) as Record<string, string>;
       
-      // Проверяем, содержит ли строка основные параметры
+      // Проверяем, содержит ли строка основные параметры или модификаторы
       const hasMainParams = mainParams.some((param: string) => param in attrs);
+      const hasModifierParams = modifierParams.some((param: string) => param in attrs);
       
       if (hasMainParams) {
         // Игнорируем системные поля при сравнении
