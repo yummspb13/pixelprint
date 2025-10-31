@@ -40,7 +40,7 @@ async function testCalculation() {
       // Проверяем точное совпадение
       let isExactMatch = true;
       for (const key of selectionKeys) {
-        if (!(key in rowAttrsForMatch) || rowAttrsForMatch[key] !== selection[key]) {
+        if (!(key in rowAttrsForMatch) || rowAttrsForMatch[key] !== (selection as Record<string, string>)[key]) {
           isExactMatch = false;
           break;
         }
