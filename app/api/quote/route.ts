@@ -108,40 +108,61 @@ export async function POST(request: NextRequest) {
     // Сначала ищем точное совпадение всех параметров из selection
     // (для случая, когда выбрана полная комбинация через бейдж)
     const selectionKeys = Object.keys(selection).filter(k => 
-      !['PRICE', 'NET PRICE', 'VAT', 'Price +VAT', 'Qty', 'turnaround', 'delivery', 'notes', 'Rush'].includes(k)
+      !['PRICE', 'NET PRICE', 'VAT', 'Price +VAT', 'Qty', 'turnaround', 'delivery', 'notes', 'Rush', 'Lamination', 'Corners'].includes(k)
     );
     
-    console.log('🔍 Looking for exact match. Selection keys:', selectionKeys);
+    console.log('=====================================');
+    console.log('🔍 SEARCHING FOR MAIN ROW');
+    console.log('🔍 Selection keys:', selectionKeys);
     console.log('🔍 Selection:', Object.fromEntries(selectionKeys.map(k => [k, selection[k]])));
+    console.log('🔍 Main params:', mainParams);
+    console.log('🔍 Total rows to check:', service.rows.length);
     
     for (const row of service.rows) {
       const attrs = typeof row.attrs === 'string' ? JSON.parse(row.attrs) : (row.attrs ?? {}) as Record<string, string>;
       
-      // Игнорируем системные поля
+      // Игнорируем системные поля и служебные поля
       const rowAttrs = Object.fromEntries(
-        Object.entries(attrs).filter(([k]) => !['_isMain'].includes(k))
+        Object.entries(attrs).filter(([k, v]) => 
+          !['_isMain'].includes(k) && 
+          !['PRICE', 'NET PRICE', 'VAT', 'Price +VAT', 'Qty'].includes(k) &&
+          typeof v === 'string' && v.trim() !== ''
+        )
       );
       
-      // ПРОВЕРКА 1: Точное совпадение всех параметров из selection с параметрами строки
+      // ПРОВЕРКА: Точное совпадение всех параметров из selection с параметрами строки
       // Все параметры из selection должны быть в attrs с теми же значениями
       // И все параметры из attrs (основные) должны быть в selection с теми же значениями
       let exactMatch = true;
+      const mismatches: string[] = [];
       
-      // Проверяем, что все параметры из selection есть в attrs и совпадают
+      // 1. Проверяем, что все параметры из selection есть в attrs и совпадают
       for (const key of selectionKeys) {
-        if (!(key in rowAttrs) || rowAttrs[key] !== selection[key]) {
+        if (!(key in rowAttrs)) {
           exactMatch = false;
+          mismatches.push(`missing key: ${key}`);
+          break;
+        }
+        if (rowAttrs[key] !== selection[key]) {
+          exactMatch = false;
+          mismatches.push(`${key}: selection="${selection[key]}" != row="${rowAttrs[key]}"`);
           break;
         }
       }
       
-      // Проверяем, что все основные параметры из attrs есть в selection
+      // 2. Проверяем, что все основные параметры из attrs есть в selection
       // (чтобы не взять строку с дополнительными параметрами)
-      if (exactMatch) {
+      if (exactMatch && mainParams.length > 0) {
         const rowMainParams = Object.keys(rowAttrs).filter(k => mainParams.includes(k));
         for (const key of rowMainParams) {
-          if (!(key in selection) || selection[key] !== rowAttrs[key]) {
+          if (!(key in selection)) {
             exactMatch = false;
+            mismatches.push(`row has extra main param: ${key}`);
+            break;
+          }
+          if (selection[key] !== rowAttrs[key]) {
+            exactMatch = false;
+            mismatches.push(`${key}: selection="${selection[key]}" != row="${rowAttrs[key]}"`);
             break;
           }
         }
@@ -150,19 +171,22 @@ export async function POST(request: NextRequest) {
       if (exactMatch && selectionKeys.length > 0) {
         // Нашли точное совпадение - это главная строка
         mainRow = row;
-        console.log('✅✅✅ EXACT MATCH found - Row', row.id);
+        console.log('✅✅✅ EXACT MATCH FOUND - Row', row.id);
         console.log('   Row attrs:', rowAttrs);
         console.log('   Selection:', Object.fromEntries(selectionKeys.map(k => [k, selection[k]])));
-        console.log('   Match confirmed!');
+        console.log('   Tiers count:', row.tiers?.length || 0);
         break; // Нашли точное совпадение - прекращаем поиск
-      } else if (selectionKeys.length > 0) {
-        // Логируем почему не совпало
-        const missingInRow = selectionKeys.filter(k => !(k in rowAttrs) || rowAttrs[k] !== selection[k]);
-        const extraInRow = Object.keys(rowAttrs).filter(k => mainParams.includes(k) && (!(k in selection) || selection[k] !== rowAttrs[k]));
-        if (missingInRow.length > 0 || extraInRow.length > 0) {
-          console.log(`❌ Row ${row.id} no match - missing in row:`, missingInRow, 'extra in row:', extraInRow);
+      } else if (selectionKeys.length > 0 && mismatches.length > 0) {
+        // Логируем почему не совпало (только первые 3 для экономии логов)
+        if (service.rows.indexOf(row) < 5) {
+          console.log(`❌ Row ${row.id} - no match:`, mismatches.slice(0, 3).join(', '));
+          console.log(`   Row attrs:`, rowAttrs);
         }
       }
+    }
+    
+    if (!mainRow) {
+      console.log('❌ NO EXACT MATCH FOUND after checking all rows');
     }
     
     // После поиска точного совпадения, ищем модификаторы отдельно
