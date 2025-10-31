@@ -132,11 +132,37 @@ export async function POST(request: NextRequest) {
           return attrs[key] === value;
         });
         
-        console.log(`Row ${row.id} main matches:`, mainMatches);
+        // ДОПОЛНИТЕЛЬНАЯ ПРОВЕРКА: все параметры из selection должны совпадать
+        const allSelectionKeys = Object.keys(selection).filter(k => !['PRICE', 'NET PRICE', 'VAT', 'Price +VAT', 'Qty'].includes(k));
+        let allParamsMatch = true;
+        let mismatchDetails: string[] = [];
+        
+        for (const key of allSelectionKeys) {
+          if (!(key in attrs)) {
+            allParamsMatch = false;
+            mismatchDetails.push(`Missing key: ${key}`);
+          } else if (attrs[key] !== selection[key]) {
+            allParamsMatch = false;
+            mismatchDetails.push(`${key}: selection="${selection[key]}" vs attrs="${attrs[key]}"`);
+          }
+        }
+        
+        console.log(`Row ${row.id} main matches:`, mainMatches, `| All params match:`, allParamsMatch, mismatchDetails.length > 0 ? `| Mismatches: ${mismatchDetails.join(', ')}` : '');
+        console.log(`Row ${row.id} tiers:`, row.tiers.map((t: any) => ({ qty: t.qty, unit: t.unit })));
         
         if (mainMatches && Object.keys(mainSelection).length > 0) {
-          mainRow = row;
-          console.log('Found main row:', { id: row.id, attrs: row.attrs });
+          // ВАЖНО: Если уже есть mainRow и новая строка более точная (все параметры совпадают) - заменяем
+          if (!mainRow || allParamsMatch) {
+            mainRow = row;
+            console.log(`✅ Found main row (${allParamsMatch ? 'PERFECT MATCH' : 'PARTIAL MATCH'}):`, { 
+              id: row.id, 
+              attrs: row.attrs,
+              allParamsMatch,
+              tiers: row.tiers.map((t: any) => ({ qty: t.qty, unit: t.unit, total: t.qty * t.unit }))
+            });
+          } else {
+            console.log(`⚠️ Skipping row ${row.id} - already have mainRow and this is not perfect match`);
+          }
         }
       } else if (hasModifierParams) {
         // Это модификатор - проверяем соответствие выбранным модификаторам
