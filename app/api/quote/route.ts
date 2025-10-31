@@ -190,36 +190,58 @@ export async function POST(request: NextRequest) {
     }
     
     // После поиска точного совпадения, ищем модификаторы отдельно
+    // Модификаторы - это строки, которые НЕ являются основными (не содержат все основные параметры),
+    // но содержат ТОЛЬКО модификаторные параметры из selection
     if (mainRow) {
+      console.log('🔍 Searching for modifiers...');
+      
       for (const row of service.rows) {
-        const attrs = typeof row.attrs === 'string' ? JSON.parse(row.attrs) : (row.attrs ?? {}) as Record<string, string>;
-        const hasModifierParams = modifierParams.some((param: string) => param in attrs);
+        if (row.id === mainRow.id) continue; // Пропускаем основную строку
         
-        if (hasModifierParams && row.id !== mainRow.id) {
-          // Это модификатор - проверяем соответствие выбранным модификаторам
-          const modifierSelection = Object.fromEntries(
-            Object.entries(selection).filter(([key, value]) => 
-              !['PRICE', 'NET PRICE', 'VAT', 'Price +VAT', 'Qty'].includes(key) && 
-              key in attrs && 
-              attrs[key] === value
-            )
-          );
-          
-          console.log(`Row ${row.id} modifier selection:`, modifierSelection);
-          
-          // Проверяем, что все параметры модификатора совпадают с выбранными
-          const modifierMatches = Object.entries(modifierSelection).every(([key, value]) => {
-            return attrs[key] === value;
-          });
-          
-          console.log(`Row ${row.id} modifier matches:`, modifierMatches);
-          
-          if (modifierMatches && Object.keys(modifierSelection).length > 0) {
-            modifierRows.push(row);
-            console.log('Found modifier row:', { id: row.id, attrs: row.attrs });
+        const attrs = typeof row.attrs === 'string' ? JSON.parse(row.attrs) : (row.attrs ?? {}) as Record<string, string>;
+        
+        // Игнорируем системные поля
+        const rowAttrs = Object.fromEntries(
+          Object.entries(attrs).filter(([k, v]) => 
+            !['_isMain'].includes(k) && 
+            !['PRICE', 'NET PRICE', 'VAT', 'Price +VAT', 'Qty'].includes(k) &&
+            typeof v === 'string' && v.trim() !== ''
+          )
+        );
+        
+        // Модификатор должен содержать ТОЛЬКО модификаторные параметры (не основные)
+        const rowMainParams = Object.keys(rowAttrs).filter(k => mainParams.includes(k));
+        
+        // Если строка содержит основные параметры - это не модификатор, пропускаем
+        if (rowMainParams.length > 0) {
+          continue;
+        }
+        
+        // Проверяем, что все параметры из модификаторной строки совпадают с selection
+        // И что все параметры из selection, которые есть в строке, совпадают
+        let isModifier = true;
+        const modifierKeys = Object.keys(rowAttrs);
+        
+        // Проверяем, что все параметры строки есть в selection и совпадают
+        for (const key of modifierKeys) {
+          if (!(key in selection)) {
+            isModifier = false;
+            break;
+          }
+          if (selection[key] !== rowAttrs[key]) {
+            isModifier = false;
+            break;
           }
         }
+        
+        if (isModifier && modifierKeys.length > 0) {
+          // Это валидный модификатор
+          modifierRows.push(row);
+          console.log('✅ Found modifier row:', { id: row.id, attrs: rowAttrs });
+        }
       }
+      
+      console.log(`🔍 Total modifier rows found: ${modifierRows.length}`);
     }
         
         console.log('Main row found:', !!mainRow);
