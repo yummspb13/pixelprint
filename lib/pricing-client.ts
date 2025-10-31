@@ -27,9 +27,27 @@ export async function fetchQuote(input: QuoteInput) {
     cache: "no-store"
   });
   console.log('🔍 fetchQuote response status:', r.status);
+  
+  // Если 404 - комбинация не существует, возвращаем null вместо ошибки
+  if (r.status === 404) {
+    const d = await r.json();
+    console.log('⚠️ Combination not found (404):', d?.error);
+    return { ok: false, error: d?.error || "Combination not available" } as any;
+  }
+  
+  // Для других ошибок тоже обрабатываем
+  if (!r.ok) {
+    const d = await r.json().catch(() => ({ error: "Request failed" }));
+    console.error('❌ Quote API error:', d?.error || "Request failed");
+    return { ok: false, error: d?.error || "Request failed" } as any;
+  }
+  
   const d = await r.json();
   console.log('🔍 fetchQuote response data:', d);
-  if (!d?.ok) throw new Error(d?.error || "Quote failed");
+  if (!d?.ok) {
+    return { ok: false, error: d?.error || "Quote failed" } as any;
+  }
+  
   return d as {
     ok: true;
     breakdown: { 
