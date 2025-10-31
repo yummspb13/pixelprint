@@ -158,45 +158,13 @@ export async function POST(request: NextRequest) {
       }
     }
     
-    // Если не нашли точное совпадение, используем старую логику
-    if (!mainRow) {
-      console.log('⚠️ No exact match found, using fallback logic');
-      
+    // После поиска точного совпадения, ищем модификаторы отдельно
+    if (mainRow) {
       for (const row of service.rows) {
         const attrs = typeof row.attrs === 'string' ? JSON.parse(row.attrs) : (row.attrs ?? {}) as Record<string, string>;
-        
-        // Проверяем, содержит ли строка основные параметры
-        const hasMainParams = mainParams.some((param: string) => param in attrs);
         const hasModifierParams = modifierParams.some((param: string) => param in attrs);
         
-        console.log(`Row ${row.id}:`, { attrs, hasMainParams, hasModifierParams });
-        
-        if (hasMainParams) {
-          // Это главный элемент - проверяем соответствие основным параметрам
-          const mainSelection = Object.fromEntries(
-            Object.entries(selection).filter(([key, value]) => 
-              !['PRICE', 'NET PRICE', 'VAT', 'Price +VAT', 'Qty'].includes(key) && 
-              mainParams.includes(key) && 
-              key in attrs && 
-              attrs[key] === value
-            )
-          );
-          
-          console.log(`Row ${row.id} main selection:`, mainSelection);
-          
-          // Проверяем, что все основные параметры совпадают
-          const mainMatches = Object.entries(mainSelection).every(([key, value]) => {
-            return attrs[key] === value;
-          });
-          
-          console.log(`Row ${row.id} main matches:`, mainMatches);
-          
-          if (mainMatches && Object.keys(mainSelection).length > 0) {
-            mainRow = row;
-            console.log('Found main row (fallback):', { id: row.id, attrs: row.attrs });
-            break;
-          }
-        } else if (hasModifierParams) {
+        if (hasModifierParams && row.id !== mainRow.id) {
           // Это модификатор - проверяем соответствие выбранным модификаторам
           const modifierSelection = Object.fromEntries(
             Object.entries(selection).filter(([key, value]) => 
@@ -227,13 +195,23 @@ export async function POST(request: NextRequest) {
         console.log('Modifier rows found:', modifierRows.length);
 
     if (!mainRow) {
-      console.error('No main row found!');
+      console.error('❌ No main row found!');
       console.error('Selection:', selection);
+      console.error('Selection keys:', selectionKeys);
       console.error('Main params:', mainParams);
-      console.error('Available rows:', service.rows.map(r => ({ id: r.id, attrs: r.attrs })));
+      console.error('Available rows:', service.rows.map(r => {
+        const attrs = typeof r.attrs === 'string' ? JSON.parse(r.attrs) : (r.attrs ?? {});
+        const cleanAttrs = Object.fromEntries(
+          Object.entries(attrs).filter(([k]) => !['_isMain'].includes(k))
+        );
+        return { id: r.id, attrs: cleanAttrs };
+      }));
+      
+      // Формируем понятное сообщение об ошибке
+      const selectedParams = selectionKeys.map(k => `${k}: ${selection[k]}`).join(', ');
       return NextResponse.json({ 
         ok: false, 
-        error: "No matching main price configuration found" 
+        error: `The selected combination (${selectedParams}) is not available. Please choose a preset from Quick Select or select a valid combination manually.`
       }, { status: 404 });
     }
 

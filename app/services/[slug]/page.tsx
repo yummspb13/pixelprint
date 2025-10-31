@@ -229,12 +229,30 @@ export default function ServicePage() {
       }
       
       const q = await fetchQuote({ slug, qty, selection, extras: { turnaround, delivery } });
+      
+      // Проверяем, что получили валидный quote
+      if (!q || !q.ok) {
+        const errorMsg = q?.error || 'Selected combination is not available. Please choose different options.';
+        console.error('Quote API returned error:', errorMsg);
+        console.error('Selection:', selection);
+        toast.error(errorMsg);
+        setQuote(null);
+        return;
+      }
+      
       setQuote(q);
     } catch (e: any) { 
       console.error('Quote calculation error:', e);
       console.error('Selection data:', selection);
       console.error('Service data:', service);
-      toast.error(e.message || t('service.messages.failedCalculate'));
+      
+      // Если ошибка "No matching main price configuration", это значит комбинация не существует
+      const errorMsg = e.message || t('service.messages.failedCalculate');
+      if (errorMsg.includes('No matching') || errorMsg.includes('not found')) {
+        toast.error('This combination is not available. Please select a different option from the Quick Select badges or choose valid parameters manually.');
+      } else {
+        toast.error(errorMsg);
+      }
       setQuote(null);
     }
     finally { 
@@ -438,6 +456,7 @@ export default function ServicePage() {
                                     value={selection[a.key] ?? ""} 
                                     onValueChange={(v) => {
                                       // При изменении параметра обновляем selection
+                                      // Сбрасываем quote если комбинация может быть невалидной
                                       const newSelection = { ...selection };
                                       if (v) {
                                         newSelection[a.key] = v;
@@ -445,6 +464,8 @@ export default function ServicePage() {
                                         delete newSelection[a.key];
                                       }
                                       setSelection(newSelection);
+                                      // Сбрасываем quote - он будет пересчитан только если комбинация валидна
+                                      setQuote(null);
                                     }}
                                   >
                                     <SelectTrigger>
