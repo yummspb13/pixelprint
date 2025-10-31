@@ -238,12 +238,9 @@ export default function ServicePage() {
       
       const q = await fetchQuote({ slug, qty, selection, extras: { turnaround, delivery } });
       
-      // Проверяем, что получили валидный quote
-      if (!q || !q.ok) {
-        const errorMsg = q?.error || 'Selected combination is not available. Please choose different options.';
-        console.error('Quote API returned error:', errorMsg);
-        console.error('Selection:', selection);
-        toast.error(errorMsg);
+      // Если quote не валиден (комбинация не существует), просто не показываем цену
+      if (!q || (q as any).ok === false) {
+        console.log('Combination not available, clearing quote');
         setQuote(null);
         return;
       }
