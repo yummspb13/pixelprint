@@ -73,14 +73,10 @@ export default function ServicePage() {
         selectedParams: JSON.stringify(selectedParams)
       });
       
-      console.log(`📡 Loading available options for ${paramKey} with selection:`, selectedParams);
-      
       const response = await fetch(`/api/pricing/options/available?${params}`);
       const data = await response.json();
       
       if (data.ok) {
-        console.log(`✅ Available options for ${paramKey}:`, data.values);
-        
         setAvailableOptions(prev => ({
           ...prev,
           [paramKey]: data.values
@@ -88,42 +84,28 @@ export default function ServicePage() {
         
         // Если текущее значение параметра не входит в доступные - сбрасываем его
         if (currentSelection[paramKey] && !data.values.includes(currentSelection[paramKey])) {
-          console.log(`⚠️ Current value "${currentSelection[paramKey]}" for ${paramKey} is not available, resetting`);
           const newSelection = { ...currentSelection };
           delete newSelection[paramKey];
           
           // Также сбрасываем все последующие параметры
-          const orderedAttrs = [
-            ...attrs.filter(a => a.isMain),
-            ...attrs.filter(a => !a.isMain && !a.isModifier),
-            ...attrs.filter(a => a.isModifier)
-          ];
-          const paramIndex = orderedAttrs.findIndex(a => a.key === paramKey);
+          const paramIndex = attrs.findIndex(a => a.key === paramKey);
           if (paramIndex !== -1) {
-            for (let i = paramIndex + 1; i < orderedAttrs.length; i++) {
-              delete newSelection[orderedAttrs[i].key];
+            for (let i = paramIndex + 1; i < attrs.length; i++) {
+              delete newSelection[attrs[i].key];
             }
           }
           
           setSelection(newSelection);
         }
-      } else {
-        console.error(`❌ Error loading options for ${paramKey}:`, data.error);
       }
     } catch (error) {
-      console.error(`❌ Error loading available options for ${paramKey}:`, error);
+      console.error(`Error loading available options for ${paramKey}:`, error);
     }
   };
 
   // Обновляем доступные опции при изменении выбора
   useEffect(() => {
-    if (!slug || attrs.length === 0 || Object.keys(availableOptions).length === 0) {
-      // Если опции еще не инициализированы, ждем
-      return;
-    }
-    
-    console.log('🔄 Updating available options for selection:', selection);
-    console.log('🔄 Current availableOptions:', availableOptions);
+    if (!slug || attrs.length === 0) return;
     
     // Определяем порядок параметров (основные первыми)
     const orderedAttrs = [
@@ -143,19 +125,9 @@ export default function ServicePage() {
         }
       }
       
-      // Для первого параметра не нужно фильтровать (показываем все опции)
-      // Для остальных - загружаем только доступные на основе предыдущих
-      if (index === 0) {
-        // Первый параметр - используем все опции из attrs (уже установлены в availableOptions)
-        console.log(`First param ${attr.key}: using all ${availableOptions[attr.key]?.length || 0} options`);
-      } else if (Object.keys(previousSelection).length > 0) {
-        // Загружаем динамические опции для последующих параметров
-        console.log(`Loading options for ${attr.key} (index ${index}) with previous selection:`, previousSelection);
-        loadAvailableOptions(attr.key, { ...previousSelection, ...selection });
-      }
+      loadAvailableOptions(attr.key, { ...previousSelection, ...selection });
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [JSON.stringify(selection), slug, attrs.length, JSON.stringify(availableOptions)]);
+  }, [selection, slug, attrs]);
 
   // Функция для получения доступных количеств на основе выбранных параметров
   const updateAvailableQuantities = (modelData: any, currentSelection: Record<string, string>) => {
@@ -229,12 +201,11 @@ export default function ServicePage() {
             setAttrs(d.attributes);
             // дефолты — первое значение для основных параметров, модификаторы по умолчанию "None"
             const defSel: Record<string, string> = {};
-            const mainParams = d.attributes.filter(attr => attr.isMain);
-            
             d.attributes.forEach(a => { 
               if (a.values.length && a.isMain) {
                 // Основные параметры выбираем по умолчанию только для первого параметра
                 // Остальные будут загружаться динамически после выбора предыдущих
+                const mainParams = d.attributes.filter(attr => attr.isMain);
                 const isFirst = mainParams[0]?.key === a.key;
                 if (isFirst) {
                   defSel[a.key] = a.values[0]; 
@@ -244,17 +215,14 @@ export default function ServicePage() {
               // Модификаторы по умолчанию "None" (не добавляем в selection)
             });
             console.log('Default selection:', defSel);
+            setSelection(defSel);
             
             // Инициализируем доступные опции для всех параметров (сначала показываем все)
             const initialOptions: Record<string, string[]> = {};
             d.attributes.forEach(a => {
               initialOptions[a.key] = a.values;
             });
-            console.log('✅ Initialized available options:', initialOptions);
-            
-            // Сначала устанавливаем опции, потом selection (чтобы useEffect сработал)
             setAvailableOptions(initialOptions);
-            setSelection(defSel);
             
             // Загружаем данные модели для расчета количеств
             const modelResponse = await fetch(`/api/pricing/models/${slug}`, { cache: 'no-store' });
@@ -311,34 +279,22 @@ export default function ServicePage() {
     
     setQuoteLoading(true);
     try {
-      // Очищаем selection от пустых значений и служебных полей
-      const cleanSelection: Record<string, string> = {};
-      const excludedKeys = ['turnaround', 'delivery', 'notes', 'Quantity', 'Qty'];
-      
-      Object.entries(selection).forEach(([key, value]) => {
-        if (value && value.trim() !== '' && !excludedKeys.includes(key)) {
-          cleanSelection[key] = value.trim();
-        }
-      });
-      
-      console.log('🔍 Recalc called with:', { slug, qty, originalSelection: selection, cleanSelection, extras: { turnaround, delivery } });
+      console.log('🔍 Recalc called with:', { slug, qty, selection, extras: { turnaround, delivery } });
       
       // Проверяем, что selection содержит основные параметры
       const mainAttrs = attrs.filter(a => a.isMain);
       const hasMainSelection = mainAttrs.every(attr => 
-        cleanSelection[attr.key] && cleanSelection[attr.key].trim() !== ''
+        selection[attr.key] && selection[attr.key].trim() !== ''
       );
       
       if (!hasMainSelection) {
-        console.warn('Missing main parameter selection:', { mainAttrs, cleanSelection });
+        console.warn('Missing main parameter selection:', { mainAttrs, selection });
         toast.error('Please select all required options');
         setQuote(null);
         return;
       }
       
-      console.log('🔍 Sending to API:', { slug, qty, selection: cleanSelection, extras: { turnaround, delivery } });
-      
-      const q = await fetchQuote({ slug, qty, selection: cleanSelection, extras: { turnaround, delivery } });
+      const q = await fetchQuote({ slug, qty, selection, extras: { turnaround, delivery } });
       setQuote(q);
     } catch (e: any) { 
       console.error('Quote calculation error:', e);
@@ -542,11 +498,9 @@ export default function ServicePage() {
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {attrs.filter(a => a.isMain).map(a => {
                               // Используем динамические доступные опции, если они загружены, иначе статические
-                              const availableValues = (availableOptions[a.key] && availableOptions[a.key].length > 0) 
+                              const availableValues = availableOptions[a.key]?.length > 0 
                                 ? availableOptions[a.key] 
-                                : (a.values || []);
-                              
-                              console.log(`🔄 Rendering ${a.key}: availableValues=${availableValues.length}, fromOptions=${!!availableOptions[a.key]}, fromAttrs=${a.values?.length || 0}`);
+                                : a.values;
                               
                               return (
                                 <div key={a.key}>

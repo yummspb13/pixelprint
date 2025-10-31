@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 
 export const runtime = 'nodejs';
-export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   try {
@@ -106,124 +105,76 @@ export async function POST(request: NextRequest) {
     console.log('🔍 Main params:', mainParams);
     console.log('🔍 Modifier params:', modifierParams);
     
-    // ПРОСТАЯ И ПРАВИЛЬНАЯ ЛОГИКА: ищем строку где ВСЕ параметры из selection точно совпадают
-    const selectionKeys = Object.keys(selection).filter(k => !['PRICE', 'NET PRICE', 'VAT', 'Price +VAT', 'Qty', 'Rush', 'turnaround', 'delivery'].includes(k));
-    
-    console.log('🔍 Looking for exact match. Selection:', Object.fromEntries(selectionKeys.map(k => [k, selection[k]])));
-    console.log('🔍 Available rows count:', service.rows.length);
-    
     for (const row of service.rows) {
       const attrs = typeof row.attrs === 'string' ? JSON.parse(row.attrs) : (row.attrs ?? {}) as Record<string, string>;
       
-      // Игнорируем системные поля при сравнении
-      const rowAttrsForMatch = Object.fromEntries(
-        Object.entries(attrs).filter(([k]) => !['_isMain'].includes(k))
-      );
+      // Проверяем, содержит ли строка основные параметры
+      const hasMainParams = mainParams.some((param: string) => param in attrs);
+      const hasModifierParams = modifierParams.some((param: string) => param in attrs);
       
-      // ПРОВЕРЯЕМ ТОЧНОЕ СОВПАДЕНИЕ: все параметры из selection должны быть в attrs с теми же значениями
-      // И количество параметров должно совпадать
-      let isExactMatch = true;
-      const mismatchDetails: string[] = [];
+      console.log(`Row ${row.id}:`, { attrs, hasMainParams, hasModifierParams });
       
-      // Сначала проверяем количество параметров
-      const rowParamCount = Object.keys(rowAttrsForMatch).length;
-      const selectionParamCount = selectionKeys.length;
-      
-      if (rowParamCount !== selectionParamCount) {
-        isExactMatch = false;
-        mismatchDetails.push(`Param count mismatch: selection has ${selectionParamCount}, row has ${rowParamCount}`);
-      }
-      
-      // Затем проверяем каждый параметр
-      if (isExactMatch) {
-        for (const key of selectionKeys) {
-          if (!(key in rowAttrsForMatch)) {
-            isExactMatch = false;
-            mismatchDetails.push(`Missing: ${key}`);
-            break;
-          }
-          if (rowAttrsForMatch[key] !== selection[key]) {
-            isExactMatch = false;
-            mismatchDetails.push(`${key}: "${selection[key]}" ≠ "${rowAttrsForMatch[key]}"`);
-            break;
-          }
-        }
-      }
-      
-      if (isExactMatch && selectionKeys.length > 0) {
-        // Нашли точное совпадение - это главная строка
-        mainRow = row;
-        console.log(`✅✅✅ EXACT MATCH found - Row ${row.id}:`, {
-          attrs: rowAttrsForMatch,
-          selection: Object.fromEntries(selectionKeys.map(k => [k, selection[k]])),
-          tiers: row.tiers.map((t: any) => ({ qty: t.qty, unit: t.unit, total: t.qty * t.unit }))
+      if (hasMainParams) {
+        // Это главный элемент - проверяем соответствие основным параметрам
+        const mainSelection = Object.fromEntries(
+          Object.entries(selection).filter(([key, value]) => 
+            !['PRICE', 'NET PRICE', 'VAT', 'Price +VAT', 'Qty'].includes(key) && 
+            mainParams.includes(key) && 
+            key in attrs && 
+            attrs[key] === value
+          )
+        );
+        
+        console.log(`Row ${row.id} main selection:`, mainSelection);
+        
+        // Проверяем, что все основные параметры совпадают
+        const mainMatches = Object.entries(mainSelection).every(([key, value]) => {
+          return attrs[key] === value;
         });
-        break; // Нашли точное совпадение - прерываем поиск
-      } else {
-        console.log(`❌ Row ${row.id} no match:`, mismatchDetails.join(', '), '| Attrs:', rowAttrsForMatch);
-      }
-    }
-    
-    // Если не нашли точное совпадение для главной строки, ищем модификаторы
-    if (!mainRow) {
-      for (const row of service.rows) {
-        const attrs = typeof row.attrs === 'string' ? JSON.parse(row.attrs) : (row.attrs ?? {}) as Record<string, string>;
         
-        // Проверяем, содержит ли строка основные параметры
-        const hasMainParams = mainParams.some((param: string) => param in attrs);
-        const hasModifierParams = modifierParams.some((param: string) => param in attrs);
+        console.log(`Row ${row.id} main matches:`, mainMatches);
         
-        if (hasModifierParams) {
-          // Это модификатор - проверяем соответствие выбранным модификаторам
-          const modifierSelection = Object.fromEntries(
-            Object.entries(selection).filter(([key, value]) => 
-              !['PRICE', 'NET PRICE', 'VAT', 'Price +VAT', 'Qty'].includes(key) && 
-              key in attrs && 
-              attrs[key] === value
-            )
-          );
-          
-          console.log(`Row ${row.id} modifier selection:`, modifierSelection);
-          
-          // Проверяем, что все параметры модификатора совпадают с выбранными
-          const modifierMatches = Object.entries(modifierSelection).every(([key, value]) => {
-            return attrs[key] === value;
-          });
-          
-          console.log(`Row ${row.id} modifier matches:`, modifierMatches);
-          
-          if (modifierMatches && Object.keys(modifierSelection).length > 0) {
-            modifierRows.push(row);
-            console.log('Found modifier row:', { id: row.id, attrs: row.attrs });
-          }
+        if (mainMatches && Object.keys(mainSelection).length > 0) {
+          mainRow = row;
+          console.log('Found main row:', { id: row.id, attrs: row.attrs });
+        }
+      } else if (hasModifierParams) {
+        // Это модификатор - проверяем соответствие выбранным модификаторам
+        const modifierSelection = Object.fromEntries(
+          Object.entries(selection).filter(([key, value]) => 
+            !['PRICE', 'NET PRICE', 'VAT', 'Price +VAT', 'Qty'].includes(key) && 
+            key in attrs && 
+            attrs[key] === value
+          )
+        );
+        
+        console.log(`Row ${row.id} modifier selection:`, modifierSelection);
+        
+        // Проверяем, что все параметры модификатора совпадают с выбранными
+        const modifierMatches = Object.entries(modifierSelection).every(([key, value]) => {
+          return attrs[key] === value;
+        });
+        
+        console.log(`Row ${row.id} modifier matches:`, modifierMatches);
+        
+        if (modifierMatches && Object.keys(modifierSelection).length > 0) {
+          modifierRows.push(row);
+          console.log('Found modifier row:', { id: row.id, attrs: row.attrs });
         }
       }
     }
-    
-    console.log('Main row found:', !!mainRow);
-    console.log('Modifier rows found:', modifierRows.length);
+        
+        console.log('Main row found:', !!mainRow);
+        console.log('Modifier rows found:', modifierRows.length);
 
     if (!mainRow) {
-      console.error('❌ No main row found!');
+      console.error('No main row found!');
       console.error('Selection:', selection);
-      console.error('Selection keys:', selectionKeys);
       console.error('Main params:', mainParams);
-      console.error('Available rows:', service.rows.map(r => {
-        const attrs = typeof r.attrs === 'string' ? JSON.parse(r.attrs) : r.attrs;
-        const cleanAttrs = Object.fromEntries(Object.entries(attrs).filter(([k]) => k !== '_isMain'));
-        return { id: r.id, attrs: cleanAttrs, paramCount: Object.keys(cleanAttrs).length };
-      }));
+      console.error('Available rows:', service.rows.map(r => ({ id: r.id, attrs: r.attrs })));
       return NextResponse.json({ 
         ok: false, 
-        error: "No matching main price configuration found",
-        debug: {
-          selection,
-          selectionKeys,
-          availableRows: service.rows.map(r => {
-            const attrs = typeof r.attrs === 'string' ? JSON.parse(r.attrs) : r.attrs;
-            return Object.fromEntries(Object.entries(attrs).filter(([k]) => k !== '_isMain'));
-          })
-        }
+        error: "No matching main price configuration found" 
       }, { status: 404 });
     }
 
