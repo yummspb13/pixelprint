@@ -159,33 +159,34 @@ export async function POST(request: NextRequest) {
         const hasModifierParams = modifierParams.some((param: string) => param in attrs);
         
         if (hasModifierParams) {
-        // Это модификатор - проверяем соответствие выбранным модификаторам
-        const modifierSelection = Object.fromEntries(
-          Object.entries(selection).filter(([key, value]) => 
-            !['PRICE', 'NET PRICE', 'VAT', 'Price +VAT', 'Qty'].includes(key) && 
-            key in attrs && 
-            attrs[key] === value
-          )
-        );
-        
-        console.log(`Row ${row.id} modifier selection:`, modifierSelection);
-        
-        // Проверяем, что все параметры модификатора совпадают с выбранными
-        const modifierMatches = Object.entries(modifierSelection).every(([key, value]) => {
-          return attrs[key] === value;
-        });
-        
-        console.log(`Row ${row.id} modifier matches:`, modifierMatches);
-        
-        if (modifierMatches && Object.keys(modifierSelection).length > 0) {
-          modifierRows.push(row);
-          console.log('Found modifier row:', { id: row.id, attrs: row.attrs });
+          // Это модификатор - проверяем соответствие выбранным модификаторам
+          const modifierSelection = Object.fromEntries(
+            Object.entries(selection).filter(([key, value]) => 
+              !['PRICE', 'NET PRICE', 'VAT', 'Price +VAT', 'Qty'].includes(key) && 
+              key in attrs && 
+              attrs[key] === value
+            )
+          );
+          
+          console.log(`Row ${row.id} modifier selection:`, modifierSelection);
+          
+          // Проверяем, что все параметры модификатора совпадают с выбранными
+          const modifierMatches = Object.entries(modifierSelection).every(([key, value]) => {
+            return attrs[key] === value;
+          });
+          
+          console.log(`Row ${row.id} modifier matches:`, modifierMatches);
+          
+          if (modifierMatches && Object.keys(modifierSelection).length > 0) {
+            modifierRows.push(row);
+            console.log('Found modifier row:', { id: row.id, attrs: row.attrs });
+          }
         }
       }
     }
-        
-        console.log('Main row found:', !!mainRow);
-        console.log('Modifier rows found:', modifierRows.length);
+    
+    console.log('Main row found:', !!mainRow);
+    console.log('Modifier rows found:', modifierRows.length);
 
     if (!mainRow) {
       console.error('No main row found!');
