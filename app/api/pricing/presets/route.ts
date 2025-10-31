@@ -50,10 +50,11 @@ export async function GET(req: NextRequest) {
       // Игнорируем системные поля и служебные поля
       const cleanAttrs = Object.fromEntries(
         Object.entries(attrs).filter(
-          ([k]) =>
-            !["_isMain", "PRICE", "NET PRICE", "VAT", "Price +VAT", "Qty"].includes(k)
+          ([k, v]) =>
+            !["_isMain", "PRICE", "NET PRICE", "VAT", "Price +VAT", "Qty"].includes(k) &&
+            typeof v === 'string' && v.trim() !== ''
         )
-      );
+      ) as Record<string, string>;
 
       // Создаем пресет только для строк с основными параметрами (_isMain === 'true')
       // Или если это не модификатор (нет модификаторных параметров)
