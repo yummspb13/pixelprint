@@ -55,9 +55,12 @@ export async function GET(req: NextRequest) {
         )
       );
 
-      // Если это строка с основными параметрами (не модификатор)
-      // Создаем пресет
-      if (Object.keys(cleanAttrs).length > 0) {
+      // Создаем пресет только для строк с основными параметрами (_isMain === 'true')
+      // Или если это не модификатор (нет модификаторных параметров)
+      const isMainRow = attrs._isMain === 'true' || attrs._isMain === true;
+      
+      // Если это строка с основными параметрами, создаем пресет
+      if (Object.keys(cleanAttrs).length > 0 && isMainRow) {
         // Формируем читабельную метку
         const labelParts: string[] = [];
         Object.entries(cleanAttrs).forEach(([key, value]) => {
