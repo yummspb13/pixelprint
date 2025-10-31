@@ -518,9 +518,11 @@ export default function ServicePage() {
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {attrs.filter(a => a.isMain).map(a => {
                               // Используем динамические доступные опции, если они загружены, иначе статические
-                              const availableValues = availableOptions[a.key]?.length > 0 
+                              const availableValues = (availableOptions[a.key] && availableOptions[a.key].length > 0) 
                                 ? availableOptions[a.key] 
-                                : a.values;
+                                : (a.values || []);
+                              
+                              console.log(`🔄 Rendering ${a.key}: availableValues=${availableValues.length}, fromOptions=${!!availableOptions[a.key]}, fromAttrs=${a.values?.length || 0}`);
                               
                               return (
                                 <div key={a.key}>
