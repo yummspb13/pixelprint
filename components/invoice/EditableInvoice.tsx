@@ -51,6 +51,7 @@ interface InvoiceItem {
   unitPrice: number;
   totalPrice: number;
   isCustom?: boolean;
+  vatAmount?: number; // Если undefined/null - рассчитывается автоматически, если 0 - обнулен, если задан - используется это значение
 }
 
 export default function EditableInvoice({ orderData, onClose, onSave }: EditableInvoiceProps) {
@@ -119,7 +120,8 @@ export default function EditableInvoice({ orderData, onClose, onSave }: Editable
         unit: "pcs",
         unitPrice: item.unitPrice,
         totalPrice: item.totalPrice,
-        isCustom: false
+        isCustom: false,
+        vatAmount: undefined // Автоматический расчет VAT
       }));
 
       // Добавить стоимость доставки как отдельный товар, если она есть
@@ -132,7 +134,8 @@ export default function EditableInvoice({ orderData, onClose, onSave }: Editable
           unit: 'service',
           unitPrice: (orderData as any).deliveryCost,
           totalPrice: (orderData as any).deliveryCost,
-          isCustom: false
+          isCustom: false,
+          vatAmount: undefined // Автоматический расчет VAT
         };
 
         setItems([...initialItems, deliveryItem]);
@@ -152,7 +155,8 @@ export default function EditableInvoice({ orderData, onClose, onSave }: Editable
       unit: 'pcs',
       unitPrice: 0,
       totalPrice: 0,
-      isCustom: true
+      isCustom: true,
+      vatAmount: undefined // Автоматический расчет VAT
     };
     setItems([...items, newItem]);
     markAsUnsaved();
@@ -180,6 +184,10 @@ export default function EditableInvoice({ orderData, onClose, onSave }: Editable
         // Пересчитать итог если изменились количество или цена
         if (field === 'quantity' || field === 'unitPrice') {
           updatedItem.totalPrice = updatedItem.quantity * updatedItem.unitPrice;
+          // Если VAT не был обнулен вручную, сбрасываем его для пересчета
+          if (updatedItem.vatAmount !== 0) {
+            updatedItem.vatAmount = undefined;
+          }
         }
         
         return updatedItem;
@@ -189,33 +197,49 @@ export default function EditableInvoice({ orderData, onClose, onSave }: Editable
     
     markAsUnsaved();
   };
+  
+  // Переключить VAT для товара (обнулить или вернуть автоматический расчет)
+  const toggleVat = (itemId: string) => {
+    setItems(items.map(item => {
+      if (item.id === itemId) {
+        // Если VAT обнулен (0), возвращаем автоматический расчет (undefined)
+        // Если VAT не обнулен (undefined или задан), обнуляем его (0)
+        const newVatAmount = item.vatAmount === 0 ? undefined : 0;
+        return { ...item, vatAmount: newVatAmount };
+      }
+      return item;
+    }));
+    markAsUnsaved();
+  };
 
   // Рассчитать итоги
   const calculateTotals = () => {
-    // Для товаров из заказа (isCustom: false) - цены уже включают НДС
-    // Для кастомных товаров - цены вводятся как есть (могут включать или не включать НДС)
     const vatRate = 20;
     
     let subtotal = 0;
     let vatAmount = 0;
     
     items.forEach(item => {
-      if (item.isCustom) {
-        // Для кастомных товаров - считаем что цены включают НДС (как в заказе)
-        // Разделяем на net price и VAT
-        const itemGross = item.totalPrice;
-        const itemNet = itemGross / (1 + vatRate / 100);
-        const itemVat = itemGross - itemNet;
-        subtotal += itemNet;
-        vatAmount += itemVat;
+      const itemGross = item.totalPrice;
+      const itemNet = itemGross / (1 + vatRate / 100);
+      
+      // Определяем VAT для товара
+      let itemVat = 0;
+      if (item.vatAmount === 0) {
+        // VAT обнулен вручную - totalPrice уже является ценой без VAT
+        itemVat = 0;
+        subtotal += itemGross; // Используем полную цену как subtotal
+      } else if (item.vatAmount !== undefined && item.vatAmount !== null) {
+        // VAT задан вручную
+        itemVat = item.vatAmount;
+        subtotal += itemNet; // Используем net price
       } else {
-        // Для товаров из заказа - цены включают НДС, нужно разделить
-        const itemGross = item.totalPrice;
-        const itemNet = itemGross / (1 + vatRate / 100);
-        const itemVat = itemGross - itemNet;
-        subtotal += itemNet;
-        vatAmount += itemVat;
+        // VAT рассчитывается автоматически (20%)
+        itemVat = itemGross - itemNet;
+        subtotal += itemNet; // Используем net price
       }
+      
+      vatAmount += itemVat;
     });
     
     const discountAmount = discountType === 'percentage' 
@@ -225,6 +249,22 @@ export default function EditableInvoice({ orderData, onClose, onSave }: Editable
     const total = afterDiscount + vatAmount;
 
     return { subtotal: afterDiscount, discountAmount, afterDiscount, vatRate, vatAmount, total };
+  };
+  
+  // Функция для вычисления VAT для конкретного товара
+  const getItemVat = (item: InvoiceItem): number => {
+    const vatRate = 20;
+    const itemGross = item.totalPrice;
+    const itemNet = itemGross / (1 + vatRate / 100);
+    
+    if (item.vatAmount === 0) {
+      return 0; // VAT обнулен
+    } else if (item.vatAmount !== undefined && item.vatAmount !== null) {
+      return item.vatAmount; // VAT задан вручную
+    } else {
+      // Автоматический расчет (20%)
+      return itemGross - itemNet;
+    }
   };
 
   const totals = calculateTotals();
@@ -530,7 +570,7 @@ export default function EditableInvoice({ orderData, onClose, onSave }: Editable
                         </div>
                       )}
                       <div className="grid grid-cols-12 gap-2 items-end">
-                        <div className="col-span-4">
+                        <div className="col-span-3">
                           <Label>Description</Label>
                           <Input
                             value={item.description}
@@ -578,11 +618,32 @@ export default function EditableInvoice({ orderData, onClose, onSave }: Editable
                           />
                         </div>
                         <div className="col-span-1">
+                          <Label>VAT</Label>
+                          <div className="flex items-center gap-1">
+                            <Input
+                              value={getItemVat(item).toFixed(2)}
+                              disabled
+                              className="text-xs"
+                            />
+                            <Button
+                              type="button"
+                              onClick={() => toggleVat(item.id)}
+                              variant={item.vatAmount === 0 ? "outline" : "secondary"}
+                              size="sm"
+                              className={`h-9 ${item.vatAmount === 0 ? 'bg-red-50 text-red-600 hover:bg-red-100' : ''}`}
+                              title={item.vatAmount === 0 ? "Restore VAT" : "Remove VAT"}
+                            >
+                              {item.vatAmount === 0 ? 'VAT' : 'No VAT'}
+                            </Button>
+                          </div>
+                        </div>
+                        <div className="col-span-1">
                           <Button
                             onClick={() => removeItem(item.id)}
                             variant="outline"
                             size="sm"
                             className="text-red-600 hover:text-red-700"
+                            title="Remove item"
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -776,10 +837,12 @@ function StandardInvoice({ data }: { data: any }) {
               <span>-£{data.discount.toFixed(2)}</span>
             </div>
           )}
-          <div className="flex justify-between">
-            <span>VAT ({data.vatRate}%):</span>
-            <span>£{data.vatAmount.toFixed(2)}</span>
-          </div>
+          {data.vatAmount > 0 && (
+            <div className="flex justify-between">
+              <span>VAT ({data.vatRate}%):</span>
+              <span>£{data.vatAmount.toFixed(2)}</span>
+            </div>
+          )}
           <div className="flex justify-between font-bold text-lg border-t pt-2">
             <span>Total:</span>
             <span>£{data.total.toFixed(2)}</span>
