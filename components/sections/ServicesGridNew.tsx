@@ -122,7 +122,7 @@ function TiltCard({ service, index, onServiceClick }: TiltCardProps) {
               loading="lazy"
               quality={85}
               sizes="(max-width: 768px) 200px, 280px"
-              unoptimized={service.image?.includes('.webp') || service.image?.includes('.gif')}
+              unoptimized={!service.image || service.image?.includes('.webp') || service.image?.includes('.gif') || service.image === '/placeholder-service.jpg'}
             />
           </div>
         </div>

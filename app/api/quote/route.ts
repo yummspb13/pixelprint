@@ -43,10 +43,58 @@ export async function POST(request: NextRequest) {
         console.log('Available rows:', service.rows.map(r => ({ id: r.id, attrs: r.attrs, ruleKind: r.ruleKind })));
         
         // Получаем информацию о том, какие параметры являются основными
-        const optionsResponse = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3010'}/api/pricing/options?slug=${slug}`);
-        const optionsData = await optionsResponse.json();
-        const mainParams = optionsData.mainParams || [];
-        const modifierParams = optionsData.modifierParams || [];
+        // Используем прямой вызов функции вместо fetch для серверной стороны
+        let mainParams: string[] = [];
+        let modifierParams: string[] = [];
+        
+        try {
+          // Пытаемся получить параметры из API, но не критично если не получится
+          let baseUrl = 'http://localhost:3010';
+          if (process.env.NEXT_PUBLIC_BASE_URL) {
+            baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
+          } else if (process.env.VERCEL_URL) {
+            baseUrl = `https://${process.env.VERCEL_URL}`;
+          }
+          const optionsUrl = `${baseUrl}/api/pricing/options?slug=${slug}`;
+          const optionsResponse = await fetch(optionsUrl, {
+            headers: { 'Content-Type': 'application/json' }
+          });
+          
+          if (optionsResponse.ok) {
+            const optionsData = await optionsResponse.json();
+            mainParams = optionsData.mainParams || [];
+            modifierParams = optionsData.modifierParams || [];
+          } else {
+            // Если API недоступен, определяем параметры напрямую из данных
+            console.warn('Options API unavailable, determining params from service data');
+            const mainRows = service.rows.filter(row => {
+              const a = typeof row.attrs === 'string' ? JSON.parse(row.attrs) : (row.attrs ?? {}) as Record<string, string>;
+              return a._isMain === 'true';
+            });
+            
+            for (const r of mainRows) {
+              const a = typeof r.attrs === 'string' ? JSON.parse(r.attrs) : (r.attrs ?? {}) as Record<string, string>;
+              Object.entries(a).forEach(([k, v]) => {
+                if (!v || k === '_isMain') return;
+                if (['PRICE', 'NET PRICE', 'VAT', 'Price +VAT', 'Qty'].includes(k)) return;
+                if (!mainParams.includes(k)) mainParams.push(k);
+              });
+            }
+            
+            // Остальные параметры - модификаторы
+            service.rows.forEach(row => {
+              const a = typeof row.attrs === 'string' ? JSON.parse(row.attrs) : (row.attrs ?? {}) as Record<string, string>;
+              Object.keys(a).forEach(k => {
+                if (!mainParams.includes(k) && !['PRICE', 'NET PRICE', 'VAT', 'Price +VAT', 'Qty', '_isMain'].includes(k)) {
+                  if (!modifierParams.includes(k)) modifierParams.push(k);
+                }
+              });
+            });
+          }
+        } catch (error) {
+          console.warn('Error fetching options, using fallback logic:', error);
+          // Fallback логика уже реализована выше
+        }
         
         console.log('Main params from options API:', mainParams);
         console.log('Modifier params from options API:', modifierParams);
