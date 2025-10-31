@@ -183,11 +183,12 @@ export async function POST(request: NextRequest) {
     const mainAttrs = mainRow.attrs as Record<string, string>;
     let baseUnitPrice = 0;
     let sortedTiers: any[] = [];
+    let selectedTier: any = null;
     
     if (mainRow.tiers && mainRow.tiers.length > 0) {
       // Используем тиры - находим подходящий тир для количества
       sortedTiers = mainRow.tiers.sort((a, b) => a.qty - b.qty);
-      let selectedTier = sortedTiers[0];
+      selectedTier = sortedTiers[0];
       
       // Если количество меньше минимального тира, используем минимальный тир
       if (qty < sortedTiers[0].qty) {
@@ -231,7 +232,7 @@ export async function POST(request: NextRequest) {
     console.log('Price calculation details:', {
       qty,
       sortedTiers: sortedTiers.map(t => ({ qty: t.qty, unit: t.unit, total: t.qty * t.unit })),
-      selectedTier: { qty: selectedTier.qty, unit: selectedTier.unit },
+      selectedTier: selectedTier ? { qty: selectedTier.qty, unit: selectedTier.unit } : null,
       baseUnitPrice,
       basePrice,
       calculatedTotal: baseUnitPrice * qty
