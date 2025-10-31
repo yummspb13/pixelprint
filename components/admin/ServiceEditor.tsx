@@ -17,6 +17,7 @@ interface Parameter {
   priceType?: 'add' | 'all'; // 'add' = добавляет к цене, 'all' = заменяет цену
   parameterType?: 'single' | 'multi' | 'boolean' | 'numeric'; // Тип параметра
   isMain: boolean; // Главный элемент (базовая цена)
+  isAddon: boolean; // Уникальная опция (add-on), не включается в комбинации базовых параметров
   options: ParameterOption[];
 }
 
@@ -80,22 +81,84 @@ export default function ServiceEditor({ serviceSlug, serviceName, onClose }: Ser
     
     // Создаем карту параметров
     const paramMap = new Map<string, Parameter>();
+    const combinationRows: Array<{ attrs: Record<string, string>; tiers: any[]; rowId: number }> = [];
     
-    // Проходим по каждой строке и извлекаем параметры
+    // Разделяем строки на комбинации (несколько параметров) и отдельные параметры (add-ons)
     rows.forEach(row => {
       const attrs = typeof row.attrs === 'string' ? JSON.parse(row.attrs) : row.attrs;
-      console.log('🔍 Processing row attrs:', attrs, 'rowId:', row.id);
+      const attrsForMatch = { ...attrs };
+      delete attrsForMatch._isMain;
       
-      // Для каждого атрибута в строке создаем параметр
-      Object.entries(attrs).forEach(([paramName, optionValue]) => {
+      const paramCount = Object.keys(attrsForMatch).length;
+      
+      if (paramCount > 1) {
+        // Это комбинация параметров
+        combinationRows.push({
+          attrs: attrsForMatch,
+          tiers: row.tiers || [],
+          rowId: row.id
+        });
+      } else if (paramCount === 1) {
+        // Это отдельный параметр (может быть add-on)
+        // Извлекаем для параметра
+        Object.entries(attrsForMatch).forEach(([paramName, optionValue]) => {
+          if (!paramMap.has(paramName)) {
+            paramMap.set(paramName, {
+              id: paramName.toLowerCase().replace(/\s+/g, '-'),
+              name: paramName,
+              affectsPrice: true,
+              priceType: 'all',
+              parameterType: 'single',
+              isMain: false,
+              isAddon: false, // По умолчанию не add-on
+              options: []
+            });
+          }
+          
+          const param = paramMap.get(paramName)!;
+          const optionName = optionValue as string;
+          
+          let existingOption = param.options.find(opt => opt.name === optionName);
+          
+          if (!existingOption) {
+            existingOption = {
+              id: `${paramName.toLowerCase().replace(/\s+/g, '-')}-${optionName.toLowerCase().replace(/\s+/g, '-')}`,
+              name: optionName,
+              tiers: [],
+              originalRowId: row.id
+            };
+            param.options.push(existingOption);
+          }
+          
+          // Добавляем тиры
+          if (row.tiers && row.tiers.length > 0) {
+            row.tiers.forEach((tier: any) => {
+              if (!existingOption.tiers.find(t => t.originalTierId === tier.id)) {
+                existingOption.tiers.push({
+                  id: `tier-${tier.id}`,
+                  quantity: tier.qty,
+                  price: tier.unit,
+                  originalTierId: tier.id
+                });
+              }
+            });
+          }
+        });
+      }
+    });
+    
+    // Обрабатываем комбинации: извлекаем уникальные значения для каждого параметра
+    combinationRows.forEach(combo => {
+      Object.entries(combo.attrs).forEach(([paramName, optionValue]) => {
         if (!paramMap.has(paramName)) {
           paramMap.set(paramName, {
             id: paramName.toLowerCase().replace(/\s+/g, '-'),
             name: paramName,
             affectsPrice: true,
-            priceType: 'all', // По умолчанию заменяет цену
-            parameterType: 'single', // По умолчанию single select
-            isMain: false, // По умолчанию не главный
+            priceType: 'all',
+            parameterType: 'single',
+            isMain: false,
+            isAddon: false,
             options: []
           });
         }
@@ -103,42 +166,29 @@ export default function ServiceEditor({ serviceSlug, serviceName, onClose }: Ser
         const param = paramMap.get(paramName)!;
         const optionName = optionValue as string;
         
-        // Проверяем, есть ли уже такая опция
         let existingOption = param.options.find(opt => opt.name === optionName);
         
         if (!existingOption) {
-          // Создаем новую опцию
           existingOption = {
             id: `${paramName.toLowerCase().replace(/\s+/g, '-')}-${optionName.toLowerCase().replace(/\s+/g, '-')}`,
             name: optionName,
             tiers: [],
-            originalRowId: row.id // Сохраняем ID строки для обновления
+            originalRowId: combo.rowId
           };
           param.options.push(existingOption);
         }
         
-        // Добавляем тиры из текущей строки к существующей опции
-        if (row.tiers && row.tiers.length > 0) {
-          row.tiers.forEach((tier: any) => {
-            // Проверяем, что тир еще не добавлен
-            if (!existingOption.tiers.find(t => t.originalTierId === tier.id)) {
-              existingOption.tiers.push({
-                id: `tier-${tier.id}`,
-                quantity: tier.qty,
-                price: tier.unit,
-                originalTierId: tier.id
-              });
-            }
-          });
-        }
+        // Для комбинаций тиры хранятся в самой комбинации, но можем добавить для референса
+        // В новой структуре тиры будут редактироваться для каждой комбинации отдельно
       });
     });
     
     const result = Array.from(paramMap.values());
     
-    // Определяем главный элемент (первый параметр с наибольшим количеством опций)
-    if (result.length > 0) {
-      const mainParam = result.reduce((prev, current) => 
+    // Определяем главный элемент (параметр с наибольшим количеством опций среди не-addon)
+    const nonAddonParams = result.filter(p => !p.isAddon);
+    if (nonAddonParams.length > 0) {
+      const mainParam = nonAddonParams.reduce((prev, current) => 
         current.options.length > prev.options.length ? current : prev
       );
       mainParam.isMain = true;
@@ -146,6 +196,7 @@ export default function ServiceEditor({ serviceSlug, serviceName, onClose }: Ser
     }
     
     console.log('🔍 Parsed parameters:', result);
+    console.log('🔍 Found combinations:', combinationRows.length);
     return result;
   };
 
@@ -157,6 +208,7 @@ export default function ServiceEditor({ serviceSlug, serviceName, onClose }: Ser
       priceType: 'all',
       parameterType: 'single',
       isMain: false,
+      isAddon: false,
       options: []
     };
     setParameters([...parameters, newParam]);
@@ -172,10 +224,34 @@ export default function ServiceEditor({ serviceSlug, serviceName, onClose }: Ser
 
   const toggleMainParameter = (paramId: string) => {
     setParameters(prev => 
-      prev.map(param => ({
-        ...param,
-        isMain: param.id === paramId ? !param.isMain : false // Только один может быть главным
-      }))
+      prev.map(param => {
+        if (param.id === paramId) {
+          return {
+            ...param,
+            isMain: !param.isMain,
+            isAddon: false // Если делаем главным, убираем add-on
+          };
+        }
+        return {
+          ...param,
+          isMain: false // Только один может быть главным
+        };
+      })
+    );
+  };
+
+  const toggleAddonParameter = (paramId: string) => {
+    setParameters(prev => 
+      prev.map(param => {
+        if (param.id === paramId) {
+          return {
+            ...param,
+            isAddon: !param.isAddon,
+            isMain: false // Если делаем add-on, убираем главный
+          };
+        }
+        return param;
+      })
     );
   };
 
@@ -295,32 +371,195 @@ export default function ServiceEditor({ serviceSlug, serviceName, onClose }: Ser
       
       const processedRowIds = new Set<number>();
       
-      // Обрабатываем каждый параметр и его опции
-      for (const param of parameters) {
-        console.log(`🔍 Processing parameter: ${param.name}`);
+      // Разделяем параметры на базовые (не add-ons) и add-ons
+      const baseParams = parameters.filter(p => !p.isAddon && p.options.length > 0);
+      const addonParams = parameters.filter(p => p.isAddon && p.options.length > 0);
+      
+      console.log(`📊 Base parameters: ${baseParams.length}, Add-on parameters: ${addonParams.length}`);
+      
+      // Функция генерации декартова произведения комбинаций
+      const generateCombinations = (params: Parameter[]): Array<Record<string, string>> => {
+        if (params.length === 0) return [];
         
-        for (const option of param.options) {
+        const paramOptions = params.map(p => ({
+          paramName: p.name,
+          options: p.options.filter(opt => opt.name.trim()).map(opt => opt.name)
+        }));
+        
+        if (paramOptions.length === 0) return [];
+        
+        function cartesianProduct<T>(arrays: T[][]): T[][] {
+          if (arrays.length === 0) return [[]];
+          if (arrays.length === 1) return arrays[0].map(item => [item]);
+          
+          const [first, ...rest] = arrays;
+          const restProduct = cartesianProduct(rest);
+          
+          const result: T[][] = [];
+          for (const item of first) {
+            for (const combination of restProduct) {
+              result.push([item, ...combination]);
+            }
+          }
+          return result;
+        }
+        
+        const optionArrays = paramOptions.map(p => p.options);
+        const combinations = cartesianProduct(optionArrays);
+        
+        return combinations.map(combo => {
+          const result: Record<string, string> = {};
+          paramOptions.forEach((param, index) => {
+            result[param.paramName] = combo[index];
+          });
+          return result;
+        });
+      };
+      
+      // 1. Создаем комбинации для базовых параметров
+      const combinations = generateCombinations(baseParams);
+      console.log(`🔢 Generated ${combinations.length} combinations`);
+      
+      // Находим главный параметр для наследования тиров
+      const mainParam = baseParams.find(p => p.isMain) || baseParams[0];
+      console.log(`🎯 Main parameter for tier inheritance: ${mainParam?.name || 'none'}`);
+      
+      for (const combination of combinations) {
+        try {
+          // Ищем существующую строку с такой комбинацией
+          let existingRow: any = null;
+          for (const [rowId, row] of Array.from(existingRowsMap.entries())) {
+            const rowAttrs = typeof row.attrs === 'string' ? JSON.parse(row.attrs) : row.attrs;
+            const rowAttrsForMatch = { ...rowAttrs };
+            delete rowAttrsForMatch._isMain;
+            
+            let matches = true;
+            if (Object.keys(rowAttrsForMatch).length !== Object.keys(combination).length) {
+              matches = false;
+            } else {
+              for (const [key, value] of Object.entries(combination)) {
+                if (rowAttrsForMatch[key] !== value) {
+                  matches = false;
+                  break;
+                }
+              }
+            }
+            
+            if (matches) {
+              existingRow = row;
+              break;
+            }
+          }
+          
+          // Получаем тиры для этой комбинации из главного параметра
+          let tiers: Array<{ qty: number; unit: number }> = [];
+          
+          if (mainParam && combination[mainParam.name]) {
+            const mainOptionValue = combination[mainParam.name];
+            const mainOption = mainParam.options.find(opt => opt.name === mainOptionValue);
+            if (mainOption && mainOption.tiers.length > 0) {
+              tiers = mainOption.tiers.map(t => ({
+                qty: t.quantity,
+                unit: t.price
+              }));
+            }
+          }
+          
+          // Если тиров нет, берем из существующей строки
+          if (tiers.length === 0 && existingRow && existingRow.tiers) {
+            tiers = existingRow.tiers.map((t: any) => ({
+              qty: t.qty,
+              unit: t.unit
+            }));
+          }
+          
+          if (existingRow) {
+            // Обновляем существующую строку
+            const updateResponse = await fetch(`/api/admin/prices/services/by-slug/${serviceSlug}/rows/${existingRow.id}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                attrs: combination,
+                ruleKind: 'tiers',
+                unit: null,
+                setup: 0,
+                fixed: 0,
+                tiers
+              })
+            });
+            
+            if (!updateResponse.ok) {
+              throw new Error(`Failed to update row ${existingRow.id}`);
+            }
+            
+            processedRowIds.add(existingRow.id);
+            console.log(`✅ Updated combination row ${existingRow.id}`);
+          } else {
+            // Создаем новую строку
+            const createResponse = await fetch(`/api/admin/prices/services/by-slug/${serviceSlug}/rows`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                attrs: combination,
+                ruleKind: 'tiers',
+                unit: null,
+                setup: 0,
+                fixed: 0
+              })
+            });
+            
+            if (!createResponse.ok) {
+              const errorText = await createResponse.text();
+              throw new Error(`Failed to create combination row: ${errorText}`);
+            }
+            
+            const result = await createResponse.json();
+            const newRowId = result.row.id;
+            
+            // Создаем тиры если есть
+            if (tiers.length > 0) {
+              await fetch(`/api/admin/prices/services/by-slug/${serviceSlug}/rows/${newRowId}/tiers`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ tiers })
+              });
+              console.log(`✅ Created combination row ${newRowId} with ${tiers.length} tiers`);
+            } else {
+              console.log(`⚠️ Created combination row ${newRowId} without tiers (needs manual setup)`);
+            }
+          }
+        } catch (error: any) {
+          console.error(`❌ Error processing combination:`, error);
+          throw error;
+        }
+      }
+      
+      // 2. Создаем отдельные строки для add-ons (модификаторы)
+      for (const addonParam of addonParams) {
+        console.log(`🔍 Processing add-on parameter: ${addonParam.name}`);
+        
+        for (const option of addonParam.options) {
           if (!option.name.trim()) continue;
           
-          console.log(`🔍 Processing option: ${option.name} (originalRowId: ${option.originalRowId})`);
-          
-          // Создаем attrs для строки (только один параметр)
-          const attrs = { [param.name]: option.name };
+          const attrs = { [addonParam.name]: option.name };
           const tiers = option.tiers.map((tier: any) => ({
             qty: tier.quantity,
             unit: tier.price
           }));
           
-          // Если это главный элемент, добавляем специальный флаг
-          if (param.isMain) {
-            attrs['_isMain'] = 'true';
+          // Ищем существующую строку add-on
+          let existingRow: any = null;
+          for (const [rowId, row] of Array.from(existingRowsMap.entries())) {
+            const rowAttrs = typeof row.attrs === 'string' ? JSON.parse(row.attrs) : row.attrs;
+            if (rowAttrs[addonParam.name] === option.name) {
+              existingRow = row;
+              break;
+            }
           }
           
-          if (option.originalRowId && existingRowsMap.has(option.originalRowId)) {
-            // Обновляем существующую строку
-            console.log(`🔍 Updating existing row ${option.originalRowId} for ${param.name}: ${option.name}`);
-            
-            const updateResponse = await fetch(`/api/admin/prices/services/by-slug/${serviceSlug}/rows/${option.originalRowId}`, {
+          if (existingRow) {
+            // Обновляем существующую строку add-on
+            const updateResponse = await fetch(`/api/admin/prices/services/by-slug/${serviceSlug}/rows/${existingRow.id}`, {
               method: 'PUT',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -333,18 +572,12 @@ export default function ServiceEditor({ serviceSlug, serviceName, onClose }: Ser
               })
             });
             
-            if (!updateResponse.ok) {
-              const errorText = await updateResponse.text();
-              console.error(`Failed to update row ${option.originalRowId}:`, errorText);
-              throw new Error(`Failed to update row ${option.originalRowId}: ${errorText}`);
+            if (updateResponse.ok) {
+              processedRowIds.add(existingRow.id);
+              console.log(`✅ Updated add-on row ${existingRow.id}`);
             }
-            
-            processedRowIds.add(option.originalRowId);
-            console.log(`✅ Updated row ${option.originalRowId}`);
           } else {
-            // Создаем новую строку
-            console.log(`🔍 Creating new row for ${param.name}: ${option.name}`);
-            
+            // Создаем новую строку add-on
             const createResponse = await fetch(`/api/admin/prices/services/by-slug/${serviceSlug}/rows`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -357,51 +590,39 @@ export default function ServiceEditor({ serviceSlug, serviceName, onClose }: Ser
               })
             });
             
-            if (!createResponse.ok) {
-              const errorText = await createResponse.text();
-              console.error(`Failed to create row for ${param.name}: ${option.name}:`, errorText);
-              throw new Error(`Failed to create row for ${param.name}: ${option.name}: ${errorText}`);
-            }
-            
-            const result = await createResponse.json();
-            console.log(`✅ Created new row ${result.row.id}`);
-            
-            // Создаем тиры для новой строки
-            if (tiers.length > 0) {
-              for (const tier of tiers) {
-                const tierResponse = await fetch(`/api/admin/prices/services/by-slug/${serviceSlug}/rows/${result.row.id}/tiers`, {
-                  method: 'POST',
+            if (createResponse.ok) {
+              const result = await createResponse.json();
+              const newRowId = result.row.id;
+              
+              if (tiers.length > 0) {
+                await fetch(`/api/admin/prices/services/by-slug/${serviceSlug}/rows/${newRowId}/tiers`, {
+                  method: 'PUT',
                   headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    qty: tier.qty,
-                    unit: tier.unit
-                  })
+                  body: JSON.stringify({ tiers })
                 });
-                
-                if (!tierResponse.ok) {
-                  console.warn(`Failed to create tier for row ${result.row.id}`);
-                }
+                console.log(`✅ Created add-on row ${newRowId}`);
               }
             }
           }
         }
       }
       
-      // Удаляем строки, которые больше не нужны
-      console.log(`🔍 Checking for rows to delete. Processed: ${Array.from(processedRowIds)}`);
-      for (const [rowId, row] of existingRowsMap) {
+      // 3. Помечаем необработанные строки как неактивные (не удаляем, для резервной копии)
+      for (const [rowId, row] of Array.from(existingRowsMap.entries())) {
         if (!processedRowIds.has(rowId)) {
-          console.log(`🔍 Deleting unused row ${rowId}`);
-          
-          const deleteResponse = await fetch(`/api/admin/prices/services/by-slug/${serviceSlug}/rows/${rowId}`, {
-            method: 'DELETE'
+          console.log(`🔍 Marking row ${rowId} as inactive`);
+          await fetch(`/api/admin/prices/services/by-slug/${serviceSlug}/rows/${rowId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              attrs: row.attrs,
+              ruleKind: row.ruleKind,
+              unit: row.unit,
+              setup: row.setup,
+              fixed: row.fixed,
+              isActive: false
+            })
           });
-          
-          if (!deleteResponse.ok) {
-            console.warn(`Failed to delete row ${rowId}`);
-          } else {
-            console.log(`✅ Deleted row ${rowId}`);
-          }
         }
       }
       
@@ -498,6 +719,11 @@ export default function ServiceEditor({ serviceSlug, serviceName, onClose }: Ser
                         MAIN
                       </Badge>
                     )}
+                    {param.isAddon && (
+                      <Badge variant="default" className="bg-purple-500">
+                        ADD-ON
+                      </Badge>
+                    )}
                   </div>
                   <div className="flex items-center gap-4">
                     <div className="flex items-center gap-2">
@@ -505,9 +731,22 @@ export default function ServiceEditor({ serviceSlug, serviceName, onClose }: Ser
                         id={`is-main-${param.id}`}
                         checked={param.isMain}
                         onCheckedChange={() => toggleMainParameter(param.id)}
+                        disabled={param.isAddon} // Add-ons не могут быть главными
                       />
                       <Label htmlFor={`is-main-${param.id}`}>
                         Main element
+                      </Label>
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        id={`is-addon-${param.id}`}
+                        checked={param.isAddon}
+                        onCheckedChange={() => toggleAddonParameter(param.id)}
+                        disabled={param.isMain} // Главный параметр не может быть add-on
+                      />
+                      <Label htmlFor={`is-addon-${param.id}`}>
+                        Add-on (modifier)
                       </Label>
                     </div>
                     

@@ -30,7 +30,7 @@ export async function GET(_: Request, context: { params: Promise<any> }) {
 export async function PUT(req: Request, context: { params: Promise<any> }) {
   try {
     const { slug, rowId } = await context.params;
-    const { attrs, ruleKind, unit, setup, fixed, tiers = [] } = await req.json();
+    const { attrs, ruleKind, unit, setup, fixed, tiers = [], isActive } = await req.json();
     
     // Проверяем, что строка принадлежит указанному сервису
     const service = await prisma.service.findUnique({
@@ -45,9 +45,14 @@ export async function PUT(req: Request, context: { params: Promise<any> }) {
     // Обновляем строку и тиры в транзакции
     await prisma.$transaction(async (tx) => {
       // Обновляем строку
+      const updateData: any = { attrs, ruleKind, unit, setup, fixed };
+      // Поддерживаем isActive если передан
+      if (isActive !== undefined) {
+        updateData.isActive = isActive;
+      }
       await tx.priceRow.update({
         where: { id: Number(rowId) },
-        data: { attrs, ruleKind, unit, setup, fixed }
+        data: updateData
       });
       
       // Удаляем старые тиры
