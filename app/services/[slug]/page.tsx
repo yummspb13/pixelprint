@@ -145,12 +145,6 @@ export default function ServicePage() {
             console.log('Default selection:', defSel);
             setSelection(defSel);
             
-            // Инициализируем доступные опции для всех параметров (сначала показываем все)
-            const initialOptions: Record<string, string[]> = {};
-            d.attributes.forEach(a => {
-              initialOptions[a.key] = a.values;
-            });
-            setAvailableOptions(initialOptions);
             
             // Загружаем данные модели для расчета количеств
             const modelResponse = await fetch(`/api/pricing/models/${slug}`, { cache: 'no-store' });
