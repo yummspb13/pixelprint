@@ -221,6 +221,15 @@ export async function POST(request: NextRequest) {
       ? sortedTiers[0].unit * qty  // Используем цену минимального тира, но считаем по количеству
       : baseUnitPrice * qty;  // Платим по выбранному тиру
     
+    console.log('Price calculation details:', {
+      qty,
+      sortedTiers: sortedTiers.map(t => ({ qty: t.qty, unit: t.unit, total: t.qty * t.unit })),
+      selectedTier: { qty: selectedTier.qty, unit: selectedTier.unit },
+      baseUnitPrice,
+      basePrice,
+      calculatedTotal: baseUnitPrice * qty
+    });
+    
     console.log('Base price calculation:', {
       baseUnitPrice,
       qty,
