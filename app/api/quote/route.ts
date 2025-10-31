@@ -98,26 +98,12 @@ export async function POST(request: NextRequest) {
         
         console.log('Main params from options API:', mainParams);
         console.log('Modifier params from options API:', modifierParams);
-        console.log('📊 All service rows with tiers:', service.rows.map(row => {
-          const attrs = typeof row.attrs === 'string' ? JSON.parse(row.attrs) : (row.attrs ?? {});
-          return {
-            id: row.id,
-            attrs,
-            tiers: row.tiers.map(t => ({ qty: t.qty, unit: t.unit, total: t.qty * t.unit }))
-          };
-        }));
         
     // Разделяем строки на главные и модификаторы
-        console.log('🔍 Processing rows for main/modifier classification:');
-        console.log('🔍 Service rows count:', service.rows.length);
-        console.log('🔍 Main params:', mainParams);
-        console.log('🔍 Modifier params:', modifierParams);
-        console.log('🔍 User selection:', selection);
-    
-    // Сначала пытаемся найти mainRow среди строк с _isMain='true'
-    // Если не найдем, ищем среди всех строк по лучшему совпадению
-    let bestMatchScore = 0;
-    let bestMatchRow: any = null;
+    console.log('🔍 Processing rows for main/modifier classification:');
+    console.log('🔍 Service rows count:', service.rows.length);
+    console.log('🔍 Main params:', mainParams);
+    console.log('🔍 Modifier params:', modifierParams);
     
     for (const row of service.rows) {
       const attrs = typeof row.attrs === 'string' ? JSON.parse(row.attrs) : (row.attrs ?? {}) as Record<string, string>;
@@ -126,65 +112,31 @@ export async function POST(request: NextRequest) {
       const hasMainParams = mainParams.some((param: string) => param in attrs);
       const hasModifierParams = modifierParams.some((param: string) => param in attrs);
       
-      console.log(`Row ${row.id}:`, { attrs, hasMainParams, hasModifierParams, _isMain: attrs._isMain });
+      console.log(`Row ${row.id}:`, { attrs, hasMainParams, hasModifierParams });
       
-      if (hasMainParams || attrs._isMain === 'true') {
-        // Это главный элемент - проверяем соответствие всем выбранным параметрам
-        // Считаем количество совпадающих параметров
-        let matchCount = 0;
-        let allMainParamsMatch = true;
+      if (hasMainParams) {
+        // Это главный элемент - проверяем соответствие основным параметрам
+        const mainSelection = Object.fromEntries(
+          Object.entries(selection).filter(([key, value]) => 
+            !['PRICE', 'NET PRICE', 'VAT', 'Price +VAT', 'Qty'].includes(key) && 
+            mainParams.includes(key) && 
+            key in attrs && 
+            attrs[key] === value
+          )
+        );
         
-        // Проверяем совпадение основных параметров
-        for (const [key, value] of Object.entries(selection)) {
-          if (['PRICE', 'NET PRICE', 'VAT', 'Price +VAT', 'Qty'].includes(key)) continue;
-          
-          if (key in attrs) {
-            if (attrs[key] === value) {
-              matchCount++;
-              if (mainParams.includes(key)) {
-                // Основной параметр совпал
-              } else {
-                // Модификатор совпал
-              }
-            } else {
-              // Параметр не совпадает
-              if (mainParams.includes(key)) {
-                allMainParamsMatch = false;
-              }
-            }
-          }
-        }
+        console.log(`Row ${row.id} main selection:`, mainSelection);
         
-        // Если это строка с _isMain='true', приоритет выше
-        const isMainRow = attrs._isMain === 'true';
-        const score = (isMainRow ? 1000 : 0) + matchCount * 10 + (allMainParamsMatch ? 100 : 0);
-        
-        console.log(`Row ${row.id} match score:`, { matchCount, allMainParamsMatch, isMainRow, score, attrs });
-        
-        if (score > bestMatchScore) {
-          bestMatchScore = score;
-          bestMatchRow = row;
-        }
-        
-        // Проверяем точное совпадение ВСЕХ параметров (не только основных)
-        const allSelectionKeys = Object.keys(selection).filter(k => !['PRICE', 'NET PRICE', 'VAT', 'Price +VAT', 'Qty'].includes(k));
-        const allAttrsMatch = allSelectionKeys.every(key => {
-          const selectionValue = selection[key];
-          const attrsValue = attrs[key];
-          return selectionValue && attrsValue && attrsValue === selectionValue;
+        // Проверяем, что все основные параметры совпадают
+        const mainMatches = Object.entries(mainSelection).every(([key, value]) => {
+          return attrs[key] === value;
         });
         
-        // Если точное совпадение всех параметров - это лучший выбор
-        if (allAttrsMatch && matchCount === allSelectionKeys.length) {
+        console.log(`Row ${row.id} main matches:`, mainMatches);
+        
+        if (mainMatches && Object.keys(mainSelection).length > 0) {
           mainRow = row;
-          console.log('✅ Found main row (perfect match):', { 
-            id: row.id, 
-            attrs: row.attrs,
-            selection: Object.fromEntries(allSelectionKeys.map(k => [k, selection[k]])),
-            tiers: row.tiers.map((t: any) => ({ qty: t.qty, unit: t.unit, total: t.qty * t.unit }))
-          });
-          bestMatchRow = row; // Это лучший выбор
-          break; // Прерываем, если нашли точное совпадение
+          console.log('Found main row:', { id: row.id, attrs: row.attrs });
         }
       } else if (hasModifierParams) {
         // Это модификатор - проверяем соответствие выбранным модификаторам
@@ -212,28 +164,14 @@ export async function POST(request: NextRequest) {
       }
     }
         
-        // Если mainRow не найден через _isMain, используем лучшее совпадение
-        if (!mainRow && bestMatchRow) {
-          mainRow = bestMatchRow;
-          console.log('✅ Found main row (best match):', { 
-            id: mainRow.id, 
-            score: bestMatchScore,
-            attrs: mainRow.attrs,
-            tiers: mainRow.tiers.map((t: any) => ({ qty: t.qty, unit: t.unit, total: t.qty * t.unit }))
-          });
-        }
-        
-        console.log('Main row found:', !!mainRow, mainRow ? { id: mainRow.id, attrs: mainRow.attrs } : null);
+        console.log('Main row found:', !!mainRow);
         console.log('Modifier rows found:', modifierRows.length);
 
     if (!mainRow) {
-      console.error('❌ No main row found!');
+      console.error('No main row found!');
       console.error('Selection:', selection);
       console.error('Main params:', mainParams);
-      console.error('Available rows:', service.rows.map(r => {
-        const attrs = typeof r.attrs === 'string' ? JSON.parse(r.attrs) : (r.attrs ?? {});
-        return { id: r.id, attrs, _isMain: attrs._isMain };
-      }));
+      console.error('Available rows:', service.rows.map(r => ({ id: r.id, attrs: r.attrs })));
       return NextResponse.json({ 
         ok: false, 
         error: "No matching main price configuration found" 
@@ -245,41 +183,26 @@ export async function POST(request: NextRequest) {
     const mainAttrs = mainRow.attrs as Record<string, string>;
     let baseUnitPrice = 0;
     let sortedTiers: any[] = [];
-    let selectedTier: any = null;
     
     if (mainRow.tiers && mainRow.tiers.length > 0) {
       // Используем тиры - находим подходящий тир для количества
       sortedTiers = mainRow.tiers.sort((a, b) => a.qty - b.qty);
-      selectedTier = sortedTiers[0];
+      let selectedTier = sortedTiers[0];
       
-      // Ищем точное совпадение по количеству сначала
-      const exactTier = sortedTiers.find(t => t.qty === qty);
-      
-      if (exactTier) {
-        // Используем тир с точным совпадением количества
-        selectedTier = exactTier;
-        console.log('✅ Using exact tier match:', { qty, selectedTier: { qty: selectedTier.qty, unit: selectedTier.unit } });
-      } else if (qty < sortedTiers[0].qty) {
-        // Если количество меньше минимального тира, используем минимальный тир
+      // Если количество меньше минимального тира, используем минимальный тир
+      if (qty < sortedTiers[0].qty) {
         selectedTier = sortedTiers[0];
-        console.log('⚠️ Quantity below minimum tier, using minimum tier:', { qty, selectedTier });
+        console.log('Quantity below minimum tier, using minimum tier:', { qty, selectedTier });
       } else {
         // Находим подходящий тир для количества
-        // Выбираем максимальный тир, для которого qty >= tier.qty
-        let bestTier = sortedTiers[0];
         for (const tier of sortedTiers) {
           if (qty >= tier.qty) {
-            bestTier = tier;
+            selectedTier = tier;
           } else {
             break;
           }
         }
-        selectedTier = bestTier;
-        console.log('📊 Using tier for quantity:', { 
-          qty, 
-          selectedTier: { qty: selectedTier.qty, unit: selectedTier.unit },
-          allAvailableTiers: sortedTiers.map(t => ({ qty: t.qty, unit: t.unit, total: t.qty * t.unit }))
-        });
+        console.log('Using main tier price:', { qty, selectedTier });
       }
       
       baseUnitPrice = selectedTier.unit;
@@ -297,20 +220,6 @@ export async function POST(request: NextRequest) {
     const basePrice = qty < sortedTiers[0].qty 
       ? sortedTiers[0].unit * qty  // Используем цену минимального тира, но считаем по количеству
       : baseUnitPrice * qty;  // Платим по выбранному тиру
-    
-    console.log('💰 Price calculation details:', {
-      qty,
-      selectedMainRow: {
-        id: mainRow.id,
-        attrs: mainRow.attrs,
-        allTiers: mainRow.tiers.map(t => ({ qty: t.qty, unit: t.unit, total: t.qty * t.unit }))
-      },
-      sortedTiers: sortedTiers.map(t => ({ qty: t.qty, unit: t.unit, total: t.qty * t.unit })),
-      selectedTier: selectedTier ? { qty: selectedTier.qty, unit: selectedTier.unit } : null,
-      baseUnitPrice,
-      basePrice,
-      calculatedTotal: baseUnitPrice * qty
-    });
     
     console.log('Base price calculation:', {
       baseUnitPrice,
