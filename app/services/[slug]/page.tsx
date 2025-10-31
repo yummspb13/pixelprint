@@ -56,6 +56,78 @@ export default function ServicePage() {
   const [minQty, setMinQty] = useState<number>(1);
   const [maxQty, setMaxQty] = useState<number>(10000);
   const [modelData, setModelData] = useState<any>(null);
+  const [availableOptions, setAvailableOptions] = useState<Record<string, string[]>>({}); // Динамические доступные опции для каждого параметра
+
+  // Функция для загрузки доступных опций для параметра на основе уже выбранных
+  const loadAvailableOptions = async (paramKey: string, currentSelection: Record<string, string>) => {
+    if (!slug) return;
+    
+    try {
+      // Строим параметры для исключения текущего параметра из выбранных
+      const selectedParams = { ...currentSelection };
+      delete selectedParams[paramKey]; // Исключаем сам параметр из выборки
+      
+      const params = new URLSearchParams({
+        slug,
+        paramKey,
+        selectedParams: JSON.stringify(selectedParams)
+      });
+      
+      const response = await fetch(`/api/pricing/options/available?${params}`);
+      const data = await response.json();
+      
+      if (data.ok) {
+        setAvailableOptions(prev => ({
+          ...prev,
+          [paramKey]: data.values
+        }));
+        
+        // Если текущее значение параметра не входит в доступные - сбрасываем его
+        if (currentSelection[paramKey] && !data.values.includes(currentSelection[paramKey])) {
+          const newSelection = { ...currentSelection };
+          delete newSelection[paramKey];
+          
+          // Также сбрасываем все последующие параметры
+          const paramIndex = attrs.findIndex(a => a.key === paramKey);
+          if (paramIndex !== -1) {
+            for (let i = paramIndex + 1; i < attrs.length; i++) {
+              delete newSelection[attrs[i].key];
+            }
+          }
+          
+          setSelection(newSelection);
+        }
+      }
+    } catch (error) {
+      console.error(`Error loading available options for ${paramKey}:`, error);
+    }
+  };
+
+  // Обновляем доступные опции при изменении выбора
+  useEffect(() => {
+    if (!slug || attrs.length === 0) return;
+    
+    // Определяем порядок параметров (основные первыми)
+    const orderedAttrs = [
+      ...attrs.filter(a => a.isMain),
+      ...attrs.filter(a => !a.isMain && !a.isModifier),
+      ...attrs.filter(a => a.isModifier)
+    ];
+    
+    // Для каждого параметра загружаем доступные опции на основе уже выбранных предыдущих
+    orderedAttrs.forEach((attr, index) => {
+      // Собираем выбранные параметры до текущего
+      const previousSelection: Record<string, string> = {};
+      for (let i = 0; i < index; i++) {
+        const prevKey = orderedAttrs[i].key;
+        if (selection[prevKey]) {
+          previousSelection[prevKey] = selection[prevKey];
+        }
+      }
+      
+      loadAvailableOptions(attr.key, { ...previousSelection, ...selection });
+    });
+  }, [selection, slug, attrs]);
 
   // Функция для получения доступных количеств на основе выбранных параметров
   const updateAvailableQuantities = (modelData: any, currentSelection: Record<string, string>) => {
@@ -412,22 +484,56 @@ export default function ServicePage() {
                             <h3 className="text-lg font-semibold text-px-fg">Main Options</h3>
                           </div>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {attrs.filter(a => a.isMain).map(a => (
-                              <div key={a.key}>
-                                <label className="block text-sm font-medium text-px-fg mb-2">{a.key}</label>
-                                <Select 
-                                  value={selection[a.key] ?? ""} 
-                                  onValueChange={(v) => setSelection({ ...selection, [a.key]: v })}
-                                >
-                                  <SelectTrigger>
-                                    <SelectValue placeholder={`${t('service.messages.chooseOption')} ${a.key}`} />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {a.values.map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)}
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                            ))}
+                            {attrs.filter(a => a.isMain).map(a => {
+                              // Используем динамические доступные опции, если они загружены, иначе статические
+                              const availableValues = availableOptions[a.key]?.length > 0 
+                                ? availableOptions[a.key] 
+                                : a.values;
+                              
+                              return (
+                                <div key={a.key}>
+                                  <label className="block text-sm font-medium text-px-fg mb-2">{a.key}</label>
+                                  <Select 
+                                    value={selection[a.key] ?? ""} 
+                                    onValueChange={(v) => {
+                                      // При изменении параметра сбрасываем все последующие
+                                      const newSelection: Record<string, string> = {};
+                                      const paramIndex = attrs.filter(attr => attr.isMain).findIndex(attr => attr.key === a.key);
+                                      
+                                      // Сохраняем все предыдущие параметры
+                                      attrs.filter(attr => attr.isMain).forEach((attr, idx) => {
+                                        if (idx < paramIndex && selection[attr.key]) {
+                                          newSelection[attr.key] = selection[attr.key];
+                                        }
+                                      });
+                                      
+                                      // Устанавливаем новое значение текущего параметра
+                                      newSelection[a.key] = v;
+                                      
+                                      // Модификаторы сохраняем отдельно
+                                      attrs.filter(attr => attr.isModifier).forEach(attr => {
+                                        if (selection[attr.key]) {
+                                          newSelection[attr.key] = selection[attr.key];
+                                        }
+                                      });
+                                      
+                                      setSelection(newSelection);
+                                    }}
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue placeholder={`${t('service.messages.chooseOption')} ${a.key}`} />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {availableValues.length > 0 ? (
+                                        availableValues.map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)
+                                      ) : (
+                                        <SelectItem value="" disabled>No options available</SelectItem>
+                                      )}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                              );
+                            })}
                           </div>
                         </div>
                       )}
@@ -477,22 +583,50 @@ export default function ServicePage() {
                             <h3 className="text-lg font-semibold text-px-fg">Additional Options</h3>
                           </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {attrs.filter(a => !a.isMain && !a.isModifier).map(a => (
-                            <div key={a.key}>
-                              <label className="block text-sm font-medium text-px-fg mb-2">{a.key}</label>
-                              <Select 
-                                value={selection[a.key] ?? ""} 
-                                onValueChange={(v) => setSelection({ ...selection, [a.key]: v })}
-                              >
-                                <SelectTrigger>
-                                  <SelectValue placeholder={`${t('service.messages.chooseOption')} ${a.key}`} />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {a.values.map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)}
-                                </SelectContent>
-                              </Select>
-                            </div>
-                          ))}
+                            {attrs.filter(a => !a.isMain && !a.isModifier).map(a => {
+                              const availableValues = availableOptions[a.key]?.length > 0 
+                                ? availableOptions[a.key] 
+                                : a.values;
+                              
+                              return (
+                                <div key={a.key}>
+                                  <label className="block text-sm font-medium text-px-fg mb-2">{a.key}</label>
+                                  <Select 
+                                    value={selection[a.key] ?? ""} 
+                                    onValueChange={(v) => {
+                                      const newSelection: Record<string, string> = { ...selection };
+                                      const paramIndex = attrs.filter(attr => !attr.isMain && !attr.isModifier).findIndex(attr => attr.key === a.key);
+                                      
+                                      // Сбрасываем последующие параметры
+                                      attrs.filter(attr => !attr.isMain && !attr.isModifier).forEach((attr, idx) => {
+                                        if (idx > paramIndex) {
+                                          delete newSelection[attr.key];
+                                        }
+                                      });
+                                      
+                                      if (v) {
+                                        newSelection[a.key] = v;
+                                      } else {
+                                        delete newSelection[a.key];
+                                      }
+                                      
+                                      setSelection(newSelection);
+                                    }}
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue placeholder={`${t('service.messages.chooseOption')} ${a.key}`} />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {availableValues.length > 0 ? (
+                                        availableValues.map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)
+                                      ) : (
+                                        <SelectItem value="" disabled>No options available</SelectItem>
+                                      )}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                              );
+                            })}
                           </div>
                         </div>
                       )}
