@@ -139,13 +139,14 @@ export default function ServicePage() {
         }
       }
       
-      // Загружаем опции только если есть предыдущие выбранные параметры (или это первый параметр)
+      // Загружаем опции для первого параметра всегда, для остальных только если есть предыдущие выбранные
       if (index === 0 || Object.keys(previousSelection).length > 0) {
+        console.log(`Loading options for ${attr.key} (index ${index}) with previous selection:`, previousSelection);
         loadAvailableOptions(attr.key, { ...previousSelection, ...selection });
       }
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [JSON.stringify(selection), slug, attrs.length]);
+  }, [JSON.stringify(selection), slug]);
 
   // Функция для получения доступных количеств на основе выбранных параметров
   const updateAvailableQuantities = (modelData: any, currentSelection: Record<string, string>) => {
@@ -241,6 +242,7 @@ export default function ServicePage() {
               initialOptions[a.key] = a.values;
             });
             setAvailableOptions(initialOptions);
+            console.log('✅ Initialized available options:', initialOptions);
             
             // Загружаем данные модели для расчета количеств
             const modelResponse = await fetch(`/api/pricing/models/${slug}`, { cache: 'no-store' });
