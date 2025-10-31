@@ -98,12 +98,21 @@ export async function POST(request: NextRequest) {
         
         console.log('Main params from options API:', mainParams);
         console.log('Modifier params from options API:', modifierParams);
+        console.log('📊 All service rows with tiers:', service.rows.map(row => {
+          const attrs = typeof row.attrs === 'string' ? JSON.parse(row.attrs) : (row.attrs ?? {});
+          return {
+            id: row.id,
+            attrs,
+            tiers: row.tiers.map(t => ({ qty: t.qty, unit: t.unit, total: t.qty * t.unit }))
+          };
+        }));
         
     // Разделяем строки на главные и модификаторы
-    console.log('🔍 Processing rows for main/modifier classification:');
-    console.log('🔍 Service rows count:', service.rows.length);
-    console.log('🔍 Main params:', mainParams);
-    console.log('🔍 Modifier params:', modifierParams);
+        console.log('🔍 Processing rows for main/modifier classification:');
+        console.log('🔍 Service rows count:', service.rows.length);
+        console.log('🔍 Main params:', mainParams);
+        console.log('🔍 Modifier params:', modifierParams);
+        console.log('🔍 User selection:', selection);
     
     for (const row of service.rows) {
       const attrs = typeof row.attrs === 'string' ? JSON.parse(row.attrs) : (row.attrs ?? {}) as Record<string, string>;
@@ -136,7 +145,11 @@ export async function POST(request: NextRequest) {
         
         if (mainMatches && Object.keys(mainSelection).length > 0) {
           mainRow = row;
-          console.log('Found main row:', { id: row.id, attrs: row.attrs });
+          console.log('✅ Found main row:', { 
+            id: row.id, 
+            attrs: row.attrs,
+            tiers: row.tiers.map(t => ({ qty: t.qty, unit: t.unit, total: t.qty * t.unit }))
+          });
         }
       } else if (hasModifierParams) {
         // Это модификатор - проверяем соответствие выбранным модификаторам
@@ -229,8 +242,13 @@ export async function POST(request: NextRequest) {
       ? sortedTiers[0].unit * qty  // Используем цену минимального тира, но считаем по количеству
       : baseUnitPrice * qty;  // Платим по выбранному тиру
     
-    console.log('Price calculation details:', {
+    console.log('💰 Price calculation details:', {
       qty,
+      selectedMainRow: {
+        id: mainRow.id,
+        attrs: mainRow.attrs,
+        allTiers: mainRow.tiers.map(t => ({ qty: t.qty, unit: t.unit, total: t.qty * t.unit }))
+      },
       sortedTiers: sortedTiers.map(t => ({ qty: t.qty, unit: t.unit, total: t.qty * t.unit })),
       selectedTier: selectedTier ? { qty: selectedTier.qty, unit: selectedTier.unit } : null,
       baseUnitPrice,
