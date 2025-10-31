@@ -25,14 +25,29 @@ export async function GET(req: NextRequest) {
   const modifierParams = new Set<string>();
   
   // Сначала находим все строки с главными элементами
+  // Главная строка: имеет _isMain === 'true' ИЛИ содержит несколько параметров (комбинация)
   const mainRows = svc.rows.filter(row => {
     const a = typeof row.attrs === 'string' ? JSON.parse(row.attrs) : (row.attrs ?? {}) as Record<string, string>;
-    return a._isMain === 'true';
+    const hasIsMain = a._isMain === 'true' || a._isMain === true;
+    
+    // Если нет _isMain, проверяем количество параметров
+    if (!hasIsMain) {
+      const paramCount = Object.keys(a).filter(k => 
+        k !== '_isMain' && 
+        !['PRICE', 'NET PRICE', 'VAT', 'Price +VAT', 'Qty'].includes(k) &&
+        a[k]
+      ).length;
+      // Если 2+ параметра - это комбинация, считаем основной строкой
+      return paramCount >= 2;
+    }
+    
+    return hasIsMain;
   });
   
   console.log('Main rows found:', mainRows.length);
   
   // Определяем основные параметры из главных строк
+  // ВСЕ параметры из комбинаций (строк с несколькими параметрами) являются основными
   for (const r of mainRows) {
     const a = typeof r.attrs === 'string' ? JSON.parse(r.attrs) : (r.attrs ?? {}) as Record<string, string>;
     Object.entries(a).forEach(([k, v]) => {
