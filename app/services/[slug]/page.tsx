@@ -56,6 +56,7 @@ export default function ServicePage() {
   const [minQty, setMinQty] = useState<number>(1);
   const [maxQty, setMaxQty] = useState<number>(10000);
   const [modelData, setModelData] = useState<any>(null);
+  const [availableOptions, setAvailableOptions] = useState<Record<string, string[]>>({}); // Доступные опции для каждого параметра на основе выбранных
 
   // Функция для получения доступных количеств на основе выбранных параметров
   const updateAvailableQuantities = (modelData: any, currentSelection: Record<string, string>) => {
@@ -145,6 +146,12 @@ export default function ServicePage() {
             console.log('Default selection:', defSel);
             setSelection(defSel);
             
+            // Инициализируем доступные опции - сначала показываем все для первого параметра
+            const mainAttrs = d.attributes.filter(a => a.isMain);
+            if (mainAttrs.length > 0) {
+              const firstMainKey = mainAttrs[0].key;
+              setAvailableOptions({ [firstMainKey]: mainAttrs[0].values });
+            }
             
             // Загружаем данные модели для расчета количеств
             const modelResponse = await fetch(`/api/pricing/models/${slug}`, { cache: 'no-store' });
@@ -419,6 +426,9 @@ export default function ServicePage() {
                           </div>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {attrs.filter(a => a.isMain).map(a => {
+                              // Используем доступные опции если они загружены, иначе все опции
+                              const options = availableOptions[a.key] || a.values;
+                              
                               return (
                                 <div key={a.key}>
                                   <label className="block text-sm font-medium text-px-fg mb-2">{a.key}</label>
@@ -453,8 +463,20 @@ export default function ServicePage() {
                                       <SelectValue placeholder={`${t('service.messages.chooseOption')} ${a.key}`} />
                                     </SelectTrigger>
                                     <SelectContent>
-                                      {a.values.length > 0 ? (
-                                        a.values.map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)
+                                      {options.length > 0 ? (
+                                        a.values.map(v => {
+                                          const isAvailable = options.includes(v);
+                                          return (
+                                            <SelectItem 
+                                              key={v} 
+                                              value={v}
+                                              disabled={!isAvailable}
+                                              className={!isAvailable ? "opacity-50 cursor-not-allowed" : ""}
+                                            >
+                                              {v}
+                                            </SelectItem>
+                                          );
+                                        })
                                       ) : (
                                         <SelectItem value="" disabled>No options available</SelectItem>
                                       )}
