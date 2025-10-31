@@ -248,17 +248,17 @@ export default function ServicePage() {
       setQuote(q);
     } catch (e: any) { 
       console.error('Quote calculation error:', e);
-      console.error('Selection data:', selection);
-      console.error('Service data:', service);
       
-      // Если ошибка "No matching main price configuration", это значит комбинация не существует
-      const errorMsg = e.message || t('service.messages.failedCalculate');
-      if (errorMsg.includes('No matching') || errorMsg.includes('not found')) {
-        toast.error('This combination is not available. Please select a different option from the Quick Select badges or choose valid parameters manually.');
+      // Если комбинация не существует - просто не показываем цену, без ошибки
+      const errorMsg = e.message || '';
+      if (errorMsg.includes('No matching') || errorMsg.includes('not found') || errorMsg.includes('not available')) {
+        console.log('Combination not available, clearing quote');
+        setQuote(null);
       } else {
-        toast.error(errorMsg);
+        // Только для реальных ошибок показываем сообщение
+        toast.error(errorMsg || t('service.messages.failedCalculate'));
+        setQuote(null);
       }
-      setQuote(null);
     }
     finally { 
       setQuoteLoading(false); 
