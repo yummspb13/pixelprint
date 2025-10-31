@@ -105,61 +105,120 @@ export async function POST(request: NextRequest) {
     console.log('🔍 Main params:', mainParams);
     console.log('🔍 Modifier params:', modifierParams);
     
+    // Сначала ищем точное совпадение всех параметров из selection
+    // (для случая, когда выбрана полная комбинация через бейдж)
+    const selectionKeys = Object.keys(selection).filter(k => 
+      !['PRICE', 'NET PRICE', 'VAT', 'Price +VAT', 'Qty', 'turnaround', 'delivery', 'notes', 'Rush'].includes(k)
+    );
+    
+    console.log('🔍 Looking for exact match. Selection keys:', selectionKeys);
+    console.log('🔍 Selection:', Object.fromEntries(selectionKeys.map(k => [k, selection[k]])));
+    
     for (const row of service.rows) {
       const attrs = typeof row.attrs === 'string' ? JSON.parse(row.attrs) : (row.attrs ?? {}) as Record<string, string>;
       
-      // Проверяем, содержит ли строка основные параметры
-      const hasMainParams = mainParams.some((param: string) => param in attrs);
-      const hasModifierParams = modifierParams.some((param: string) => param in attrs);
+      // Игнорируем системные поля
+      const rowAttrs = Object.fromEntries(
+        Object.entries(attrs).filter(([k]) => !['_isMain'].includes(k))
+      );
       
-      console.log(`Row ${row.id}:`, { attrs, hasMainParams, hasModifierParams });
+      // ПРОВЕРКА 1: Точное совпадение всех параметров из selection с параметрами строки
+      // Все параметры из selection должны быть в attrs с теми же значениями
+      // И все параметры из attrs (основные) должны быть в selection с теми же значениями
+      let exactMatch = true;
       
-      if (hasMainParams) {
-        // Это главный элемент - проверяем соответствие основным параметрам
-        const mainSelection = Object.fromEntries(
-          Object.entries(selection).filter(([key, value]) => 
-            !['PRICE', 'NET PRICE', 'VAT', 'Price +VAT', 'Qty'].includes(key) && 
-            mainParams.includes(key) && 
-            key in attrs && 
-            attrs[key] === value
-          )
-        );
-        
-        console.log(`Row ${row.id} main selection:`, mainSelection);
-        
-        // Проверяем, что все основные параметры совпадают
-        const mainMatches = Object.entries(mainSelection).every(([key, value]) => {
-          return attrs[key] === value;
-        });
-        
-        console.log(`Row ${row.id} main matches:`, mainMatches);
-        
-        if (mainMatches && Object.keys(mainSelection).length > 0) {
-          mainRow = row;
-          console.log('Found main row:', { id: row.id, attrs: row.attrs });
+      // Проверяем, что все параметры из selection есть в attrs и совпадают
+      for (const key of selectionKeys) {
+        if (!(key in rowAttrs) || rowAttrs[key] !== selection[key]) {
+          exactMatch = false;
+          break;
         }
-      } else if (hasModifierParams) {
-        // Это модификатор - проверяем соответствие выбранным модификаторам
-        const modifierSelection = Object.fromEntries(
-          Object.entries(selection).filter(([key, value]) => 
-            !['PRICE', 'NET PRICE', 'VAT', 'Price +VAT', 'Qty'].includes(key) && 
-            key in attrs && 
-            attrs[key] === value
-          )
-        );
-        
-        console.log(`Row ${row.id} modifier selection:`, modifierSelection);
-        
-        // Проверяем, что все параметры модификатора совпадают с выбранными
-        const modifierMatches = Object.entries(modifierSelection).every(([key, value]) => {
-          return attrs[key] === value;
+      }
+      
+      // Проверяем, что все основные параметры из attrs есть в selection
+      // (чтобы не взять строку с дополнительными параметрами)
+      if (exactMatch) {
+        const rowMainParams = Object.keys(rowAttrs).filter(k => mainParams.includes(k));
+        for (const key of rowMainParams) {
+          if (!(key in selection) || selection[key] !== rowAttrs[key]) {
+            exactMatch = false;
+            break;
+          }
+        }
+      }
+      
+      if (exactMatch && selectionKeys.length > 0) {
+        // Нашли точное совпадение - это главная строка
+        mainRow = row;
+        console.log('✅✅✅ EXACT MATCH found - Row', row.id, ':', {
+          rowAttrs,
+          selection: Object.fromEntries(selectionKeys.map(k => [k, selection[k]]))
         });
+        break; // Нашли точное совпадение - прекращаем поиск
+      }
+    }
+    
+    // Если не нашли точное совпадение, используем старую логику
+    if (!mainRow) {
+      console.log('⚠️ No exact match found, using fallback logic');
+      
+      for (const row of service.rows) {
+        const attrs = typeof row.attrs === 'string' ? JSON.parse(row.attrs) : (row.attrs ?? {}) as Record<string, string>;
         
-        console.log(`Row ${row.id} modifier matches:`, modifierMatches);
+        // Проверяем, содержит ли строка основные параметры
+        const hasMainParams = mainParams.some((param: string) => param in attrs);
+        const hasModifierParams = modifierParams.some((param: string) => param in attrs);
         
-        if (modifierMatches && Object.keys(modifierSelection).length > 0) {
-          modifierRows.push(row);
-          console.log('Found modifier row:', { id: row.id, attrs: row.attrs });
+        console.log(`Row ${row.id}:`, { attrs, hasMainParams, hasModifierParams });
+        
+        if (hasMainParams) {
+          // Это главный элемент - проверяем соответствие основным параметрам
+          const mainSelection = Object.fromEntries(
+            Object.entries(selection).filter(([key, value]) => 
+              !['PRICE', 'NET PRICE', 'VAT', 'Price +VAT', 'Qty'].includes(key) && 
+              mainParams.includes(key) && 
+              key in attrs && 
+              attrs[key] === value
+            )
+          );
+          
+          console.log(`Row ${row.id} main selection:`, mainSelection);
+          
+          // Проверяем, что все основные параметры совпадают
+          const mainMatches = Object.entries(mainSelection).every(([key, value]) => {
+            return attrs[key] === value;
+          });
+          
+          console.log(`Row ${row.id} main matches:`, mainMatches);
+          
+          if (mainMatches && Object.keys(mainSelection).length > 0) {
+            mainRow = row;
+            console.log('Found main row (fallback):', { id: row.id, attrs: row.attrs });
+            break;
+          }
+        } else if (hasModifierParams) {
+          // Это модификатор - проверяем соответствие выбранным модификаторам
+          const modifierSelection = Object.fromEntries(
+            Object.entries(selection).filter(([key, value]) => 
+              !['PRICE', 'NET PRICE', 'VAT', 'Price +VAT', 'Qty'].includes(key) && 
+              key in attrs && 
+              attrs[key] === value
+            )
+          );
+          
+          console.log(`Row ${row.id} modifier selection:`, modifierSelection);
+          
+          // Проверяем, что все параметры модификатора совпадают с выбранными
+          const modifierMatches = Object.entries(modifierSelection).every(([key, value]) => {
+            return attrs[key] === value;
+          });
+          
+          console.log(`Row ${row.id} modifier matches:`, modifierMatches);
+          
+          if (modifierMatches && Object.keys(modifierSelection).length > 0) {
+            modifierRows.push(row);
+            console.log('Found modifier row:', { id: row.id, attrs: row.attrs });
+          }
         }
       }
     }
