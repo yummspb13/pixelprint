@@ -57,6 +57,7 @@ export default function ServicePage() {
   const [maxQty, setMaxQty] = useState<number>(10000);
   const [modelData, setModelData] = useState<any>(null);
   const [presets, setPresets] = useState<Array<{id: number; label: string; selection: Record<string, string>}>>([]); // Готовые комбинации параметров
+  const [availableOptions, setAvailableOptions] = useState<Record<string, string[]>>({}); // Доступные опции для каждого параметра на основе выбранных
 
   // Функция для получения доступных количеств на основе выбранных параметров
   const updateAvailableQuantities = (modelData: any, currentSelection: Record<string, string>) => {
@@ -156,6 +157,13 @@ export default function ServicePage() {
               }
             } catch (e) {
               console.error('Error loading presets:', e);
+            }
+            
+            // Инициализируем доступные опции - для первого параметра все опции доступны
+            const mainAttrs = d.attributes.filter(a => a.isMain);
+            if (mainAttrs.length > 0) {
+              const firstMainKey = mainAttrs[0].key;
+              setAvailableOptions({ [firstMainKey]: mainAttrs[0].values });
             }
             
             // Загружаем данные модели для расчета количеств
@@ -259,6 +267,84 @@ export default function ServicePage() {
       setQuoteLoading(false); 
     }
   }
+  
+  // Загружаем доступные опции при изменении выбора (каскадный выбор)
+  useEffect(() => {
+    if (!slug || attrs.length === 0) return;
+    
+    const mainAttrs = attrs.filter(a => a.isMain);
+    
+    // Для каждого основного параметра загружаем доступные опции на основе предыдущих выборов
+    mainAttrs.forEach((attr, index) => {
+      if (index === 0) {
+        // Первый параметр - всегда доступны все опции
+        if (!availableOptions[attr.key]) {
+          setAvailableOptions(prev => ({ ...prev, [attr.key]: attr.values }));
+        }
+      } else {
+        // Для последующих - загружаем динамически на основе предыдущих выборов
+        const previousSelection: Record<string, string> = {};
+        for (let i = 0; i < index; i++) {
+          const prevKey = mainAttrs[i].key;
+          if (selection[prevKey]) {
+            previousSelection[prevKey] = selection[prevKey];
+          }
+        }
+        
+        // Загружаем доступные опции для текущего параметра только если есть предыдущие выборы
+        if (Object.keys(previousSelection).length > 0) {
+          // Используем пресеты для определения доступных опций
+          // Опция доступна, если есть пресет, где предыдущие параметры совпадают
+          const availableForThisParam = new Set<string>();
+          
+          presets.forEach(preset => {
+            // Проверяем, совпадают ли предыдущие параметры
+            const prevMatch = mainAttrs.slice(0, index).every(prevAttr => {
+              return preset.selection[prevAttr.key] === previousSelection[prevAttr.key];
+            });
+            
+            if (prevMatch && preset.selection[attr.key]) {
+              availableForThisParam.add(preset.selection[attr.key]);
+            }
+          });
+          
+          if (availableForThisParam.size > 0) {
+            setAvailableOptions(prev => ({ 
+              ...prev, 
+              [attr.key]: Array.from(availableForThisParam).sort() 
+            }));
+            
+            // Если текущее значение не в доступных - сбрасываем его
+            if (selection[attr.key] && !availableForThisParam.has(selection[attr.key])) {
+              const newSelection = { ...selection };
+              delete newSelection[attr.key];
+              
+              // Также сбрасываем все последующие параметры
+              for (let i = index; i < mainAttrs.length; i++) {
+                delete newSelection[mainAttrs[i].key];
+              }
+              setSelection(newSelection);
+            }
+          } else {
+            // Нет доступных опций - очищаем
+            setAvailableOptions(prev => {
+              const newOptions = { ...prev };
+              delete newOptions[attr.key];
+              return newOptions;
+            });
+          }
+        } else {
+          // Если нет предыдущих выборов - очищаем опции для этого параметра
+          setAvailableOptions(prev => {
+            const newOptions = { ...prev };
+            delete newOptions[attr.key];
+            return newOptions;
+          });
+        }
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(selection), slug, attrs.length, presets.length]);
   
   useEffect(() => { 
     if (service?.calculatorAvailable && selection && Object.keys(selection).length > 0) {
@@ -456,29 +542,56 @@ export default function ServicePage() {
                                     value={selection[a.key] ?? ""} 
                                     onValueChange={(v) => {
                                       // При изменении параметра обновляем selection
-                                      // Сбрасываем quote если комбинация может быть невалидной
-                                      const newSelection = { ...selection };
+                                      const newSelection: Record<string, string> = {};
+                                      const paramIndex = attrs.filter(attr => attr.isMain).findIndex(attr => attr.key === a.key);
+                                      
+                                      // Сохраняем все предыдущие параметры
+                                      attrs.filter(attr => attr.isMain).forEach((attr, idx) => {
+                                        if (idx < paramIndex && selection[attr.key]) {
+                                          newSelection[attr.key] = selection[attr.key];
+                                        }
+                                      });
+                                      
+                                      // Устанавливаем новое значение текущего параметра
                                       if (v) {
                                         newSelection[a.key] = v;
-                                      } else {
-                                        delete newSelection[a.key];
                                       }
+                                      
+                                      // Модификаторы сохраняем отдельно
+                                      attrs.filter(attr => attr.isModifier).forEach(attr => {
+                                        if (selection[attr.key]) {
+                                          newSelection[attr.key] = selection[attr.key];
+                                        }
+                                      });
+                                      
                                       setSelection(newSelection);
-                                      // Сбрасываем quote - он будет пересчитан только если комбинация валидна
-                                      setQuote(null);
+                                      setQuote(null); // Сбрасываем цену при изменении
                                     }}
                                   >
                                     <SelectTrigger>
                                       <SelectValue placeholder={`${t('service.messages.chooseOption')} ${a.key}`} />
                                     </SelectTrigger>
                                     <SelectContent>
-                                      {a.values.length > 0 ? (
-                                        a.values.map(v => (
-                                          <SelectItem key={v} value={v}>{v}</SelectItem>
-                                        ))
-                                      ) : (
-                                        <SelectItem value="" disabled>No options available</SelectItem>
-                                      )}
+                                      {(() => {
+                                        const options = availableOptions[a.key] || [];
+                                        return options.length > 0 ? (
+                                          a.values.map(v => {
+                                            const isAvailable = options.includes(v);
+                                            return (
+                                              <SelectItem 
+                                                key={v} 
+                                                value={v}
+                                                disabled={!isAvailable}
+                                                className={!isAvailable ? "opacity-50 cursor-not-allowed" : ""}
+                                              >
+                                                {v} {!isAvailable && "(Not available)"}
+                                              </SelectItem>
+                                            );
+                                          })
+                                        ) : (
+                                          <SelectItem value="" disabled>No options available</SelectItem>
+                                        );
+                                      })()}
                                     </SelectContent>
                                   </Select>
                                 </div>
