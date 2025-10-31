@@ -105,63 +105,38 @@ export async function POST(request: NextRequest) {
     console.log('🔍 Main params:', mainParams);
     console.log('🔍 Modifier params:', modifierParams);
     
-    // ПРОСТАЯ И ПРАВИЛЬНАЯ ЛОГИКА: ищем строку где ВСЕ параметры из selection точно совпадают
-    const selectionKeys = Object.keys(selection).filter(k => 
-      !['PRICE', 'NET PRICE', 'VAT', 'Price +VAT', 'Qty', 'turnaround', 'delivery', 'notes'].includes(k) &&
-      mainParams.includes(k)
-    );
-    
-    console.log('🔍 Looking for exact match. Selection keys:', selectionKeys);
-    console.log('🔍 Selection:', Object.fromEntries(selectionKeys.map(k => [k, selection[k]])));
-    
     for (const row of service.rows) {
       const attrs = typeof row.attrs === 'string' ? JSON.parse(row.attrs) : (row.attrs ?? {}) as Record<string, string>;
       
-      // Проверяем, содержит ли строка основные параметры или модификаторы
+      // Проверяем, содержит ли строка основные параметры
       const hasMainParams = mainParams.some((param: string) => param in attrs);
       const hasModifierParams = modifierParams.some((param: string) => param in attrs);
       
+      console.log(`Row ${row.id}:`, { attrs, hasMainParams, hasModifierParams });
+      
       if (hasMainParams) {
-        // Игнорируем системные поля при сравнении
-        const rowAttrsForMatch = Object.fromEntries(
-          Object.entries(attrs).filter(([k]) => !['_isMain'].includes(k))
+        // Это главный элемент - проверяем соответствие основным параметрам
+        const mainSelection = Object.fromEntries(
+          Object.entries(selection).filter(([key, value]) => 
+            !['PRICE', 'NET PRICE', 'VAT', 'Price +VAT', 'Qty'].includes(key) && 
+            mainParams.includes(key) && 
+            key in attrs && 
+            attrs[key] === value
+          )
         );
         
-        // ПРОВЕРЯЕМ СОВПАДЕНИЕ: все параметры из selection (основные) должны быть в attrs с теми же значениями
-        // И все основные параметры из attrs должны быть в selection с теми же значениями
-        let isMatch = true;
+        console.log(`Row ${row.id} main selection:`, mainSelection);
         
-        // 1. Проверяем, что все параметры из selection совпадают с attrs
-        for (const key of selectionKeys) {
-          if (!(key in rowAttrsForMatch) || rowAttrsForMatch[key] !== selection[key]) {
-            isMatch = false;
-            break;
-          }
-        }
+        // Проверяем, что все основные параметры совпадают
+        const mainMatches = Object.entries(mainSelection).every(([key, value]) => {
+          return attrs[key] === value;
+        });
         
-        // 2. Проверяем, что все основные параметры из attrs присутствуют в selection
-        // (это гарантирует, что мы не выберем строку с дополнительными параметрами)
-        if (isMatch) {
-          for (const key of mainParams) {
-            if (key in rowAttrsForMatch) {
-              // Этот параметр есть в строке - он должен быть выбран и совпадать
-              if (!(key in selection) || rowAttrsForMatch[key] !== selection[key]) {
-                isMatch = false;
-                break;
-              }
-            }
-          }
-        }
+        console.log(`Row ${row.id} main matches:`, mainMatches);
         
-        if (isMatch && selectionKeys.length > 0) {
+        if (mainMatches && Object.keys(mainSelection).length > 0) {
           mainRow = row;
-          console.log('✅✅✅ EXACT MATCH found - Row', row.id, ':', {
-            rowAttrs: rowAttrsForMatch,
-            selection: Object.fromEntries(selectionKeys.map(k => [k, selection[k]]))
-          });
-          break; // Нашли точное совпадение - прерываем поиск
-        } else {
-          console.log(`❌ Row ${row.id} no match - rowAttrs:`, rowAttrsForMatch, 'selection:', Object.fromEntries(selectionKeys.map(k => [k, selection[k]])));
+          console.log('Found main row:', { id: row.id, attrs: row.attrs });
         }
       } else if (hasModifierParams) {
         // Это модификатор - проверяем соответствие выбранным модификаторам
