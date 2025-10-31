@@ -427,13 +427,27 @@ export async function POST(request: NextRequest) {
         mainRow: {
           id: mainRow.id,
           ruleKind: mainRow.ruleKind,
-          attrs: mainRow.attrs
+          attrs: typeof mainRow.attrs === 'string' ? JSON.parse(mainRow.attrs) : mainRow.attrs,
+          tiers: mainRow.tiers?.map(t => ({ qty: t.qty, unit: t.unit })) || []
         },
         modifierRows: modifierRows.map(row => ({
           id: row.id,
           ruleKind: row.ruleKind,
-          attrs: row.attrs
-        }))
+          attrs: typeof row.attrs === 'string' ? JSON.parse(row.attrs) : row.attrs
+        })),
+        calculation: {
+          baseUnitPrice,
+          basePrice,
+          modifierTotal,
+          netTotal,
+          vat,
+          grossTotal,
+          finalUnitPrice
+        },
+        selectedTier: mainRow.tiers?.length > 0 ? {
+          qty: sortedTiers[0]?.qty,
+          unit: baseUnitPrice
+        } : null
       }
     });
 
