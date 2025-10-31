@@ -56,78 +56,6 @@ export default function ServicePage() {
   const [minQty, setMinQty] = useState<number>(1);
   const [maxQty, setMaxQty] = useState<number>(10000);
   const [modelData, setModelData] = useState<any>(null);
-  const [availableOptions, setAvailableOptions] = useState<Record<string, string[]>>({}); // Динамические доступные опции для каждого параметра
-
-  // Функция для загрузки доступных опций для параметра на основе уже выбранных
-  const loadAvailableOptions = async (paramKey: string, currentSelection: Record<string, string>) => {
-    if (!slug) return;
-    
-    try {
-      // Строим параметры для исключения текущего параметра из выбранных
-      const selectedParams = { ...currentSelection };
-      delete selectedParams[paramKey]; // Исключаем сам параметр из выборки
-      
-      const params = new URLSearchParams({
-        slug,
-        paramKey,
-        selectedParams: JSON.stringify(selectedParams)
-      });
-      
-      const response = await fetch(`/api/pricing/options/available?${params}`);
-      const data = await response.json();
-      
-      if (data.ok) {
-        setAvailableOptions(prev => ({
-          ...prev,
-          [paramKey]: data.values
-        }));
-        
-        // Если текущее значение параметра не входит в доступные - сбрасываем его
-        if (currentSelection[paramKey] && !data.values.includes(currentSelection[paramKey])) {
-          const newSelection = { ...currentSelection };
-          delete newSelection[paramKey];
-          
-          // Также сбрасываем все последующие параметры
-          const paramIndex = attrs.findIndex(a => a.key === paramKey);
-          if (paramIndex !== -1) {
-            for (let i = paramIndex + 1; i < attrs.length; i++) {
-              delete newSelection[attrs[i].key];
-            }
-          }
-          
-          setSelection(newSelection);
-        }
-      }
-    } catch (error) {
-      console.error(`Error loading available options for ${paramKey}:`, error);
-    }
-  };
-
-  // Обновляем доступные опции при изменении выбора
-  useEffect(() => {
-    if (!slug || attrs.length === 0) return;
-    
-    // Определяем порядок параметров (основные первыми)
-    const orderedAttrs = [
-      ...attrs.filter(a => a.isMain),
-      ...attrs.filter(a => !a.isMain && !a.isModifier),
-      ...attrs.filter(a => a.isModifier)
-    ];
-    
-    // Для каждого параметра загружаем доступные опции на основе уже выбранных предыдущих
-    orderedAttrs.forEach((attr, index) => {
-      // Собираем выбранные параметры до текущего
-      const previousSelection: Record<string, string> = {};
-      for (let i = 0; i < index; i++) {
-        const prevKey = orderedAttrs[i].key;
-        if (selection[prevKey]) {
-          previousSelection[prevKey] = selection[prevKey];
-        }
-      }
-      
-      loadAvailableOptions(attr.key, { ...previousSelection, ...selection });
-    });
-  }, [selection, slug, attrs]);
 
   // Функция для получения доступных количеств на основе выбранных параметров
   const updateAvailableQuantities = (modelData: any, currentSelection: Record<string, string>) => {
@@ -536,8 +464,8 @@ export default function ServicePage() {
                                       <SelectValue placeholder={`${t('service.messages.chooseOption')} ${a.key}`} />
                                     </SelectTrigger>
                                     <SelectContent>
-                                      {availableValues.length > 0 ? (
-                                        availableValues.map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)
+                                      {a.values.length > 0 ? (
+                                        a.values.map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)
                                       ) : (
                                         <SelectItem value="" disabled>No options available</SelectItem>
                                       )}
@@ -629,8 +557,8 @@ export default function ServicePage() {
                                       <SelectValue placeholder={`${t('service.messages.chooseOption')} ${a.key}`} />
                                     </SelectTrigger>
                                     <SelectContent>
-                                      {availableValues.length > 0 ? (
-                                        availableValues.map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)
+                                      {a.values.length > 0 ? (
+                                        a.values.map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)
                                       ) : (
                                         <SelectItem value="" disabled>No options available</SelectItem>
                                       )}
