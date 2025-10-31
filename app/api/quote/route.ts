@@ -105,26 +105,25 @@ export async function POST(request: NextRequest) {
     console.log('🔍 Main params:', mainParams);
     console.log('🔍 Modifier params:', modifierParams);
     
+    // ПРОСТАЯ И ПРАВИЛЬНАЯ ЛОГИКА: ищем строку где ВСЕ параметры из selection точно совпадают
+    const selectionKeys = Object.keys(selection).filter(k => 
+      !['PRICE', 'NET PRICE', 'VAT', 'Price +VAT', 'Qty', 'turnaround', 'delivery', 'notes'].includes(k) &&
+      mainParams.includes(k)
+    );
+    
+    console.log('🔍 Looking for exact match. Selection keys:', selectionKeys);
+    console.log('🔍 Selection:', Object.fromEntries(selectionKeys.map(k => [k, selection[k]])));
+    
     for (const row of service.rows) {
       const attrs = typeof row.attrs === 'string' ? JSON.parse(row.attrs) : (row.attrs ?? {}) as Record<string, string>;
       
       // Проверяем, содержит ли строка основные параметры
       const hasMainParams = mainParams.some((param: string) => param in attrs);
-      const hasModifierParams = modifierParams.some((param: string) => param in attrs);
-      
-      console.log(`Row ${row.id}:`, { attrs, hasMainParams, hasModifierParams });
       
       if (hasMainParams) {
-        // Это главный элемент - проверяем ТОЧНОЕ соответствие ВСЕХ основных параметров
-        // Игнорируем системные поля
+        // Игнорируем системные поля при сравнении
         const rowAttrsForMatch = Object.fromEntries(
           Object.entries(attrs).filter(([k]) => !['_isMain'].includes(k))
-        );
-        
-        // Фильтруем selection - только основные параметры, исключаем системные поля
-        const selectionKeys = Object.keys(selection).filter(k => 
-          !['PRICE', 'NET PRICE', 'VAT', 'Price +VAT', 'Qty', 'turnaround', 'delivery', 'notes'].includes(k) &&
-          mainParams.includes(k)
         );
         
         // ПРОВЕРЯЕМ ТОЧНОЕ СОВПАДЕНИЕ: все параметры из selection должны быть в attrs с теми же значениями
