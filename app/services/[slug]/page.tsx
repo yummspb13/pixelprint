@@ -159,7 +159,7 @@ export default function ServicePage() {
             const modelData = await modelResponse.json();
             if (modelData.ok) {
               setModelData(modelData.model);
-              updateAvailableQuantities(modelData.model, defSel);
+              updateAvailableQuantities(modelData.model, {});
             }
           } catch (e: any) { 
             console.error('Error fetching options:', e);
