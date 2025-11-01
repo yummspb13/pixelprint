@@ -98,25 +98,37 @@ function TiltCard({ service, index, onServiceClick }: TiltCardProps) {
                 : 'translate-x-full opacity-0'
             }`}
           >
-            <Image
-              src={service.image || '/placeholder-service.jpg'}
-              alt={service.name}
-              width={280}
-              height={160}
-              onError={(e) => {
-                const target = e.target as HTMLImageElement;
-                // Если изображение не загрузилось, показываем placeholder SVG
-                if (!target.src.includes('data:image/svg+xml')) {
-                  target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjgwIiBoZWlnaHQ9IjE2MCIgdmlld0JveD0iMCAwIDI4MCAxNjAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIyODAiIGhlaWdodD0iMTYwIiBmaWxsPSIjRjNGNEY2Ii8+Cjx0ZXh0IHg9IjE0MCIgeT0iODAiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzlDQTNBRiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+Tm8gSW1hZ2U8L3RleHQ+Cjwvc3ZnPg==';
-                  target.onerror = null; // Предотвращаем бесконечный цикл ошибок
+            {service.image ? (
+              <Image
+                src={service.image}
+                alt={service.name}
+                width={280}
+                height={160}
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  // Если изображение не загрузилось, показываем placeholder SVG
+                  if (!target.src.includes('data:image/svg+xml')) {
+                    target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjgwIiBoZWlnaHQ9IjE2MCIgdmlld0JveD0iMCAwIDI4MCAxNjAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIyODAiIGhlaWdodD0iMTYwIiBmaWxsPSIjRjNGNEY2Ii8+Cjx0ZXh0IHg9IjE0MCIgeT0iODAiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzlDQTNBRiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+Tm8gSW1hZ2U8L3RleHQ+Cjwvc3ZnPg==';
+                    target.onerror = null; // Предотвращаем бесконечный цикл ошибок
+                  }
+                }}
+                className="block w-[200px] h-[120px] md:w-[280px] md:h-[160px] object-cover rounded-md shadow-xl"
+                loading="lazy"
+                quality={85}
+                sizes="(max-width: 768px) 200px, 280px"
+                unoptimized={
+                  service.image?.startsWith('/uploads/') || 
+                  service.image?.includes('cloudinary.com') ||
+                  service.image?.includes('.webp') || 
+                  service.image?.includes('.gif') || 
+                  service.image === '/placeholder-service.jpg'
                 }
-              }}
-              className="block w-[200px] h-[120px] md:w-[280px] md:h-[160px] object-cover rounded-md shadow-xl"
-              loading="lazy"
-              quality={85}
-              sizes="(max-width: 768px) 200px, 280px"
-              unoptimized={!service.image || service.image?.includes('.webp') || service.image?.includes('.gif') || service.image === '/placeholder-service.jpg'}
-            />
+              />
+            ) : (
+              <div className="block w-[200px] h-[120px] md:w-[280px] md:h-[160px] bg-zinc-200 rounded-md flex items-center justify-center">
+                <span className="text-zinc-400 text-sm">No Image</span>
+              </div>
+            )}
           </div>
         </div>
       </div>
