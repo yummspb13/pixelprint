@@ -476,6 +476,24 @@ export default function ServiceEditor({ serviceSlug, serviceName, onClose }: Ser
         console.log(`🗑️ Detected deleted parameters: ${deletedParamNames.join(', ')}`);
       }
       
+      // Определяем удаленные опции для каждого параметра
+      // Структура: paramName -> Set<deletedOptionNames>
+      const deletedOptionsMap = new Map<string, Set<string>>();
+      initialParameters.forEach(initialParam => {
+        const currentParam = parameters.find(p => p.id === initialParam.id);
+        if (!currentParam) return; // Параметр удален полностью - это обрабатывается отдельно
+        
+        const currentOptionNames = new Set(currentParam.options.map(opt => opt.name));
+        const deletedOptions = initialParam.options
+          .filter(opt => !currentOptionNames.has(opt.name))
+          .map(opt => opt.name);
+        
+        if (deletedOptions.length > 0) {
+          deletedOptionsMap.set(currentParam.name, new Set(deletedOptions));
+          console.log(`🗑️ Detected deleted options in "${currentParam.name}": ${deletedOptions.join(', ')}`);
+        }
+      });
+      
       // Создаем карту исходных имен для отслеживания переименований
       // Структура: paramName -> optionOriginalName -> optionCurrentName
       const originalToCurrentNamesMap = new Map<string, Map<string, string>>();
