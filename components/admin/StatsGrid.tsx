@@ -31,14 +31,14 @@ export default function StatsGrid() {
   const fetchStats = async () => {
     try {
       const response = await fetch('/api/admin/dashboard/stats');
-      const data = await response.json();
       
-      // Проверяем, что данные валидны и не содержат ошибку
-      if (data.error || !data.totalOrders !== undefined && data.ordersChange === undefined) {
-        throw new Error(data.error || 'Invalid stats data');
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
       
-      // Убеждаемся, что все обязательные поля присутствуют
+      const data = await response.json();
+      
+      // Убеждаемся, что все обязательные поля присутствуют (используем null coalescing)
       setStats({
         totalOrders: data.totalOrders ?? 0,
         totalRevenue: data.totalRevenue ?? 0,
