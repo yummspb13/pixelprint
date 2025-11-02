@@ -29,19 +29,60 @@ export async function GET(_: Request, context: { params: Promise<any> }) {
     
     console.log('🔍 API ROWS GET: Looking for service with slug:', slug);
     
-    // Простая загрузка через include - Prisma сам загрузит все поля, включая vat если оно есть
-    const s = await prisma.service.findUnique({
-      where: { slug },
-      include: { rows: { 
-        where: { isActive: true },
-        include: { 
-          tiers: {
-            orderBy: { qty: 'asc' }
-          }
-        }, 
-        orderBy: { id: "asc" } 
-      } }
-    });
+    // Загружаем данные - используем простой include
+    // Если возникнет ошибка P2022 (колонка не существует), обработаем её
+    let s;
+    try {
+      s = await prisma.service.findUnique({
+        where: { slug },
+        include: { rows: { 
+          where: { isActive: true },
+          include: { 
+            tiers: {
+              orderBy: { qty: 'asc' }
+            }
+          }, 
+          orderBy: { id: "asc" } 
+        } }
+      });
+    } catch (dbError: any) {
+      // Если ошибка P2022 (колонка не существует), пробуем загрузить без vat через явный select
+      if (dbError?.code === 'P2022') {
+        console.warn('⚠️ P2022 error - trying to load without vat field');
+        s = await prisma.service.findUnique({
+          where: { slug },
+          include: { rows: { 
+            where: { isActive: true },
+            include: { 
+              tiers: {
+                select: {
+                  id: true,
+                  rowId: true,
+                  qty: true,
+                  unit: true
+                  // Не включаем vat явно
+                },
+                orderBy: { qty: 'asc' }
+              }
+            }, 
+            orderBy: { id: "asc" } 
+          } }
+        });
+        
+        // Добавляем vat: null для обратной совместимости
+        if (s && s.rows) {
+          s.rows = s.rows.map(row => ({
+            ...row,
+            tiers: (row.tiers || []).map((tier: any) => ({
+              ...tier,
+              vat: null
+            }))
+          }));
+        }
+      } else {
+        throw dbError;
+      }
+    }
     
     console.log('🔍 API ROWS GET: Service found:', s ? `id=${s.id}, name=${s.name}, rows=${s.rows?.length || 0}` : 'null');
     
