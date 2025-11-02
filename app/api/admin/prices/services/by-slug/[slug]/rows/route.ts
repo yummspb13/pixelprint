@@ -18,13 +18,12 @@ export async function GET(_: Request, context: { params: Promise<any> }) {
     
     console.log('🔍 API ROWS GET: Looking for service with slug:', slug);
     
-    // Загружаем данные - используем подход с fallback для обратной совместимости
-    // Сначала пытаемся загрузить БЕЗ vat (более безопасно), потом проверяем наличие поля
+    // Безопасная загрузка данных - сначала БЕЗ vat (обратная совместимость)
+    // Если поле vat не существует в БД, это предотвратит ошибку
     let s;
-    let hasVatField = false;
     
     try {
-      // Пробуем загрузить с vat (для новых БД)
+      // Сначала загружаем БЕЗ vat - это безопаснее для старых БД
       s = await prisma.service.findUnique({
         where: { slug },
         include: { rows: { 
@@ -35,8 +34,8 @@ export async function GET(_: Request, context: { params: Promise<any> }) {
                 id: true,
                 rowId: true,
                 qty: true,
-                unit: true,
-                vat: true // Пробуем загрузить vat
+                unit: true
+                // Не включаем vat для безопасности - добавим позже если нужно
               },
               orderBy: { qty: 'asc' }
             }
@@ -45,52 +44,26 @@ export async function GET(_: Request, context: { params: Promise<any> }) {
         } }
       });
       
-      // Если загрузилось успешно, проверяем наличие vat в первом tier
-      if (s && s.rows && s.rows.length > 0) {
-        const firstTier = s.rows[0]?.tiers?.[0];
-        hasVatField = firstTier && 'vat' in firstTier;
+      // Если данные загрузились, добавляем vat: null ко всем tiers
+      // Это позволяет работать даже если поле vat еще не создано в БД
+      if (s && s.rows) {
+        s.rows = s.rows.map(row => ({
+          ...row,
+          tiers: row.tiers.map((tier: any) => ({
+            ...tier,
+            vat: null // По умолчанию null (auto-calculate) до миграции БД
+          }))
+        }));
       }
-    } catch (error: any) {
-      console.warn('⚠️ Error loading with vat field, trying without:', error?.message || error);
       
-      // Если поле vat не существует, загружаем без него
-      try {
-        s = await prisma.service.findUnique({
-          where: { slug },
-          include: { rows: { 
-            where: { isActive: true },
-            include: { 
-              tiers: {
-                select: {
-                  id: true,
-                  rowId: true,
-                  qty: true,
-                  unit: true
-                  // Не включаем vat - поле еще не существует
-                },
-                orderBy: { qty: 'asc' }
-              }
-            }, 
-            orderBy: { id: "asc" } 
-          } }
-        });
-        
-        // Добавляем vat: null ко всем tiers для обратной совместимости
-        if (s && s.rows) {
-          s.rows = s.rows.map(row => ({
-            ...row,
-            tiers: row.tiers.map((tier: any) => ({
-              ...tier,
-              vat: null // По умолчанию null (auto-calculate) если поле не существует
-            }))
-          }));
-        }
-        hasVatField = false;
-      } catch (fallbackError: any) {
-        // Если и это не сработало, пробрасываем оригинальную ошибку
-        console.error('❌ Error loading without vat field:', fallbackError);
-        throw error; // Пробрасываем оригинальную ошибку
-      }
+      // Попытка загрузить vat из БД через raw query (опционально, для проверки наличия поля)
+      // Если это не критично, можно пропустить этот шаг
+      // Пока оставляем vat: null для всех tiers
+      
+    } catch (error: any) {
+      console.error('❌ Error loading service:', error);
+      // Пробрасываем ошибку дальше для обработки в общем catch блоке
+      throw error;
     }
     
     console.log('🔍 API ROWS GET: Service found:', s ? `id=${s.id}, name=${s.name}, rows=${s.rows.length}` : 'null');
