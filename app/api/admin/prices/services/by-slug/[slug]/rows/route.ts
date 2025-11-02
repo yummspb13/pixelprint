@@ -18,12 +18,20 @@ export async function GET(_: Request, context: { params: Promise<any> }) {
     
     console.log('🔍 API ROWS GET: Looking for service with slug:', slug);
     
+    // Используем явный select для tiers, чтобы избежать ошибки если поле vat еще не существует
     const s = await prisma.service.findUnique({
       where: { slug },
       include: { rows: { 
         where: { isActive: true }, // Только активные строки
         include: { 
           tiers: {
+            select: {
+              id: true,
+              rowId: true,
+              qty: true,
+              unit: true
+              // Не включаем vat явно - будет добавлено после миграции
+            },
             orderBy: { qty: 'asc' }
           }
         }, 
