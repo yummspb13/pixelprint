@@ -173,6 +173,13 @@ export default function MenuManager() {
   const handleImageUpload = async (file: File) => {
     setIsUploading(true);
     try {
+      // Validate file size (max 10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error('File size must be less than 10MB');
+        setIsUploading(false);
+        return;
+      }
+
       const formData = new FormData();
       formData.append('file', file);
 
@@ -182,15 +189,40 @@ export default function MenuManager() {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to upload image');
+        // Try to get error message from response
+        let errorMessage = 'Failed to upload image';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorData.message || errorMessage;
+        } catch (e) {
+          errorMessage = `Server error: ${response.status} ${response.statusText}`;
+        }
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();
+      
+      if (!data.success) {
+        throw new Error(data.error || 'Upload failed');
+      }
+
+      if (!data.imageUrl) {
+        console.error('API response:', data);
+        throw new Error('No image URL in response');
+      }
+
       setFormData(prev => ({ ...prev, image: data.imageUrl }));
-      toast.success('Image uploaded successfully!');
-    } catch (error) {
+      
+      // Show success message with optimization info if available
+      if (data.compressionRatio && data.compressionRatio > 0) {
+        toast.success(`Image uploaded and optimized! ${data.compressionRatio}% size reduction`);
+      } else {
+        toast.success('Image uploaded successfully!');
+      }
+    } catch (error: any) {
       console.error('Error uploading image:', error);
-      toast.error('Failed to upload image');
+      const errorMessage = error.message || 'Failed to upload image';
+      toast.error(errorMessage);
     } finally {
       setIsUploading(false);
     }
