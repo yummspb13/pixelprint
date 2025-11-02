@@ -148,16 +148,64 @@ export default function AdminPrices() {
 
   async function createSvc(e: React.FormEvent) {
     e.preventDefault();
-    const r = await fetch("/api/admin/prices/services/",{ method:"POST", headers:{ "content-type":"application/json" }, body: JSON.stringify(form) });
-    const d = await r.json(); if (!d.ok) return toast.error(d.error || "Error");
-    setForm({ slug:"", name:"", category:"" }); load();
+    try {
+      const r = await fetch("/api/admin/prices/services/",{ method:"POST", headers:{ "content-type":"application/json" }, body: JSON.stringify(form) });
+      
+      if (!r.ok) {
+        const errorText = await r.text().catch(() => 'Unknown error');
+        toast.error(`Server error: ${r.status}`);
+        return;
+      }
+      
+      const text = await r.text();
+      if (!text || text.trim() === '') {
+        toast.error('Empty response from server');
+        return;
+      }
+      
+      const d = JSON.parse(text);
+      if (!d.ok) {
+        toast.error(d.error || "Error");
+        return;
+      }
+      
+      setForm({ slug:"", name:"", category:"" }); 
+      load();
+    } catch (error: any) {
+      console.error('Error creating service:', error);
+      toast.error(error?.message || 'Failed to create service');
+    }
   }
 
   async function importCSV(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const fd = new FormData(e.currentTarget);
-    const r = await fetch("/api/admin/prices/import-csv", { method:"POST", body: fd });
-    const d = await r.json(); d.ok ? (toast.success(`Imported ${d.imported}`), load()) : toast.error(d.error||"Import failed");
+    try {
+      const fd = new FormData(e.currentTarget);
+      const r = await fetch("/api/admin/prices/import-csv", { method:"POST", body: fd });
+      
+      if (!r.ok) {
+        const errorText = await r.text().catch(() => 'Unknown error');
+        toast.error(`Server error: ${r.status}`);
+        return;
+      }
+      
+      const text = await r.text();
+      if (!text || text.trim() === '') {
+        toast.error('Empty response from server');
+        return;
+      }
+      
+      const d = JSON.parse(text);
+      if (d.ok) {
+        toast.success(`Imported ${d.imported}`);
+        load();
+      } else {
+        toast.error(d.error || "Import failed");
+      }
+    } catch (error: any) {
+      console.error('Error importing CSV:', error);
+      toast.error(error?.message || 'Failed to import CSV');
+    }
   }
 
   // Selection functions
@@ -206,13 +254,19 @@ export default function AdminPrices() {
       console.log('🔍 SAVE EDIT: Response ok:', response.ok);
       
       if (!response.ok) {
-        const errorText = await response.text();
+        const errorText = await response.text().catch(() => 'Unknown error');
         console.error('❌ SAVE EDIT: Response not ok:', response.status, errorText);
         toast.error(`Server error: ${response.status}`);
         return;
       }
       
-      const data = await response.json();
+      const text = await response.text();
+      if (!text || text.trim() === '') {
+        toast.error('Empty response from server');
+        return;
+      }
+      
+      const data = JSON.parse(text);
       console.log('🔍 SAVE EDIT: Response data:', data);
       
       if (data.ok) {
@@ -252,7 +306,19 @@ export default function AdminPrices() {
         method: 'DELETE'
       });
       
-      const data = await response.json();
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => 'Unknown error');
+        toast.error(`Server error: ${response.status}`);
+        return;
+      }
+      
+      const text = await response.text();
+      if (!text || text.trim() === '') {
+        toast.error('Empty response from server');
+        return;
+      }
+      
+      const data = JSON.parse(text);
       
       if (data.ok) {
         toast.success(data.message);
@@ -261,9 +327,9 @@ export default function AdminPrices() {
       } else {
         toast.error(data.error || 'Failed to delete services');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting services:', error);
-      toast.error('Failed to delete services');
+      toast.error(error?.message || 'Failed to delete services');
     } finally {
       setIsDeleting(false);
     }
@@ -279,7 +345,19 @@ export default function AdminPrices() {
         method: 'DELETE'
       });
       
-      const data = await response.json();
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => 'Unknown error');
+        toast.error(`Server error: ${response.status}`);
+        return;
+      }
+      
+      const text = await response.text();
+      if (!text || text.trim() === '') {
+        toast.error('Empty response from server');
+        return;
+      }
+      
+      const data = JSON.parse(text);
       
       if (data.ok) {
         toast.success(data.message);
@@ -287,9 +365,13 @@ export default function AdminPrices() {
       } else {
         toast.error(data.error || 'Failed to delete service');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting service:', error);
-      toast.error('Failed to delete service');
+      if (error instanceof SyntaxError && error.message.includes('JSON')) {
+        toast.error('Server returned invalid response');
+      } else {
+        toast.error(error?.message || 'Failed to delete service');
+      }
     }
   }
 

@@ -49,25 +49,53 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const { slug, name, category } = await req.json();
-  if (!slug || !name || !category) return NextResponse.json({ ok:false, error:"fields required" }, { status:400 });
-  const s = await prisma.service.upsert({
-    where: { slug },
-    update: { name, category },
-    create: { slug, name, category }
-  });
-  return NextResponse.json({ ok:true, service: s });
+  try {
+    const body = await req.json().catch(() => ({}));
+    const { slug, name, category } = body;
+    
+    if (!slug || !name || !category) {
+      return NextResponse.json({ ok:false, error:"fields required" }, { status:400 });
+    }
+    
+    const s = await prisma.service.upsert({
+      where: { slug },
+      update: { name, category },
+      create: { slug, name, category }
+    });
+    
+    return NextResponse.json({ ok:true, service: s });
+  } catch (error: any) {
+    console.error('Error creating/updating service:', error);
+    console.error('Error details:', {
+      message: error?.message,
+      name: error?.name,
+      code: error?.code
+    });
+    
+    // Если проблема с подключением к БД
+    if (error?.code === 'P1001' || error?.message?.includes('connection') || error?.message?.includes('Can\'t reach database')) {
+      return NextResponse.json(
+        { ok: false, error: "Database connection error" },
+        { status: 503 }
+      );
+    }
+    
+    return NextResponse.json(
+      { ok: false, error: "Failed to create/update service" },
+      { status: 500 }
+    );
+  }
 }
 
 export async function DELETE(req: Request) {
-  const { searchParams } = new URL(req.url);
-  const ids = searchParams.get('ids');
-  
-  if (!ids) {
-    return NextResponse.json({ ok: false, error: "No IDs provided" }, { status: 400 });
-  }
-
   try {
+    const { searchParams } = new URL(req.url);
+    const ids = searchParams.get('ids');
+    
+    if (!ids) {
+      return NextResponse.json({ ok: false, error: "No IDs provided" }, { status: 400 });
+    }
+
     const serviceIds = ids.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
     
     if (serviceIds.length === 0) {
@@ -86,8 +114,22 @@ export async function DELETE(req: Request) {
       deleted: result.count,
       message: `Successfully deleted ${result.count} service${result.count !== 1 ? 's' : ''}` 
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error deleting services:', error);
+    console.error('Error details:', {
+      message: error?.message,
+      name: error?.name,
+      code: error?.code
+    });
+    
+    // Если проблема с подключением к БД
+    if (error?.code === 'P1001' || error?.message?.includes('connection') || error?.message?.includes('Can\'t reach database')) {
+      return NextResponse.json(
+        { ok: false, error: "Database connection error" },
+        { status: 503 }
+      );
+    }
+    
     return NextResponse.json({ 
       ok: false, 
       error: "Failed to delete services" 
