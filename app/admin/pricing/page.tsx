@@ -65,11 +65,32 @@ export default function AdminPrices() {
       const r = await fetch("/api/admin/prices/services/", { cache:"no-store" });
       console.log('API response received:', r.status, r.ok);
       
+      // Для статусов 503 (Service Unavailable) и других ошибок БД - обрабатываем отдельно
+      if (r.status === 503) {
+        // Пытаемся получить JSON с деталями ошибки
+        try {
+          const text = await r.text();
+          const errorData = text ? JSON.parse(text) : {};
+          console.warn('⚠️ Database connection error (503):', errorData.error);
+          // Показываем предупреждение, но не ошибку - используем пустой массив
+          toast.warning('Database connection issue. Please check your DATABASE_URL settings.', { duration: 5000 });
+          setItems(errorData.items || []);
+          return;
+        } catch (parseError) {
+          console.error('Failed to parse 503 error response');
+          setItems([]);
+          return;
+        }
+      }
+      
       // Проверяем, что ответ валиден перед парсингом JSON
       if (!r.ok) {
         const errorText = await r.text().catch(() => 'Unknown error');
         console.error('API error response:', r.status, errorText);
-        throw new Error(`HTTP ${r.status}: ${errorText}`);
+        // Для других ошибок показываем toast и используем пустой массив
+        toast.error(`Server error: ${r.status}`);
+        setItems([]);
+        return;
       }
       
       // Проверяем, что есть контент для парсинга
@@ -85,13 +106,21 @@ export default function AdminPrices() {
         data = JSON.parse(text);
       } catch (parseError) {
         console.error('JSON parse error:', parseError, 'Response text:', text);
-        throw new Error('Invalid JSON response from server');
+        toast.error('Invalid response from server');
+        setItems([]);
+        return;
       }
       
       // Если ответ содержит ошибку, обрабатываем её
       if (data.error) {
-        console.error('API returned error:', data.error);
-        toast.error(data.error || 'Error loading services');
+        // Если это ошибка подключения к БД - показываем warning, не error
+        if (data.error.includes('Database connection') || data.error.includes('connection error')) {
+          console.warn('⚠️ Database connection error:', data.error);
+          toast.warning('Database connection issue. Please check your DATABASE_URL settings.', { duration: 5000 });
+        } else {
+          console.error('API returned error:', data.error);
+          toast.error(data.error || 'Error loading services');
+        }
         setItems(data.items || []);
         return;
       }
@@ -105,7 +134,10 @@ export default function AdminPrices() {
       console.log('Items set:', services.length, 'items');
     } catch (error: any) {
       console.error('Error loading services:', error);
-      toast.error(error?.message || 'Error loading services');
+      // Не показываем toast для ошибок подключения к БД - уже обработано выше
+      if (!error?.message?.includes('503') && !error?.message?.includes('Database connection')) {
+        toast.error(error?.message || 'Error loading services');
+      }
       setItems([]); // Устанавливаем пустой массив при ошибке
     } finally {
       console.log('Finally block - setting loading to false');
