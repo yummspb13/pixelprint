@@ -31,13 +31,15 @@ export async function PUT(req: Request, context: { params: Promise<any> }) {
   try {
     const { slug, rowId } = await context.params;
     const body = await req.json();
-    const { attrs, ruleKind, unit, setup, fixed, tiers = [], isActive } = body;
+    const { attrs, ruleKind, unit, setup, fixed, isActive } = body;
+    const tiers = body.tiers; // НЕ используем default value - только если явно передан
     
     console.log('🔍 API ROW PUT: Updating row', rowId);
     console.log('🔍 Received data:', { 
       attrs: typeof attrs === 'object' ? JSON.stringify(attrs).substring(0, 200) : attrs,
       ruleKind,
-      tiersCount: tiers.length,
+      tiersProvided: tiers !== undefined,
+      tiersCount: Array.isArray(tiers) ? tiers.length : 'not an array',
       isActive 
     });
     
@@ -79,23 +81,41 @@ export async function PUT(req: Request, context: { params: Promise<any> }) {
         data: updateData
       });
       
-      // Удаляем старые тиры
-      await tx.tier.deleteMany({
-        where: { rowId: Number(rowId) }
-      });
-      
-      // Создаем новые тиры
-      if (tiers.length > 0) {
-        const tiersData = tiers.map((tier: any) => ({
-          rowId: Number(rowId),
-          qty: Number(tier.qty) || 0,
-          unit: Number(tier.unit) || 0
-        }));
-        
-        console.log('🔍 Creating tiers:', tiersData.length);
-        await tx.tier.createMany({
-          data: tiersData
-        });
+      // КРИТИЧЕСКИ ВАЖНО: Обрабатываем tiers ТОЛЬКО если они явно переданы в запросе
+      // Если tiers не переданы (undefined) - НЕ ТРОГАЕМ существующие tiers в БД!
+      // Это защищает от случайного удаления tiers при обновлении только attrs (переименование)
+      if (tiers !== undefined) {
+        // tiers явно передан в запросе - обрабатываем
+        if (Array.isArray(tiers) && tiers.length > 0) {
+          // Удаляем старые тиры и создаем новые
+          await tx.tier.deleteMany({
+            where: { rowId: Number(rowId) }
+          });
+          
+          // Создаем новые тиры
+          const tiersData = tiers.map((tier: any) => ({
+            rowId: Number(rowId),
+            qty: Number(tier.qty) || 0,
+            unit: Number(tier.unit) || 0
+          }));
+          
+          console.log('🔍 Replacing tiers:', tiersData.length);
+          await tx.tier.createMany({
+            data: tiersData
+          });
+        } else if (Array.isArray(tiers) && tiers.length === 0) {
+          // Явно передан пустой массив - удаляем все tiers (пользователь намеренно очистил)
+          await tx.tier.deleteMany({
+            where: { rowId: Number(rowId) }
+          });
+          console.log('🔍 Empty tiers array provided - removed all tiers');
+        } else {
+          // tiers передан, но не массив - ошибка формата
+          console.warn('⚠️ Tiers provided but not an array, ignoring:', typeof tiers);
+        }
+      } else {
+        // tiers НЕ передан в запросе - НЕ ТРОГАЕМ существующие tiers в БД!
+        console.log('🔍 Tiers not provided in request - preserving existing tiers in DB');
       }
     });
     

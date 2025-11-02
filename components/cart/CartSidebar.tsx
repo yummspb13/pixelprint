@@ -53,7 +53,7 @@ export default function CartSidebar({
 }: CartSidebarProps) {
   const { t } = useLanguage();
   const totalAmount = items.reduce((sum, item) => sum + item.totalPrice, 0);
-  const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
+  const totalItems = items.length; // Количество позиций в корзине, а не сумма количеств
 
   return (
     <AnimatePresence>

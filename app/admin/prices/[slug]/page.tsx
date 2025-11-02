@@ -990,7 +990,25 @@ export default function Page() {
                               </div>
                               <div className="text-center">
                                 <div className="text-zinc-400 text-[10px] mb-0.5">Total</div>
-                                <div className="font-bold text-px-cyan text-sm">£{(tier.qty * tier.unit * 1.2).toFixed(2)}</div>
+                                <div className="font-bold text-px-cyan text-sm">
+                                  £{(() => {
+                                    const netTotal = tier.qty * tier.unit;
+                                    // Используем tier.vat: null = auto (20%), 0 = без VAT, число = конкретная сумма VAT
+                                    let vatAmount = 0;
+                                    if (tier.vat !== undefined && tier.vat !== null) {
+                                      if (tier.vat === 0) {
+                                        vatAmount = 0;
+                                      } else {
+                                        // tier.vat это сумма для tier.qty, пропорционально для отображения
+                                        const vatRate = tier.vat / (tier.qty * tier.unit);
+                                        vatAmount = netTotal * vatRate;
+                                      }
+                                    } else {
+                                      vatAmount = netTotal * 0.20; // Auto
+                                    }
+                                    return (netTotal + vatAmount).toFixed(2);
+                                  })()}
+                                </div>
                               </div>
                             </div>
                             
@@ -1502,7 +1520,9 @@ function TierEditor({ row, onSaved }:{ row: Row; onSaved: (oldTiers: any[], newT
     const currentTiers = (row.tiers ?? []).map(t=>({ 
       qty: t.qty, 
       unit: t.unit,
-      vat: t.vat !== undefined ? t.vat : null // null = auto-calculate
+      // Правильно обрабатываем vat: null/undefined = auto, 0 = без VAT, число = ручной VAT
+      // ВАЖНО: если vat === 0, это явное "без VAT", не null!
+      vat: t.vat !== undefined && t.vat !== null ? (t.vat === 0 ? 0 : t.vat) : null
     }));
     setTiers(currentTiers);
     setOriginalTiers(currentTiers);
@@ -1657,34 +1677,80 @@ function TierEditor({ row, onSaved }:{ row: Row; onSaved: (oldTiers: any[], newT
                         <td className="px-4 py-2">
                           <div className="flex items-center gap-2 min-w-[120px]">
                             <Input 
-                              type="number" 
+                              type="text" 
                               step="0.01" 
-                              value={t.vat !== null ? t.vat.toFixed(2) : autoVat.toFixed(2)} 
+                              value={t.vat !== null ? (t.vat === 0 ? "0" : t.vat.toFixed(2)) : ""} 
                               onChange={e=> {
-                                const val = e.target.value;
-                                if (val === "" || val === "0" || val === "0.00") {
-                                  // Явно устанавливаем 0 (без VAT), а не null
+                                const val = e.target.value.trim();
+                                
+                                // Если поле пустое - устанавливаем null (auto-calculate)
+                                if (val === "" || val === null || val === undefined) {
+                                  updateTier(i, {vat: null});
+                                  return;
+                                }
+                                
+                                // Если введен 0 или 0.00 - устанавливаем 0 (без VAT)
+                                if (val === "0" || val === "0.00" || val === "0.") {
                                   updateTier(i, {vat: 0});
-                                } else {
-                                  const newVat = Number(val);
-                                  // Сохраняем число если валидно, иначе null (auto)
-                                  updateTier(i, {vat: isNaN(newVat) ? null : newVat});
+                                  return;
+                                }
+                                
+                                // Позволяем вводить числа, включая десятичные (. или ,)
+                                // Разрешаем ввод в процессе (например "4." или "4.4")
+                                const normalizedVal = val.replace(',', '.');
+                                
+                                // Если строка содержит только цифры и точку - сохраняем как есть в состоянии
+                                // Но валидируем при потере фокуса
+                                if (/^-?\d*\.?\d*$/.test(normalizedVal)) {
+                                  const newVat = Number(normalizedVal);
+                                  if (isNaN(newVat) || normalizedVal === "" || normalizedVal === ".") {
+                                    // В процессе ввода или невалидное - пока не обновляем
+                                    return;
+                                  } else {
+                                    updateTier(i, {vat: newVat});
+                                  }
                                 }
                               }}
                               onBlur={(e)=> {
-                                // При потере фокуса: пустое = null (auto), 0 = 0 (без VAT)
-                                const val = e.target.value;
-                                if (val === "" || val === "0" || val === "0.00") {
-                                  // Если пользователь ввел 0, сохраняем как 0
+                                const val = e.target.value.trim();
+                                
+                                // При потере фокуса нормализуем значение
+                                if (val === "" || val === null || val === undefined) {
+                                  // Пустое поле = auto-calculate
+                                  updateTier(i, {vat: null});
+                                } else if (val === "0" || val === "0.00" || val === "0.") {
+                                  // Явный 0 = без VAT
                                   updateTier(i, {vat: 0});
+                                } else {
+                                  // Проверяем что это валидное число
+                                  const normalizedVal = val.replace(',', '.');
+                                  const numVal = Number(normalizedVal);
+                                  if (isNaN(numVal) || normalizedVal === "" || normalizedVal === ".") {
+                                    updateTier(i, {vat: null}); // Невалидное = auto
+                                  } else if (numVal < 0) {
+                                    updateTier(i, {vat: null}); // Отрицательное = auto
+                                  } else {
+                                    updateTier(i, {vat: numVal}); // Валидное число
+                                  }
                                 }
                               }}
                               className="h-8 text-xs w-full min-w-[100px]"
-                              placeholder="Auto"
-                              title={t.vat === null ? "Auto-calculated (20%). Click to edit." : t.vat === 0 ? "No VAT" : "Manual VAT amount"}
+                              placeholder={autoVat.toFixed(2) + " (auto)"}
+                              title={t.vat === null ? "Auto-calculated (20%). Click to edit. Clear field to reset to auto." : t.vat === 0 ? "No VAT. Clear field to reset to auto." : "Manual VAT amount. Clear field to reset to auto."}
                             />
                             {t.vat === null && (
                               <span className="text-xs text-zinc-400 whitespace-nowrap">(auto)</span>
+                            )}
+                            {t.vat !== null && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => updateTier(i, {vat: null})}
+                                className="h-6 w-6 p-0 text-zinc-400 hover:text-zinc-600"
+                                title="Reset to auto-calculate"
+                              >
+                                ×
+                              </Button>
                             )}
                           </div>
                         </td>

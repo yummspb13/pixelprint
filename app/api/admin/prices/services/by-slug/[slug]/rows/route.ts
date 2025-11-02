@@ -29,21 +29,14 @@ export async function GET(_: Request, context: { params: Promise<any> }) {
     
     console.log('🔍 API ROWS GET: Looking for service with slug:', slug);
     
-    // Загружаем данные БЕЗ vat - Prisma Client может быть не синхронизирован
-    // Временно не загружаем vat, чтобы избежать P2022 ошибки
+    // Простая загрузка через include - Prisma сам загрузит все поля, включая vat если оно есть
+    // Это работает даже если Prisma Client не синхронизирован - он просто вернет только существующие поля
     const s = await prisma.service.findUnique({
       where: { slug },
       include: { rows: { 
         where: { isActive: true },
         include: { 
           tiers: {
-            select: {
-              id: true,
-              rowId: true,
-              qty: true,
-              unit: true
-              // Временно НЕ загружаем vat - добавляем null после загрузки
-            },
             orderBy: { qty: 'asc' }
           }
         }, 
@@ -51,13 +44,16 @@ export async function GET(_: Request, context: { params: Promise<any> }) {
       } }
     });
     
-    // Добавляем vat: null ко всем tiers (значения из БД будут загружены позже после синхронизации Prisma Client)
+    // Нормализуем tiers: обрабатываем vat значения
+    // ВАЖНО: если vat === 0 и это старые данные (до миграции), оставляем 0
+    // Если vat === null или undefined - это auto-calculate
     if (s && s.rows) {
       s.rows = s.rows.map(row => ({
         ...row,
         tiers: (row.tiers || []).map((tier: any) => ({
           ...tier,
-          vat: null // Временно null, будет загружаться после синхронизации Prisma Client на Vercel
+          // Если vat отсутствует - null (auto), иначе используем значение из БД (может быть 0, null или число)
+          vat: tier.vat !== undefined && tier.vat !== null ? (tier.vat === 0 ? 0 : tier.vat) : null
         }))
       }));
     }

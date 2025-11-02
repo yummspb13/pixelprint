@@ -48,6 +48,7 @@ interface OrderItem {
   parameters: string;
   fileName?: string;
   fileSize?: number;
+  filePath?: string; // URL или путь к файлу
   notes?: string;
 }
 

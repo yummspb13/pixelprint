@@ -18,41 +18,63 @@ export async function GET(request: NextRequest) {
 
     console.log('🔍 SEARCH API: Searching for:', query);
 
-    // Поиск услуг по названию и описанию (case-insensitive для SQLite)
-    const services = await prisma.$queryRaw`
-      SELECT 
-        id,
-        name,
-        slug,
-        category,
-        description,
-        image,
-        "clickCount"
-      FROM Service 
-      WHERE isActive = 1 
-        AND (
-          LOWER(name) LIKE LOWER(${'%' + query + '%'}) 
-          OR LOWER(description) LIKE LOWER(${'%' + query + '%'})
-          OR LOWER(category) LIKE LOWER(${'%' + query + '%'})
-        )
-      ORDER BY "clickCount" DESC, name ASC
-      LIMIT 10
-    `;
+    // Поиск услуг по названию, описанию и категории (case-insensitive для PostgreSQL)
+    // Используем Prisma ORM с mode: 'insensitive' для совместимости с PostgreSQL
+    // Если это не работает, можно использовать ILIKE через raw SQL
+    const services = await prisma.service.findMany({
+      where: {
+        isActive: true,
+        OR: [
+          { 
+            name: { 
+              contains: query, 
+              mode: 'insensitive' 
+            } 
+          },
+          { 
+            description: { 
+              contains: query, 
+              mode: 'insensitive' 
+            } 
+          },
+          { 
+            category: { 
+              contains: query, 
+              mode: 'insensitive' 
+            } 
+          }
+        ]
+      },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        category: true,
+        description: true,
+        image: true,
+        clickCount: true
+      },
+      orderBy: [
+        { clickCount: 'desc' },
+        { name: 'asc' }
+      ],
+      take: 10
+    });
 
-    console.log('🔍 SEARCH API: Found services:', Array.isArray(services) ? services.length : 0);
+    console.log('🔍 SEARCH API: Found services:', services.length);
 
     return NextResponse.json({
       ok: true,
-      results: Array.isArray(services) ? services : [],
+      results: services,
       query: query,
-      count: Array.isArray(services) ? services.length : 0
+      count: services.length
     });
 
   } catch (error) {
     console.error('❌ SEARCH API: Error:', error);
     return NextResponse.json({
       ok: false,
-      error: "Search failed",
+      error: error instanceof Error ? error.message : "Search failed",
       results: []
     }, { status: 500 });
   }

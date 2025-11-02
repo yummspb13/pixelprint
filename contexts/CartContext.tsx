@@ -12,6 +12,7 @@ export interface CartItem {
   uploadedFile?: File;
   fileName?: string;
   fileSize?: number;
+  filePath?: string; // URL или путь к файлу в облачном хранилище
   notes?: string;
 }
 
@@ -128,7 +129,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const removeFile = useCallback((id: string) => {
     setItems(prev => prev.map(item => 
-      item.id === id ? { ...item, uploadedFile: undefined, fileName: undefined, fileSize: undefined } : item
+      item.id === id ? { ...item, uploadedFile: undefined, fileName: undefined, fileSize: undefined, filePath: undefined } : item
     ));
   }, []);
 
@@ -160,7 +161,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const totalAmount = items.reduce((sum, item) => sum + item.totalPrice, 0);
-  const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
+  const totalItems = items.length; // Количество позиций в корзине, а не сумма количеств
 
   const checkout = useCallback(async (checkoutData: CheckoutData) => {
     try {
@@ -178,9 +179,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
       formData.append('totalAmount', totalAmount.toString());
       formData.append('customerInfo', JSON.stringify(checkoutData.contactInfo || checkoutData));
 
-      // Add files separately
+      // Add files separately (only if not already uploaded to cloud)
       items.forEach((item, index) => {
-        if (item.uploadedFile) {
+        // If filePath exists, file is already uploaded, skip it
+        // Otherwise, if uploadedFile exists, upload it
+        if (item.uploadedFile && !item.filePath) {
           formData.append(`file_${index}`, item.uploadedFile);
         }
       });

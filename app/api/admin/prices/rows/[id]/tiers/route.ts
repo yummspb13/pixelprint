@@ -17,38 +17,57 @@ export async function PUT(req: Request, context: { params: Promise<any> }) {
     setup
   });
   
-  // Временно НЕ сохраняем vat, если колонка еще не создана в БД
-  // Это предотвращает ошибку P2022 (column does not exist)
-  // После миграции БД можно будет раскомментировать vat
+  // Обрабатываем vat: null = auto-calculate, 0 = no VAT (явно), >0 = custom VAT
+  // Важно: vat может быть 0 (число), что означает "без VAT"
   const processedTiers = tiers.map((t: any) => {
-    const tierData: any = {
+    let vatValue: number | null = null;
+    
+    if (t.vat !== undefined && t.vat !== null) {
+      // Если значение передано (включая 0), используем его
+      vatValue = Number(t.vat);
+      // Если результат NaN, используем null (auto)
+      if (isNaN(vatValue)) {
+        vatValue = null;
+      }
+    } else {
+      // Если не передано, используем null (auto-calculate)
+      vatValue = null;
+    }
+    
+    return {
       rowId,
       qty: Number(t.qty) || 0,
-      unit: Number(t.unit) || 0
+      unit: Number(t.unit) || 0,
+      vat: vatValue
     };
-    
-    // Пока НЕ добавляем vat, чтобы избежать ошибки P2022
-    // TODO: Раскомментировать после миграции БД (добавления колонки vat)
-    // if (t.vat !== undefined && t.vat !== null) {
-    //   tierData.vat = Number(t.vat);
-    // } else {
-    //   tierData.vat = null;
-    // }
-    
-    return tierData;
   });
   
-  console.log('📥 Processed tiers for DB (without vat):', processedTiers);
+  console.log('📥 Processed tiers for DB:', processedTiers);
+  console.log('📥 VAT values breakdown:', processedTiers.map((t: any) => ({ 
+    qty: t.qty, 
+    vat: t.vat, 
+    vatType: t.vat === null ? 'null (auto)' : t.vat === 0 ? '0 (no VAT)' : `number (${t.vat})` 
+  })));
   
-  await prisma.$transaction([
-    prisma.tier.deleteMany({ where: { rowId } }),
-    prisma.priceRow.update({ where: { id: rowId }, data: { setup } }),
-    prisma.tier.createMany({
-      data: processedTiers
-    })
-  ]);
-  
-  console.log('✅ Tiers saved successfully');
+  try {
+    await prisma.$transaction([
+      prisma.tier.deleteMany({ where: { rowId } }),
+      prisma.priceRow.update({ where: { id: rowId }, data: { setup } }),
+      prisma.tier.createMany({
+        data: processedTiers
+      })
+    ]);
+    
+    // Проверяем что сохранилось правильно
+    const savedTiers = await prisma.tier.findMany({ where: { rowId } });
+    console.log('✅ Tiers saved successfully. Verifying saved VAT values:');
+    savedTiers.forEach(t => {
+      console.log(`  Tier ${t.id}: qty=${t.qty}, vat=${t.vat} (${t.vat === null ? 'null (auto)' : t.vat === 0 ? '0 (no VAT)' : `number`})`);
+    });
+  } catch (error: any) {
+    console.error('❌ Error saving tiers:', error);
+    throw error;
+  }
   
   revalidateTag(PRICING_TAG);
   return NextResponse.json({ ok: true });

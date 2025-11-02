@@ -34,7 +34,6 @@ model PriceRow {
   unit          Float?
   setup         Float?
   fixed         Float?
-  forceAutoVat  Boolean         @default(true) // Принудительный автоматический расчет VAT (по умолчанию включен)
   originalRowId String?         @unique
   isActive      Boolean         @default(true)
   createdAt     DateTime        @default(now())
@@ -49,7 +48,7 @@ model Tier {
   rowId Int
   qty   Int
   unit  Float
-  vat   Float?   @default(0) // VAT amount (null = auto-calculate, 0 = no VAT, >0 = custom VAT)
+  vat   Float?   // VAT amount (null = auto-calculate, 0 = no VAT, >0 = custom VAT)
   row   PriceRow @relation(fields: [rowId], references: [id], onDelete: Cascade)
 }
 

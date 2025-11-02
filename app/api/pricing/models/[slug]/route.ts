@@ -37,6 +37,10 @@ export async function GET(_: Request, context: { params: Promise<any> }) {
       const attrs = typeof row.attrs === 'string' ? JSON.parse(row.attrs) : (row.attrs ?? {}) as Record<string, string>;
       
       for (const [key, value] of Object.entries(attrs)) {
+        // Игнорируем служебные поля (начинающиеся с _) и системные поля
+        if (key.startsWith('_')) continue;
+        if (['PRICE', 'NET PRICE', 'VAT', 'Price +VAT', 'Qty'].includes(key)) continue;
+        
         optionKeys.add(key);
         if (!options[key]) {
           options[key] = [];
@@ -58,17 +62,29 @@ export async function GET(_: Request, context: { params: Promise<any> }) {
       category: service.category,
       optionKeys: Array.from(optionKeys),
       options: options,
-      rows: service.rows.map(row => ({
-        id: row.id,
-        attrs: typeof row.attrs === 'string' ? JSON.parse(row.attrs) : (row.attrs ?? {}),
-        rule: {
-          kind: row.ruleKind,
-          tiers: row.tiers.map(tier => ({
-            qty: tier.qty,
-            unit: tier.unit
-          }))
-        }
-      }))
+      rows: service.rows.map(row => {
+        // Очищаем attrs от служебных полей перед отправкой клиенту
+        const rawAttrs = typeof row.attrs === 'string' ? JSON.parse(row.attrs) : (row.attrs ?? {});
+        const cleanAttrs = Object.fromEntries(
+          Object.entries(rawAttrs).filter(([k, v]) => 
+            !k.startsWith('_') && // Исключаем все служебные поля
+            !['PRICE', 'NET PRICE', 'VAT', 'Price +VAT', 'Qty'].includes(k) &&
+            typeof v === 'string' && v.trim() !== ''
+          )
+        );
+        
+        return {
+          id: row.id,
+          attrs: cleanAttrs,
+          rule: {
+            kind: row.ruleKind,
+            tiers: row.tiers.map(tier => ({
+              qty: tier.qty,
+              unit: tier.unit
+            }))
+          }
+        };
+      })
     };
     
     return NextResponse.json({ 

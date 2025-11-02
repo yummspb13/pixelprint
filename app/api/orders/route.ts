@@ -51,27 +51,35 @@ export async function POST(request: NextRequest) {
       let filePath = null;
       let savedFileName = null;
       
-      // Get file from FormData
-      const file = formData.get(`file_${index}`) as File;
-      
-      if (file) {
-        try {
-          // Upload file to server
-          const uploadFormData = new FormData();
-          uploadFormData.append('file', file);
-          
-          const uploadResponse = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3010'}/api/upload`, {
-            method: 'POST',
-            body: uploadFormData
-          });
-          
-          if (uploadResponse.ok) {
-            const uploadData = await uploadResponse.json();
-            filePath = uploadData.filePath;
-            savedFileName = uploadData.savedFileName;
+      // If filePath already exists, file was uploaded earlier (from service page)
+      if (item.filePath) {
+        filePath = item.filePath;
+        savedFileName = item.fileName || item.savedFileName;
+        console.log(`✅ Item ${index}: Using existing filePath: ${filePath}`);
+      } else {
+        // Get file from FormData (fallback for files uploaded during checkout)
+        const file = formData.get(`file_${index}`) as File;
+        
+        if (file) {
+          try {
+            // Upload file to server
+            const uploadFormData = new FormData();
+            uploadFormData.append('file', file);
+            
+            const uploadResponse = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3010'}/api/upload`, {
+              method: 'POST',
+              body: uploadFormData
+            });
+            
+            if (uploadResponse.ok) {
+              const uploadData = await uploadResponse.json();
+              filePath = uploadData.filePath;
+              savedFileName = uploadData.savedFileName;
+              console.log(`✅ Item ${index}: Uploaded file to: ${filePath}`);
+            }
+          } catch (error) {
+            console.error(`❌ Error uploading file for item ${index}:`, error);
           }
-        } catch (error) {
-          console.error('Error uploading file:', error);
         }
       }
       

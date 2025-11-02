@@ -34,6 +34,24 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    // Main параметр - это первый параметр в каждой строке с несколькими параметрами
+    // (потому что мы сохраняем Main параметр первым в attrs)
+    const mainParams = new Set<string>();
+    
+    service.rows.forEach(r => {
+      const a = typeof r.attrs === 'string' ? JSON.parse(r.attrs) : (r.attrs ?? {});
+      const cleanKeys = Object.keys(a).filter(k => 
+        !k.startsWith('_') &&
+        !['PRICE', 'NET PRICE', 'VAT', 'Price +VAT', 'Qty'].includes(k) &&
+        a[k]
+      );
+      
+      // Если в строке несколько параметров - первый и есть Main
+      if (cleanKeys.length > 1) {
+        mainParams.add(cleanKeys[0]);
+      }
+    });
+    
     // Формируем пресеты из строк с основными параметрами
     const presets: Array<{
       id: number;
@@ -47,11 +65,12 @@ export async function GET(req: NextRequest) {
           ? JSON.parse(row.attrs)
           : (row.attrs ?? {});
       
-      // Игнорируем системные поля и служебные поля
+      // Игнорируем системные поля и служебные поля (начинающиеся с _)
       const cleanAttrs = Object.fromEntries(
         Object.entries(attrs).filter(
           ([k, v]) =>
-            !["_isMain", "PRICE", "NET PRICE", "VAT", "Price +VAT", "Qty"].includes(k) &&
+            !k.startsWith('_') && // Исключаем все служебные поля (начинающиеся с _)
+            !["PRICE", "NET PRICE", "VAT", "Price +VAT", "Qty"].includes(k) &&
             typeof v === 'string' && v.trim() !== ''
         )
       ) as Record<string, string>;
@@ -66,11 +85,17 @@ export async function GET(req: NextRequest) {
       
       // Если это строка с основными параметрами, создаем пресет
       if (Object.keys(cleanAttrs).length > 0 && isMainRow) {
-        // Формируем читабельную метку
-        const labelParts: string[] = [];
-        Object.entries(cleanAttrs).forEach(([key, value]) => {
-          labelParts.push(`${key}: ${value}`);
-        });
+        // Простое решение: первый параметр в строке = Main, остальные = доп опции
+        // Сортируем: Main параметр (первый ключ) первым, остальные после
+        const keys = Object.keys(cleanAttrs);
+        const mainKey = keys[0]; // Первый параметр = Main
+        const otherKeys = keys.slice(1);
+        
+        // Формируем label: Main первым, затем остальные
+        const labelParts = [
+          `${mainKey}: ${cleanAttrs[mainKey]}`,
+          ...otherKeys.map(key => `${key}: ${cleanAttrs[key]}`)
+        ];
         
         presets.push({
           id: row.id,

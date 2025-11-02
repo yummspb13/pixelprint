@@ -281,13 +281,14 @@ export async function POST(request: NextRequest) {
     
     let baseUnitPrice = 0;
     let sortedTiers: any[] = [];
+    let selectedTier: any = null;
     
     if (mainRow.tiers && mainRow.tiers.length > 0) {
       // Используем тиры - находим подходящий тир для количества
       sortedTiers = mainRow.tiers.sort((a, b) => a.qty - b.qty);
-      console.log('   All tiers:', sortedTiers.map(t => ({ qty: t.qty, unit: t.unit })));
+      console.log('   All tiers:', sortedTiers.map(t => ({ qty: t.qty, unit: t.unit, vat: t.vat })));
       
-      let selectedTier = sortedTiers[0];
+      selectedTier = sortedTiers[0];
       
       // Если количество меньше минимального тира, используем минимальный тир
       if (qty < sortedTiers[0].qty) {
@@ -439,21 +440,42 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Проверяем, нужно ли включать VAT для основной строки
-    const mainRowAttrs = typeof mainRow.attrs === 'string' ? JSON.parse(mainRow.attrs) : (mainRow.attrs ?? {}) as Record<string, string>;
-    const includeVat = mainRowAttrs._includeVat !== 'false'; // По умолчанию true (если поле не задано или равно 'true')
-    
+    // Рассчитываем VAT: используем tier.vat из выбранного tier
     const netTotal = basePrice + modifierTotal;
-    const vat = includeVat ? netTotal * 0.20 : 0;
+    let vat = 0;
+    
+    if (selectedTier && selectedTier.vat !== undefined && selectedTier.vat !== null) {
+      // tier.vat это сумма VAT для tier с количеством tier.qty
+      // Если tier.vat = 0 - явно без VAT (0%)
+      // Если tier.vat = null - auto (20%)
+      // Если tier.vat = число > 0 - конкретная сумма VAT для tier.qty, вычисляем процент
+      if (selectedTier.vat === 0) {
+        vat = 0; // Явно без VAT (0%)
+      } else {
+        // tier.vat это сумма VAT для tier.qty, вычисляем процент и применяем к текущему netTotal
+        const tierNet = selectedTier.qty * selectedTier.unit;
+        if (tierNet > 0) {
+          const vatRate = selectedTier.vat / tierNet; // Процент VAT от net (например 0.20 для 20%)
+          vat = netTotal * vatRate;
+        } else {
+          // На случай если tierNet = 0, используем auto
+          vat = netTotal * 0.20;
+        }
+      }
+    } else {
+      // Нет tier.vat или он null - auto calculate (20%)
+      vat = netTotal * 0.20;
+    }
+    
     const grossTotal = netTotal + vat;
     const finalUnitPrice = grossTotal / qty;
 
     console.log('💰 FINAL CALCULATION:');
-    console.log('   includeVat:', includeVat);
+    console.log('   selectedTier.vat:', selectedTier?.vat !== undefined ? (selectedTier.vat === null ? 'null (auto)' : selectedTier.vat === 0 ? '0 (no VAT)' : selectedTier.vat) : 'undefined');
     console.log('   basePrice:', basePrice);
     console.log('   modifierTotal:', modifierTotal);
     console.log('   netTotal:', netTotal);
-    console.log('   vat:', vat, includeVat ? '(20%)' : '(excluded)');
+    console.log('   vat:', vat, selectedTier?.vat === 0 ? '(no VAT)' : selectedTier?.vat !== null && selectedTier?.vat !== undefined ? `(${((vat/netTotal)*100).toFixed(1)}%)` : '(auto 20%)');
     console.log('   grossTotal:', grossTotal);
     console.log('   finalUnitPrice:', finalUnitPrice);
     console.log('=====================================');

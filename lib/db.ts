@@ -25,15 +25,23 @@ if (!process.env.DATABASE_URL) {
 }
 
 // Создаем PrismaClient правильно с SSL настройками для Supabase
-// Для разработки используем DIRECT_URL (если доступен), для production - DATABASE_URL
-// PgBouncer (порт 6543) может вызывать проблемы с Prisma, поэтому для dev лучше использовать direct connection
-const databaseUrl = process.env.NODE_ENV === 'development' && process.env.DIRECT_URL
-  ? process.env.DIRECT_URL
-  : process.env.DATABASE_URL;
+// ВРЕМЕННО: Используем DATABASE_URL (pooler) и в development, и в production
+// DIRECT_URL может быть недоступен, поэтому используем проверенный pooler
+// В будущем можно вернуться к DIRECT_URL для development после решения проблем с подключением
+let databaseUrl = process.env.DATABASE_URL;
 
 if (!databaseUrl) {
-  throw new Error("DATABASE_URL or DIRECT_URL environment variable is required");
+  throw new Error("DATABASE_URL environment variable is required");
 }
+
+// Добавляем SSL параметры для Supabase, если их нет
+if (databaseUrl.includes('supabase') && !databaseUrl.includes('sslmode')) {
+  const separator = databaseUrl.includes('?') ? '&' : '?';
+  databaseUrl = `${databaseUrl}${separator}sslmode=require`;
+  logger.info("Added sslmode=require to database URL for Supabase");
+}
+
+logger.info(`Using DATABASE_URL (pooler) for connection`);
 
 const prisma = globalForPrisma.prisma ?? new PrismaClient({
   log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],

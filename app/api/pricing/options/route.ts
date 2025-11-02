@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
     // Если нет _isMain, проверяем количество параметров
     if (!hasIsMain) {
       const paramCount = Object.keys(a).filter(k => 
-        k !== '_isMain' && 
+        !k.startsWith('_') && // Исключаем все служебные поля
         !['PRICE', 'NET PRICE', 'VAT', 'Price +VAT', 'Qty'].includes(k) &&
         a[k]
       ).length;
@@ -51,7 +51,9 @@ export async function GET(req: NextRequest) {
   for (const r of mainRows) {
     const a = typeof r.attrs === 'string' ? JSON.parse(r.attrs) : (r.attrs ?? {}) as Record<string, string>;
     Object.entries(a).forEach(([k, v]) => {
-      if (!v || k === '_isMain') return;
+      // Игнорируем служебные поля (начинающиеся с _) и системные поля
+      if (k.startsWith('_')) return;
+      if (!v) return;
       if (['PRICE', 'NET PRICE', 'VAT', 'Price +VAT', 'Qty'].includes(k)) return;
       mainParams.add(k);
     });
@@ -61,15 +63,17 @@ export async function GET(req: NextRequest) {
   
   // Если нет главных параметров, делаем первый параметр основным
   if (mainParams.size === 0) {
-    const allParams = new Set<string>();
-    for (const r of svc.rows) {
-      const a = typeof r.attrs === 'string' ? JSON.parse(r.attrs) : (r.attrs ?? {}) as Record<string, string>;
-      Object.entries(a).forEach(([k, v]) => {
-        if (!v || k === '_isMain') return;
-        if (['PRICE', 'NET PRICE', 'VAT', 'Price +VAT', 'Qty'].includes(k)) return;
-        allParams.add(k);
-      });
-    }
+      const allParams = new Set<string>();
+      for (const r of svc.rows) {
+        const a = typeof r.attrs === 'string' ? JSON.parse(r.attrs) : (r.attrs ?? {}) as Record<string, string>;
+        Object.entries(a).forEach(([k, v]) => {
+          // Игнорируем служебные поля (начинающиеся с _) и системные поля
+          if (k.startsWith('_')) return;
+          if (!v) return;
+          if (['PRICE', 'NET PRICE', 'VAT', 'Price +VAT', 'Qty'].includes(k)) return;
+          allParams.add(k);
+        });
+      }
     
     // Берем первый параметр как основной
     const firstParam = Array.from(allParams)[0];
@@ -84,7 +88,9 @@ export async function GET(req: NextRequest) {
     const a = typeof r.attrs === 'string' ? JSON.parse(r.attrs) : (r.attrs ?? {}) as Record<string, string>;
     
     Object.entries(a).forEach(([k, v]) => {
-      if (!v || k === '_isMain') return;
+      // Игнорируем служебные поля (начинающиеся с _) и системные поля
+      if (k.startsWith('_')) return;
+      if (!v) return;
       if (['PRICE', 'NET PRICE', 'VAT', 'Price +VAT', 'Qty'].includes(k)) return;
       
       if (!map.has(k)) map.set(k, new Set());

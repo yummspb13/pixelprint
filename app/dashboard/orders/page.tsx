@@ -42,6 +42,7 @@ interface OrderItem {
   totalPrice: number;
   fileName?: string;
   fileSize?: number;
+  filePath?: string; // URL или путь к файлу
   notes?: string;
   createdAt: string;
 }

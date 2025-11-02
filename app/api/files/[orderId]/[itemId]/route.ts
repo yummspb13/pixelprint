@@ -29,22 +29,55 @@ export async function GET(
       return NextResponse.json({ error: "No file attached to this item" }, { status: 404 });
     }
 
-    try {
-      // Read the file from the server
-      const filePath = join(process.cwd(), orderItem.filePath);
-      const fileBuffer = await readFile(filePath);
+    // Check if filePath is a URL (cloud storage) or local path
+    const isUrl = orderItem.filePath.startsWith('http://') || orderItem.filePath.startsWith('https://');
 
-      // Return the file as a download
-      return new NextResponse(fileBuffer as any, {
-        headers: {
-          'Content-Type': 'application/octet-stream',
-          'Content-Disposition': `attachment; filename="${orderItem.fileName}"`,
-          'Content-Length': fileBuffer.length.toString(),
-        },
-      });
-    } catch (fileError) {
-      console.error('Error reading file:', fileError);
-      return NextResponse.json({ error: "File not found on server" }, { status: 404 });
+    if (isUrl) {
+      // File is in cloud storage (Cloudinary, S3, etc.)
+      // Redirect to the cloud URL or proxy it
+      try {
+        // Fetch the file from cloud storage
+        const response = await fetch(orderItem.filePath);
+        
+        if (!response.ok) {
+          throw new Error(`Failed to fetch file from cloud: ${response.statusText}`);
+        }
+
+        const fileBuffer = await response.arrayBuffer();
+        const contentType = response.headers.get('content-type') || 'application/octet-stream';
+
+        // Return the file as a download
+        return new NextResponse(fileBuffer, {
+          headers: {
+            'Content-Type': contentType,
+            'Content-Disposition': `attachment; filename="${orderItem.fileName}"`,
+            'Content-Length': fileBuffer.byteLength.toString(),
+          },
+        });
+      } catch (cloudError: any) {
+        console.error('Error fetching file from cloud storage:', cloudError);
+        // Fallback: redirect to the URL directly
+        return NextResponse.redirect(orderItem.filePath);
+      }
+    } else {
+      // File is stored locally
+      try {
+        // Read the file from the server
+        const filePath = join(process.cwd(), orderItem.filePath);
+        const fileBuffer = await readFile(filePath);
+
+        // Return the file as a download
+        return new NextResponse(fileBuffer, {
+          headers: {
+            'Content-Type': 'application/octet-stream',
+            'Content-Disposition': `attachment; filename="${orderItem.fileName}"`,
+            'Content-Length': fileBuffer.length.toString(),
+          },
+        });
+      } catch (fileError) {
+        console.error('Error reading file:', fileError);
+        return NextResponse.json({ error: "File not found on server" }, { status: 404 });
+      }
     }
 
   } catch (error) {

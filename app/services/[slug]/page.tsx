@@ -51,13 +51,22 @@ export default function ServicePage() {
   const [quote, setQuote] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [quoteLoading, setQuoteLoading] = useState(false);
-  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+  interface UploadedFileInfo {
+    file: File;
+    filePath?: string;
+    fileName: string;
+    fileSize: number;
+    uploading?: boolean;
+    error?: string;
+  }
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFileInfo[]>([]);
   const [availableQuantities, setAvailableQuantities] = useState<number[]>([]);
   const [minQty, setMinQty] = useState<number>(1);
   const [maxQty, setMaxQty] = useState<number>(10000);
   const [modelData, setModelData] = useState<any>(null);
   const [presets, setPresets] = useState<Array<{id: number; label: string; selection: Record<string, string>}>>([]); // Готовые комбинации параметров
   const [availableOptions, setAvailableOptions] = useState<Record<string, string[]>>({}); // Доступные опции для каждого параметра на основе выбранных
+  const [showHint, setShowHint] = useState<string | null>(null); // Ключ поля, над которым показывать подсказку
 
   // Функция для получения доступных количеств на основе выбранных параметров
   const updateAvailableQuantities = (modelData: any, currentSelection: Record<string, string>) => {
@@ -219,10 +228,27 @@ export default function ServicePage() {
       
       if (!hasMainSelection) {
         console.warn('Missing main parameter selection:', { mainAttrs, selection });
-        toast.error('Please select all required options');
+        // Находим первое незаполненное обязательное поле
+        const firstMissingAttr = mainAttrs.find(attr => 
+          !selection[attr.key] || selection[attr.key].trim() === ''
+        );
+        
+        if (firstMissingAttr) {
+          // Показываем дружелюбное сообщение
+          toast.info('Please select all required options', {
+            duration: 3000,
+          });
+          // Показываем подсказку над первым незаполненным полем
+          setShowHint(firstMissingAttr.key);
+          // Убираем подсказку через 5 секунд или при взаимодействии
+          setTimeout(() => setShowHint(null), 5000);
+        }
         setQuote(null);
         return;
       }
+      
+      // Если все обязательные поля заполнены, скрываем подсказки
+      setShowHint(null);
       
       const q = await fetchQuote({ slug, qty, selection, extras: { turnaround, delivery } });
       
@@ -363,15 +389,17 @@ export default function ServicePage() {
       return;
     }
 
+    const firstFile = uploadedFiles[0];
     addItem({
       serviceName: meta.name,
       serviceSlug: slug,
       parameters: selection,
       quantity: qty,
       unitPrice: quote.breakdown.gross / qty, // Цена за единицу включая VAT
-      uploadedFile: uploadedFiles[0], // Первый файл
-      fileName: uploadedFiles[0]?.name,
-      fileSize: uploadedFiles[0]?.size,
+      uploadedFile: firstFile?.file, // File объект (если нужен для совместимости)
+      fileName: firstFile?.fileName,
+      fileSize: firstFile?.fileSize,
+      filePath: firstFile?.filePath, // URL в облачном хранилище
     });
 
     toast.success(t('service.messages.addedToCart'));
@@ -385,25 +413,81 @@ export default function ServicePage() {
     }
 
     // Добавляем в корзину и переходим к чекауту
+    const firstFile = uploadedFiles[0];
     addItem({
       serviceName: meta.name,
       serviceSlug: slug,
       parameters: selection,
       quantity: qty,
       unitPrice: quote.breakdown.gross / qty,
-      uploadedFile: uploadedFiles[0], // Первый файл
-      fileName: uploadedFiles[0]?.name,
-      fileSize: uploadedFiles[0]?.size,
+      uploadedFile: firstFile?.file, // File объект (если нужен для совместимости)
+      fileName: firstFile?.fileName,
+      fileSize: firstFile?.fileSize,
+      filePath: firstFile?.filePath, // URL в облачном хранилище
     });
 
     router.push('/checkout');
   };
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
-    if (files.length > 0) {
-      setUploadedFiles(prev => [...prev, ...files]);
-      toast.success(`${files.length} file(s) uploaded successfully`);
+    if (files.length === 0) return;
+
+    // Добавляем файлы в состояние с флагом загрузки
+    const newFiles: UploadedFileInfo[] = files.map(file => ({
+      file,
+      fileName: file.name,
+      fileSize: file.size,
+      uploading: true,
+    }));
+    
+    setUploadedFiles(prev => [...prev, ...newFiles]);
+
+    // Загружаем каждый файл через API
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const baseIndex = uploadedFiles.length;
+      
+      try {
+        // Проверка размера файла (300MB максимум)
+        if (file.size > 300 * 1024 * 1024) {
+          throw new Error(`File "${file.name}" is too large. Maximum size is 300MB.`);
+        }
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const response = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+          throw new Error(result.error || result.message || 'Failed to upload file');
+        }
+
+        // Обновляем файл с полученным filePath используя базовый индекс
+        setUploadedFiles(prev => prev.map((f, idx) => 
+          idx === baseIndex + i
+            ? { ...f, filePath: result.filePath, uploading: false }
+            : f
+        ));
+
+        toast.success(`File "${file.name}" uploaded successfully`);
+      } catch (error: any) {
+        console.error('Error uploading file:', error);
+        
+        // Обновляем файл с ошибкой
+        setUploadedFiles(prev => prev.map((f, idx) => 
+          idx === baseIndex + i
+            ? { ...f, uploading: false, error: error.message || 'Failed to upload file' }
+            : f
+        ));
+
+        toast.error(`Failed to upload "${file.name}": ${error.message || 'Unknown error'}`);
+      }
     }
   };
 
@@ -539,9 +623,24 @@ export default function ServicePage() {
                           </div>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {attrs.filter(a => a.isMain).map(a => {
+                              const isMissing = !selection[a.key] || selection[a.key].trim() === '';
+                              const showHintForThis = showHint === a.key && isMissing;
+                              
                               return (
-                                <div key={a.key}>
+                                <div key={a.key} className="relative">
                                   <label className="block text-sm font-medium text-px-fg mb-2">{a.key}</label>
+                                  
+                                  {/* Подсказка-облачко */}
+                                  {showHintForThis && (
+                                    <div className="absolute -top-14 left-0 z-50 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                                      <div className="bg-px-cyan text-white text-xs px-3 py-2 rounded-lg shadow-lg whitespace-nowrap relative">
+                                        <div className="absolute -bottom-1 left-4 w-2 h-2 bg-px-cyan rotate-45"></div>
+                                        Please select {a.key} to continue
+                                        <span className="ml-1">👇</span>
+                                      </div>
+                                    </div>
+                                  )}
+                                  
                                   <Select 
                                     value={selection[a.key] ?? ""} 
                                     onValueChange={(v) => {
@@ -570,9 +669,13 @@ export default function ServicePage() {
                                       
                                       setSelection(newSelection);
                                       setQuote(null); // Сбрасываем цену при изменении
+                                      // Убираем подсказку при взаимодействии с полем
+                                      if (showHint === a.key) {
+                                        setShowHint(null);
+                                      }
                                     }}
                                   >
-                                    <SelectTrigger>
+                                    <SelectTrigger className={showHintForThis ? "ring-2 ring-px-cyan ring-offset-2" : ""}>
                                       <SelectValue placeholder={`${t('service.messages.chooseOption')} ${a.key}`} />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -841,27 +944,64 @@ export default function ServicePage() {
                           {uploadedFiles.length > 0 && (
                             <div className="space-y-2">
                               <p className={`${getTextSize(language, 'small')} font-medium text-px-fg`}>{t('service.uploadedFiles')}:</p>
-                              {uploadedFiles.map((file, index) => (
-                                <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
-                                  <div className="flex items-center space-x-2">
-                                    <div className="w-6 h-6 bg-px-cyan/10 rounded flex items-center justify-center">
-                                      <svg className="w-3 h-3 text-px-cyan" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                      </svg>
-                                    </div>
-                                    <div>
-                                      <p className="text-sm font-medium text-px-fg">{file.name}</p>
-                                      <p className="text-xs text-px-muted">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                              {uploadedFiles.map((fileInfo, index) => (
+                                <div key={fileInfo.id} className={`flex items-center justify-between p-2 rounded-lg ${
+                                  fileInfo.error ? 'bg-red-50 border border-red-200' : 
+                                  fileInfo.uploading ? 'bg-blue-50 border border-blue-200' : 
+                                  fileInfo.filePath ? 'bg-green-50 border border-green-200' : 
+                                  'bg-gray-50'
+                                }`}>
+                                  <div className="flex items-center space-x-2 flex-1">
+                                    {fileInfo.uploading ? (
+                                      <div className="w-6 h-6 bg-blue-100 rounded flex items-center justify-center">
+                                        <div className="w-3 h-3 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                                      </div>
+                                    ) : fileInfo.error ? (
+                                      <div className="w-6 h-6 bg-red-100 rounded flex items-center justify-center">
+                                        <svg className="w-3 h-3 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                      </div>
+                                    ) : fileInfo.filePath ? (
+                                      <div className="w-6 h-6 bg-green-100 rounded flex items-center justify-center">
+                                        <svg className="w-3 h-3 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                        </svg>
+                                      </div>
+                                    ) : (
+                                      <div className="w-6 h-6 bg-px-cyan/10 rounded flex items-center justify-center">
+                                        <svg className="w-3 h-3 text-px-cyan" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                        </svg>
+                                      </div>
+                                    )}
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-sm font-medium text-px-fg truncate">{fileInfo.fileName}</p>
+                                      <div className="flex items-center space-x-2">
+                                        <p className="text-xs text-px-muted">{(fileInfo.fileSize / 1024 / 1024).toFixed(2)} MB</p>
+                                        {fileInfo.uploading && (
+                                          <span className="text-xs text-blue-600">Uploading...</span>
+                                        )}
+                                        {fileInfo.error && (
+                                          <span className="text-xs text-red-600 truncate">{fileInfo.error}</span>
+                                        )}
+                                        {fileInfo.filePath && (
+                                          <span className="text-xs text-green-600">✓ Uploaded</span>
+                                        )}
+                                      </div>
                                     </div>
                                   </div>
-                                  <button
-                                    onClick={() => removeFile(index)}
-                                    className="text-red-500 hover:text-red-700 transition-colors"
-                                  >
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                    </svg>
-                                  </button>
+                                  {!fileInfo.uploading && (
+                                    <button
+                                      onClick={() => removeFile(index)}
+                                      className="text-red-500 hover:text-red-700 transition-colors ml-2 flex-shrink-0"
+                                      title="Remove file"
+                                    >
+                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                      </svg>
+                                    </button>
+                                  )}
                                 </div>
                               ))}
                             </div>
@@ -876,8 +1016,10 @@ export default function ServicePage() {
 
             {/* Sidebar - Quote Summary */}
             {service.calculatorAvailable && (
-              <div className="lg:sticky lg:top-20">
-                <Card className="p-6">
+              <div 
+                className="lg:sticky lg:top-[76px] lg:self-start lg:h-fit"
+              >
+                <Card className="p-6 shadow-lg">
                   <div className="mb-4">
                     <h3 className="text-lg font-semibold text-px-fg">{service.name}</h3>
                     <p className="text-sm text-px-muted">Quantity: {qty} pieces</p>
@@ -905,7 +1047,15 @@ export default function ServicePage() {
                             <span>£{(quote.breakdown.net || 0).toFixed(2)}</span>
                           </div>
                           <div className="flex justify-between text-sm text-px-muted">
-                            <span>VAT (20%)</span>
+                            <span>
+                              {(() => {
+                                const net = quote.breakdown.net || 0;
+                                const vat = quote.breakdown.vat || 0;
+                                // Вычисляем процент VAT: если net > 0, то процент = (vat / net) * 100, иначе 0%
+                                const vatPercent = net > 0 ? Math.round((vat / net) * 100) : 0;
+                                return `VAT (${vatPercent}%)`;
+                              })()}
+                            </span>
                             <span>£{(quote.breakdown.vat || 0).toFixed(2)}</span>
                           </div>
                           <div className="flex justify-between text-lg font-semibold mt-2">
