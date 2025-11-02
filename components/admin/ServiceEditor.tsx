@@ -1009,11 +1009,46 @@ export default function ServiceEditor({ serviceSlug, serviceName, onClose }: Ser
           }
           
           // Получаем тиры для этой комбинации
-          // Приоритет: 1) существующая строка, 2) главный параметр, 3) любой параметр с тирами
-          let tiers: Array<{ qty: number; unit: number }> = [];
+          // ПРИОРИТЕТ ИЗМЕНЕН: 1) тиры из параметров (редактированные пользователем), 2) существующие из БД
+          // Это позволяет сохранять новые тиры, добавленные пользователем
+          let tiers: Array<{ qty: number; unit: number; includeVat?: boolean }> = [];
           
-          // Если в существующей строке есть тиры - используем их (это сохраняет существующие тиры комбинации)
-          if (existingRow && existingRow.tiers && existingRow.tiers.length > 0) {
+          // СНАЧАЛА ищем тиры из параметров комбинации (что редактировал пользователь)
+          // Сначала пробуем главный параметр
+          if (mainParam && combination[mainParam.name]) {
+            const mainOptionValue = combination[mainParam.name];
+            const mainOption = mainParam.options.find(opt => opt.name === mainOptionValue);
+            if (mainOption && mainOption.tiers.length > 0) {
+              tiers = mainOption.tiers.map(t => ({
+                qty: t.quantity,
+                unit: t.price,
+                includeVat: t.includeVat !== false // По умолчанию true
+              }));
+              console.log(`📊 Using tiers from main parameter "${mainParam.name}" option "${mainOptionValue}":`, tiers.length);
+            }
+          }
+          
+          // Если главный параметр не дал тиров, ищем в любом параметре комбинации
+          if (tiers.length === 0) {
+            for (const [paramName, optionValue] of Object.entries(combination)) {
+              const param = parameters.find((p: Parameter) => p.name === paramName);
+              if (param) {
+                const option = param.options.find((opt: ParameterOption) => opt.name === optionValue);
+                if (option && option.tiers.length > 0) {
+                  tiers = option.tiers.map((t: PriceTier) => ({
+                    qty: t.quantity,
+                    unit: t.price,
+                    includeVat: t.includeVat !== false
+                  }));
+                  console.log(`📊 Using tiers from parameter "${paramName}" option "${optionValue}":`, tiers.length);
+                  break; // Используем первые найденные тиры
+                }
+              }
+            }
+          }
+          
+          // ТОЛЬКО ЕСЛИ тиров в параметрах нет - используем существующие из БД (fallback)
+          if (tiers.length === 0 && existingRow && existingRow.tiers && existingRow.tiers.length > 0) {
             const rowAttrs = typeof existingRow.attrs === 'string' ? JSON.parse(existingRow.attrs) : existingRow.attrs;
             const defaultIncludeVat = rowAttrs._includeVat !== 'false'; // По умолчанию true
             tiers = existingRow.tiers.map((t: any) => ({
@@ -1021,38 +1056,7 @@ export default function ServiceEditor({ serviceSlug, serviceName, onClose }: Ser
               unit: t.unit,
               includeVat: defaultIncludeVat
             }));
-          } else {
-            // Если тиров в существующей строке нет, ищем тиры из параметров комбинации
-            // Сначала пробуем главный параметр
-            if (mainParam && combination[mainParam.name]) {
-              const mainOptionValue = combination[mainParam.name];
-              const mainOption = mainParam.options.find(opt => opt.name === mainOptionValue);
-              if (mainOption && mainOption.tiers.length > 0) {
-                tiers = mainOption.tiers.map(t => ({
-                  qty: t.quantity,
-                  unit: t.price,
-                  includeVat: t.includeVat !== false // По умолчанию true
-                }));
-              }
-            }
-            
-            // Если главный параметр не дал тиров, ищем в любом параметре комбинации
-            if (tiers.length === 0) {
-              for (const [paramName, optionValue] of Object.entries(combination)) {
-                const param = parameters.find((p: Parameter) => p.name === paramName);
-                if (param) {
-                  const option = param.options.find((opt: ParameterOption) => opt.name === optionValue);
-                  if (option && option.tiers.length > 0) {
-                    tiers = option.tiers.map((t: PriceTier) => ({
-                      qty: t.quantity,
-                      unit: t.price,
-                      includeVat: t.includeVat !== false
-                    }));
-                    break; // Используем первые найденные тиры
-                  }
-                }
-              }
-            }
+            console.log(`📊 Using existing tiers from DB row ${existingRow.id} (fallback):`, tiers.length);
           }
           
           
