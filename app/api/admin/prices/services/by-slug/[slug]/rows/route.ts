@@ -29,84 +29,19 @@ export async function GET(_: Request, context: { params: Promise<any> }) {
     
     console.log('🔍 API ROWS GET: Looking for service with slug:', slug);
     
-    // Безопасная загрузка данных - сначала БЕЗ vat (обратная совместимость)
-    let s;
-    
-    try {
-      console.log('🔍 API ROWS GET: Attempting to query database...');
-      // Сначала загружаем БЕЗ vat - это безопаснее для старых БД
-      s = await prisma.service.findUnique({
-        where: { slug },
-        include: { rows: { 
-          where: { isActive: true },
-          include: { 
-            tiers: {
-              select: {
-                id: true,
-                rowId: true,
-                qty: true,
-                unit: true
-                // Не включаем vat для безопасности - добавим позже если нужно
-              },
-              orderBy: { qty: 'asc' }
-            }
-          }, 
-          orderBy: { id: "asc" } 
-        } }
-      });
-      console.log('🔍 API ROWS GET: Database query completed');
-    } catch (dbError: any) {
-      console.error('❌ Database query error:', dbError);
-      console.error('❌ DB Error details:', {
-        message: dbError?.message,
-        name: dbError?.name,
-        code: dbError?.code,
-        meta: dbError?.meta
-      });
-      
-      // Специальная обработка для разных типов ошибок
-      if (dbError?.code === 'P1001') {
-        return NextResponse.json({ 
-          ok: false, 
-          error: "Database connection error",
-          errorMessage: "Cannot reach database server"
-        }, { status: 503 });
-      }
-      
-      // P2022 = Column does not exist (например, vat в таблице Tier)
-      // P2021 = Table does not exist
-      if (dbError?.code === 'P2021' || dbError?.code === 'P2022' || dbError?.message?.includes('does not exist')) {
-        console.error('❌ Database schema mismatch - column or table does not exist');
-        console.error('❌ This usually means the database schema needs to be migrated');
-        console.error('❌ Error:', dbError?.message);
-        return NextResponse.json({ 
-          ok: false, 
-          error: "Database schema error",
-          errorMessage: process.env.NODE_ENV === 'development' ? dbError?.message : undefined,
-          errorCode: dbError?.code,
-          hint: "Please run database migration: npm run db:push"
-        }, { status: 500 });
-      }
-      
-      // Пробрасываем дальше для общей обработки
-      throw dbError;
-    }
-    
-    // Если данные загрузились, добавляем vat: null ко всем tiers
-    if (s && s.rows) {
-      try {
-        s.rows = s.rows.map(row => ({
-          ...row,
-          tiers: (row.tiers || []).map((tier: any) => ({
-            ...tier,
-            vat: null // По умолчанию null (auto-calculate) до миграции БД
-          }))
-        }));
-      } catch (mapError: any) {
-        console.error('❌ Error mapping tiers:', mapError);
-        // Не прерываем выполнение, просто логируем
-      }
-    }
+    // Простая загрузка через include - Prisma сам загрузит все поля, включая vat если оно есть
+    const s = await prisma.service.findUnique({
+      where: { slug },
+      include: { rows: { 
+        where: { isActive: true },
+        include: { 
+          tiers: {
+            orderBy: { qty: 'asc' }
+          }
+        }, 
+        orderBy: { id: "asc" } 
+      } }
+    });
     
     console.log('🔍 API ROWS GET: Service found:', s ? `id=${s.id}, name=${s.name}, rows=${s.rows?.length || 0}` : 'null');
     
