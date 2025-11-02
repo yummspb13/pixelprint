@@ -1491,7 +1491,7 @@ function TierEditor({ row, onSaved }:{ row: Row; onSaved: (oldTiers: any[], newT
           Edit
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-5xl mx-2 sm:mx-4 w-[calc(100vw-1rem)] sm:w-auto max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-7xl mx-2 sm:mx-4 w-[calc(100vw-1rem)] sm:w-auto max-h-[90vh] overflow-y-auto">
         <DialogHeader className="pb-2">
           <DialogTitle className="text-sm sm:text-base">Tiers for row #{row.id}</DialogTitle>
         </DialogHeader>
@@ -1512,15 +1512,15 @@ function TierEditor({ row, onSaved }:{ row: Row; onSaved: (oldTiers: any[], newT
             <div className="text-xs sm:text-sm font-medium text-zinc-700">Pricing Tiers</div>
             
             {/* Таблица с 4 колонками */}
-            <div className="border rounded-lg overflow-hidden">
-              <table className="w-full text-xs sm:text-sm">
+            <div className="border rounded-lg overflow-hidden overflow-x-auto">
+              <table className="w-full text-xs sm:text-sm min-w-[600px]">
                 <thead className="bg-zinc-100 border-b">
                   <tr>
-                    <th className="px-3 py-2 text-left font-medium text-zinc-700">Quantity</th>
-                    <th className="px-3 py-2 text-left font-medium text-zinc-700">Unit Price</th>
-                    <th className="px-3 py-2 text-left font-medium text-zinc-700">VAT</th>
-                    <th className="px-3 py-2 text-left font-medium text-zinc-700">Total Price</th>
-                    <th className="px-3 py-2 text-center font-medium text-zinc-700 w-16">Action</th>
+                    <th className="px-4 py-2 text-left font-medium text-zinc-700 min-w-[120px]">Quantity</th>
+                    <th className="px-4 py-2 text-left font-medium text-zinc-700 min-w-[130px]">Unit Price</th>
+                    <th className="px-4 py-2 text-left font-medium text-zinc-700 min-w-[140px]">VAT</th>
+                    <th className="px-4 py-2 text-left font-medium text-zinc-700 min-w-[160px]">Total Price</th>
+                    <th className="px-3 py-2 text-center font-medium text-zinc-700 w-20">Action</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1532,27 +1532,27 @@ function TierEditor({ row, onSaved }:{ row: Row; onSaved: (oldTiers: any[], newT
                     
                     return (
                       <tr key={i} className="border-b hover:bg-zinc-50">
-                        <td className="px-3 py-2">
+                        <td className="px-4 py-2">
                           <Input 
                             type="number" 
                             value={t.qty} 
                             onChange={e=> updateTier(i, {qty:Number(e.target.value)})} 
-                            className="h-8 text-xs"
+                            className="h-8 text-xs w-full min-w-[100px]"
                             placeholder="100"
                           />
                         </td>
-                        <td className="px-3 py-2">
+                        <td className="px-4 py-2">
                           <Input 
                             type="number" 
                             step="0.01" 
                             value={t.unit} 
                             onChange={e=> updateTier(i, {unit:Number(e.target.value)})} 
-                            className="h-8 text-xs"
+                            className="h-8 text-xs w-full min-w-[110px]"
                             placeholder="0.00"
                           />
                         </td>
-                        <td className="px-3 py-2">
-                          <div className="flex items-center gap-1">
+                        <td className="px-4 py-2">
+                          <div className="flex items-center gap-2 min-w-[120px]">
                             <Input 
                               type="number" 
                               step="0.01" 
@@ -1573,17 +1573,17 @@ function TierEditor({ row, onSaved }:{ row: Row; onSaved: (oldTiers: any[], newT
                                   updateTier(i, {vat: 0});
                                 }
                               }}
-                              className="h-8 text-xs flex-1"
+                              className="h-8 text-xs w-full min-w-[100px]"
                               placeholder="Auto"
                               title={t.vat === null ? "Auto-calculated (20%). Click to edit." : t.vat === 0 ? "No VAT" : "Manual VAT amount"}
                             />
                             {t.vat === null && (
-                              <span className="text-xs text-zinc-400">(auto)</span>
+                              <span className="text-xs text-zinc-400 whitespace-nowrap">(auto)</span>
                             )}
                           </div>
                         </td>
-                        <td className="px-3 py-2">
-                          <div className="flex flex-col">
+                        <td className="px-4 py-2">
+                          <div className="flex flex-col min-w-[140px]">
                             <span className="font-medium text-zinc-900">£{totalPrice.toFixed(2)}</span>
                             <span className="text-xs text-zinc-400">
                               (£{netTotal.toFixed(2)} + £{vatAmount.toFixed(2)})
