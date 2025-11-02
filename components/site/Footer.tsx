@@ -119,15 +119,15 @@ export default function Footer() {
             <div className="space-y-3 text-sm text-gray-300">
               <div className="flex items-center space-x-3">
                 <MapPin className="h-4 w-4 text-px-cyan" />
-                <span>123 Print Street, London EC1A 4HD</span>
+                <span>Unit 6 Epsom Downs Metro Centre Waterfield, Tadworth KT20 5LR</span>
               </div>
               <div className="flex items-center space-x-3">
                 <Phone className="h-4 w-4 text-px-cyan" />
-                <span>+44 20 7123 4567</span>
+                <a href="tel:+441372740113" className="hover:text-px-cyan transition-colors">01372 740 113</a>
               </div>
               <div className="flex items-center space-x-3">
                 <Mail className="h-4 w-4 text-px-cyan" />
-                <span>hello@pixelprint.london</span>
+                <a href="mailto:sales@pixeldigitalprinting.com" className="hover:text-px-cyan transition-colors">sales@pixeldigitalprinting.com</a>
               </div>
             </div>
             <div className="pt-4">

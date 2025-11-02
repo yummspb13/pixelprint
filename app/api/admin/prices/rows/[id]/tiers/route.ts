@@ -7,13 +7,18 @@ export const runtime = 'nodejs';
 
 export async function PUT(req: Request, context: { params: Promise<any> }) {
   const { id } = await context.params;
-  const { tiers = [], setup = null } = await req.json(); // tiers: [{qty,unit}]
+  const { tiers = [], setup = null } = await req.json(); // tiers: [{qty, unit, vat?}]
   const rowId = Number(id);
   await prisma.$transaction([
     prisma.tier.deleteMany({ where: { rowId } }),
     prisma.priceRow.update({ where: { id: rowId }, data: { setup } }),
     prisma.tier.createMany({
-      data: tiers.map((t: any) => ({ rowId, qty: Number(t.qty), unit: Number(t.unit) }))
+      data: tiers.map((t: any) => ({ 
+        rowId, 
+        qty: Number(t.qty), 
+        unit: Number(t.unit),
+        vat: t.vat !== undefined && t.vat !== null ? Number(t.vat) : null // null = auto-calculate, 0 = no VAT, >0 = custom VAT
+      }))
     })
   ]);
   revalidateTag(PRICING_TAG);

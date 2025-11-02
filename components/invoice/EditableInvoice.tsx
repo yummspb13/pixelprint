@@ -280,7 +280,7 @@ export default function EditableInvoice({ orderData, onClose, onSave }: Editable
       company: companySettings?.company || {
         name: "Pixel Print Ltd",
         address: "123 Business Street\nLondon, UK\nSW1A 1AA",
-        phone: "+44 20 1234 5678",
+        phone: "+44 1372 740 113",
         email: "info@pixelprint.com",
         website: "www.pixelprint.com",
         vatNumber: "GB123456789"

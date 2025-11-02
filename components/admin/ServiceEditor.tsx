@@ -26,6 +26,7 @@ interface ParameterOption {
   name: string;
   tiers: PriceTier[];
   originalRowId?: number; // ID оригинальной строки в базе данных
+  originalName?: string; // Исходное имя опции для отслеживания переименований
   modifierType?: 'absolute' | 'percent' | 'none'; // Тип модификатора цены
   modifierValue?: number; // Значение модификатора
 }
@@ -34,6 +35,7 @@ interface PriceTier {
   id: string;
   quantity: number;
   price: number;
+  includeVat?: boolean; // Включен ли VAT для этого тира (по умолчанию true)
   originalTierId?: number; // ID оригинального тира в базе данных
 }
 
@@ -50,6 +52,7 @@ export default function ServiceEditor({ serviceSlug, serviceName, onClose }: Ser
   const [showExistingParams, setShowExistingParams] = useState(false);
   const [previewPrice, setPreviewPrice] = useState<number | null>(null);
   const [previewModifiers, setPreviewModifiers] = useState<any[]>([]);
+  const [initialParameters, setInitialParameters] = useState<Parameter[]>([]); // Для отслеживания удаленных параметров
 
   useEffect(() => {
     loadExistingParameters();
@@ -67,6 +70,7 @@ export default function ServiceEditor({ serviceSlug, serviceName, onClose }: Ser
         const existingParams = parseExistingParameters(data.rows);
         console.log('🔍 ServiceEditor: Parsed parameters:', existingParams);
         setParameters(existingParams);
+        setInitialParameters(existingParams); // Сохраняем начальное состояние для отслеживания удалений
       }
     } catch (error) {
       console.error('Error loading parameters:', error);
@@ -79,77 +83,46 @@ export default function ServiceEditor({ serviceSlug, serviceName, onClose }: Ser
   const parseExistingParameters = (rows: any[]) => {
     console.log('🔍 Parsing existing rows:', rows);
     
-    // Создаем карту параметров
+    // Фильтруем только активные строки
+    const activeRows = rows.filter((row: any) => row.isActive !== false);
+    console.log(`🔍 Active rows: ${activeRows.length} out of ${rows.length}`);
+    
+    // НОВАЯ УПРОЩЕННАЯ ЛОГИКА: собираем ВСЕ параметры из ВСЕХ строк
     const paramMap = new Map<string, Parameter>();
-    const combinationRows: Array<{ attrs: Record<string, string>; tiers: any[]; rowId: number }> = [];
     
-    // Разделяем строки на комбинации (несколько параметров) и отдельные параметры (add-ons)
-    rows.forEach(row => {
+    // Структура для хранения данных всех строк
+    const rowsData: Array<{
+      attrs: Record<string, string>;
+      tiers: any[];
+      rowId: number;
+      includeVat: boolean;
+      paramCount: number;
+    }> = [];
+    
+    // ПРОХОД 1: Собираем все параметры и опции из всех строк
+    activeRows.forEach(row => {
       const attrs = typeof row.attrs === 'string' ? JSON.parse(row.attrs) : row.attrs;
-      const attrsForMatch = { ...attrs };
-      delete attrsForMatch._isMain;
+      const cleanAttrs: Record<string, string> = {};
       
-      const paramCount = Object.keys(attrsForMatch).length;
+      // Очищаем от служебных полей
+      Object.entries(attrs).forEach(([key, value]) => {
+        if (key.startsWith('_') || 
+            ['PRICE', 'NET PRICE', 'VAT', 'Price +VAT', 'Qty'].includes(key)) {
+          return;
+        }
+        if (typeof value === 'string' && value.trim() !== '') {
+          cleanAttrs[key] = value.trim();
+        }
+      });
       
-      if (paramCount > 1) {
-        // Это комбинация параметров
-        combinationRows.push({
-          attrs: attrsForMatch,
-          tiers: row.tiers || [],
-          rowId: row.id
-        });
-      } else if (paramCount === 1) {
-        // Это отдельный параметр (может быть add-on)
-        // Извлекаем для параметра
-        Object.entries(attrsForMatch).forEach(([paramName, optionValue]) => {
-          if (!paramMap.has(paramName)) {
-            paramMap.set(paramName, {
-              id: paramName.toLowerCase().replace(/\s+/g, '-'),
-              name: paramName,
-              affectsPrice: true,
-              priceType: 'all',
-              parameterType: 'single',
-              isMain: false,
-              isAddon: false, // По умолчанию не add-on
-              options: []
-            });
-          }
-          
-          const param = paramMap.get(paramName)!;
-          const optionName = optionValue as string;
-          
-          let existingOption = param.options.find(opt => opt.name === optionName);
-          
-          if (!existingOption) {
-            existingOption = {
-              id: `${paramName.toLowerCase().replace(/\s+/g, '-')}-${optionName.toLowerCase().replace(/\s+/g, '-')}`,
-              name: optionName,
-              tiers: [],
-              originalRowId: row.id
-            };
-            param.options.push(existingOption);
-          }
-          
-          // Добавляем тиры
-          if (row.tiers && row.tiers.length > 0) {
-            row.tiers.forEach((tier: any) => {
-              if (!existingOption.tiers.find(t => t.originalTierId === tier.id)) {
-                existingOption.tiers.push({
-                  id: `tier-${tier.id}`,
-                  quantity: tier.qty,
-                  price: tier.unit,
-                  originalTierId: tier.id
-                });
-              }
-            });
-          }
-        });
-      }
-    });
-    
-    // Обрабатываем комбинации: извлекаем уникальные значения для каждого параметра
-    combinationRows.forEach(combo => {
-      Object.entries(combo.attrs).forEach(([paramName, optionValue]) => {
+      if (Object.keys(cleanAttrs).length === 0) return;
+      
+      const paramCount = Object.keys(cleanAttrs).length;
+      const includeVat = attrs._includeVat !== 'false';
+      
+      // Извлекаем все параметры и опции из этой строки
+      Object.entries(cleanAttrs).forEach(([paramName, optionValue]) => {
+        // Создаем параметр, если его еще нет
         if (!paramMap.has(paramName)) {
           paramMap.set(paramName, {
             id: paramName.toLowerCase().replace(/\s+/g, '-'),
@@ -166,20 +139,101 @@ export default function ServiceEditor({ serviceSlug, serviceName, onClose }: Ser
         const param = paramMap.get(paramName)!;
         const optionName = optionValue as string;
         
+        // Создаем опцию, если ее еще нет
         let existingOption = param.options.find(opt => opt.name === optionName);
-        
         if (!existingOption) {
           existingOption = {
-            id: `${paramName.toLowerCase().replace(/\s+/g, '-')}-${optionName.toLowerCase().replace(/\s+/g, '-')}`,
+            id: `${paramName.toLowerCase().replace(/\s+/g, '-')}-${optionName.toLowerCase().replace(/\s+/g, '-')}-${row.id}`,
             name: optionName,
             tiers: [],
-            originalRowId: combo.rowId
+            originalRowId: row.id,
+            originalName: optionName // Сохраняем исходное имя при создании
           };
           param.options.push(existingOption);
+        } else {
+          // Если опция уже существует, обновляем originalName если его нет
+          if (!existingOption.originalName) {
+            existingOption.originalName = optionName;
+          }
         }
+      });
+      
+      // Сохраняем данные строки для второго прохода
+      rowsData.push({
+        attrs: cleanAttrs,
+        tiers: row.tiers || [],
+        rowId: row.id,
+        includeVat,
+        paramCount
+      });
+    });
+    
+    // ПРОХОД 2: Собираем тиры для каждой опции
+    // Приоритет: комбинации (paramCount > 1) имеют приоритет над одиночными параметрами
+    // Сначала обрабатываем комбинации, потом одиночные параметры
+    const sortedRowsData = [...rowsData].sort((a, b) => {
+      // Комбинации первыми, потом одиночные
+      if (a.paramCount > 1 && b.paramCount === 1) return -1;
+      if (a.paramCount === 1 && b.paramCount > 1) return 1;
+      return 0;
+    });
+    
+    sortedRowsData.forEach(rowData => {
+      if (rowData.tiers.length === 0) return;
+      
+      // Для каждой опции в этой строке добавляем тиры
+      Object.entries(rowData.attrs).forEach(([paramName, optionValue]) => {
+        const param = paramMap.get(paramName);
+        if (!param) return;
         
-        // Для комбинаций тиры хранятся в самой комбинации, но можем добавить для референса
-        // В новой структуре тиры будут редактироваться для каждой комбинации отдельно
+        const option = param.options.find(opt => opt.name === optionValue);
+        if (!option) return;
+        
+        // Логика добавления тиров:
+        // - Если это комбинация (paramCount > 1): заменяем тиры полностью
+        // - Если это одиночный параметр (paramCount === 1): добавляем только если опция пустая
+        const isCombination = rowData.paramCount > 1;
+        const shouldReplaceTiers = isCombination;
+        const shouldAddTiers = !isCombination && option.tiers.length === 0;
+        
+        if (shouldReplaceTiers) {
+          // Очищаем и добавляем тиры из комбинации
+          option.tiers = [];
+          rowData.tiers.forEach((tier: any) => {
+            const duplicateTier = option.tiers.find(t => 
+              t.originalTierId === tier.id || 
+              (t.quantity === tier.qty && t.price === tier.unit)
+            );
+            
+            if (!duplicateTier) {
+              option.tiers.push({
+                id: `tier-${tier.id}-${rowData.rowId}`,
+                quantity: tier.qty,
+                price: tier.unit,
+                includeVat: rowData.includeVat,
+                originalTierId: tier.id
+              });
+            }
+          });
+        } else if (shouldAddTiers) {
+          // Добавляем тиры для одиночного параметра только если опция пустая
+          rowData.tiers.forEach((tier: any) => {
+            const duplicateTier = option.tiers.find(t => 
+              t.originalTierId === tier.id || 
+              (t.quantity === tier.qty && t.price === tier.unit)
+            );
+            
+            if (!duplicateTier) {
+              option.tiers.push({
+                id: `tier-${tier.id}-${rowData.rowId}`,
+                quantity: tier.qty,
+                price: tier.unit,
+                includeVat: rowData.includeVat,
+                originalTierId: tier.id
+              });
+            }
+          });
+        }
       });
     });
     
@@ -196,7 +250,7 @@ export default function ServiceEditor({ serviceSlug, serviceName, onClose }: Ser
     }
     
     console.log('🔍 Parsed parameters:', result);
-    console.log('🔍 Found combinations:', combinationRows.length);
+    console.log(`🔍 Total parameters: ${result.length}, Total rows processed: ${rowsData.length}`);
     return result;
   };
 
@@ -256,6 +310,17 @@ export default function ServiceEditor({ serviceSlug, serviceName, onClose }: Ser
   };
 
   const deleteParameter = (paramId: string) => {
+    const param = parameters.find(p => p.id === paramId);
+    if (!param) return;
+    
+    // Валидация: проверяем, есть ли у параметра опции с тирами
+    const optionsWithTiers = param.options.filter(opt => opt.tiers && opt.tiers.length > 0);
+    if (optionsWithTiers.length > 0) {
+      const totalTiers = optionsWithTiers.reduce((sum, opt) => sum + opt.tiers.length, 0);
+      toast.error(`Cannot delete parameter "${param.name}" because it has ${totalTiers} price tier(s) in ${optionsWithTiers.length} option(s). Please delete all tiers first.`);
+      return;
+    }
+    
     setParameters(prev => prev.filter(param => param.id !== paramId));
   };
 
@@ -280,8 +345,20 @@ export default function ServiceEditor({ serviceSlug, serviceName, onClose }: Ser
   };
 
   const deleteOption = (paramId: string, optionId: string) => {
+    const param = parameters.find(p => p.id === paramId);
+    if (!param) return;
+    
+    const option = param.options.find(opt => opt.id === optionId);
+    if (!option) return;
+    
+    // Валидация: нельзя удалить опцию, если у нее есть тиры
+    if (option.tiers && option.tiers.length > 0) {
+      toast.error(`Cannot delete option "${option.name}" because it has ${option.tiers.length} price tier(s). Please delete all tiers first.`);
+      return;
+    }
+    
     updateParameter(paramId, {
-      options: parameters.find(p => p.id === paramId)?.options.filter(opt => opt.id !== optionId) || []
+      options: param.options.filter(opt => opt.id !== optionId)
     });
   };
 
@@ -293,7 +370,8 @@ export default function ServiceEditor({ serviceSlug, serviceName, onClose }: Ser
     const newTier: PriceTier = {
       id: `tier-${Date.now()}`,
       quantity: 100,
-      price: 1
+      price: 1,
+      includeVat: true // По умолчанию VAT включен
     };
 
     updateOption(paramId, optionId, {
@@ -317,6 +395,12 @@ export default function ServiceEditor({ serviceSlug, serviceName, onClose }: Ser
     const param = parameters.find(p => p.id === paramId);
     const option = param?.options.find(o => o.id === optionId);
     if (!option) return;
+
+    // Валидация: нельзя удалить последний тир, если это единственный тир в опции
+    if (option.tiers.length === 1) {
+      toast.error('Cannot delete the last price tier. Please add another tier first or delete the option.');
+      return;
+    }
 
     updateOption(paramId, optionId, {
       tiers: option.tiers.filter(tier => tier.id !== tierId)
@@ -353,6 +437,25 @@ export default function ServiceEditor({ serviceSlug, serviceName, onClose }: Ser
       console.log('🔍 Starting save process...');
       console.log('🔍 Current parameters:', parameters);
       
+      // Валидация: проверяем, что есть хотя бы один параметр с опциями
+      const validParams = parameters.filter(p => p.name.trim() && p.options.length > 0);
+      if (validParams.length === 0) {
+        toast.error('Please add at least one parameter with options before saving');
+        setSaving(false);
+        return;
+      }
+      
+      // Валидация: проверяем, что все опции имеют непустые имена
+      for (const param of validParams) {
+        for (const option of param.options) {
+          if (!option.name.trim()) {
+            toast.error(`Please fill in all option names for parameter "${param.name}"`);
+            setSaving(false);
+            return;
+          }
+        }
+      }
+      
       // Получаем существующие строки
       const response = await fetch(`/api/admin/prices/services/by-slug/${serviceSlug}/rows`);
       const data = await response.json();
@@ -363,13 +466,283 @@ export default function ServiceEditor({ serviceSlug, serviceName, onClose }: Ser
       
       console.log('🔍 Existing rows before save:', data.rows);
       
+      // Определяем удаленные параметры (сравниваем initialParameters с текущими)
+      const currentParamNames = new Set(parameters.map(p => p.name));
+      const deletedParamNames = initialParameters
+        .filter(p => !currentParamNames.has(p.name))
+        .map(p => p.name);
+      
+      if (deletedParamNames.length > 0) {
+        console.log(`🗑️ Detected deleted parameters: ${deletedParamNames.join(', ')}`);
+      }
+      
+      // Создаем карту исходных имен для отслеживания переименований
+      // Структура: paramName -> optionOriginalName -> optionCurrentName
+      const originalToCurrentNamesMap = new Map<string, Map<string, string>>();
+      initialParameters.forEach(initialParam => {
+        const currentParam = parameters.find(p => p.id === initialParam.id);
+        if (!currentParam) return; // Параметр удален
+        
+        const optionMap = new Map<string, string>();
+        initialParam.options.forEach(initialOption => {
+          const currentOption = currentParam.options.find(opt => opt.id === initialOption.id);
+          if (currentOption && currentOption.name !== initialOption.name) {
+            // Опция переименована
+            optionMap.set(initialOption.name, currentOption.name);
+            console.log(`🔄 Renamed option: "${initialParam.name}" "${initialOption.name}" → "${currentOption.name}"`);
+          }
+        });
+        if (optionMap.size > 0) {
+          originalToCurrentNamesMap.set(currentParam.name, optionMap);
+        }
+      });
+      
+      // Также проверяем переименование параметров
+      const renamedParamsMap = new Map<string, string>(); // oldName -> newName
+      initialParameters.forEach(initialParam => {
+        const currentParam = parameters.find(p => p.id === initialParam.id);
+        if (currentParam && initialParam.name !== currentParam.name) {
+          renamedParamsMap.set(initialParam.name, currentParam.name);
+          console.log(`🔄 Renamed parameter: "${initialParam.name}" → "${currentParam.name}"`);
+        }
+      });
+      
+      // Объявляем processedRowIds один раз для всей функции
+      const processedRowIds = new Set<number>();
+      
+      // Функция миграции: создаем новые строки без удаленных параметров, сохраняя тиры
+      const migrateDeletedParameterRows = async (deletedParams: string[]) => {
+        if (deletedParams.length === 0) return;
+        
+        // Находим все строки, содержащие удаленные параметры
+        const rowsToMigrate: Array<{
+          row: any;
+          newAttrs: Record<string, string>;
+          tiers: any[];
+          includeVat: boolean;
+        }> = [];
+        
+        data.rows.forEach((row: any) => {
+          if (row.isActive === false) return;
+          
+          const rowAttrs = typeof row.attrs === 'string' ? JSON.parse(row.attrs) : row.attrs;
+          const cleanAttrs: Record<string, string> = {};
+          
+          // Очищаем от служебных полей
+          Object.entries(rowAttrs).forEach(([key, value]) => {
+            if (key.startsWith('_') || 
+                ['PRICE', 'NET PRICE', 'VAT', 'Price +VAT', 'Qty'].includes(key)) {
+              return;
+            }
+            if (typeof value === 'string' && value.trim() !== '') {
+              cleanAttrs[key] = value.trim();
+            }
+          });
+          
+          // Проверяем, содержит ли строка удаленные параметры
+          const containsDeletedParam = deletedParams.some(deletedParam => cleanAttrs[deletedParam]);
+          if (!containsDeletedParam) return;
+          
+          // Создаем новые attrs без удаленных параметров
+          const newAttrs: Record<string, string> = {};
+          Object.entries(cleanAttrs).forEach(([key, value]) => {
+            if (!deletedParams.includes(key)) {
+              newAttrs[key] = value;
+            }
+          });
+          
+          // Если после удаления остались параметры - мигрируем
+          if (Object.keys(newAttrs).length > 0) {
+            rowsToMigrate.push({
+              row,
+              newAttrs,
+              tiers: row.tiers || [],
+              includeVat: rowAttrs._includeVat !== 'false'
+            });
+          }
+        });
+        
+        // Обрабатываем строки, которые нужно полностью удалить (не осталось параметров)
+        const rowsToDelete: any[] = [];
+        data.rows.forEach((row: any) => {
+          if (row.isActive === false) return;
+          
+          const rowAttrs = typeof row.attrs === 'string' ? JSON.parse(row.attrs) : row.attrs;
+          const cleanAttrs: Record<string, string> = {};
+          
+          Object.entries(rowAttrs).forEach(([key, value]) => {
+            if (key.startsWith('_') || 
+                ['PRICE', 'NET PRICE', 'VAT', 'Price +VAT', 'Qty'].includes(key)) {
+              return;
+            }
+            if (typeof value === 'string' && value.trim() !== '') {
+              cleanAttrs[key] = value.trim();
+            }
+          });
+          
+          const containsDeletedParam = deletedParams.some(deletedParam => cleanAttrs[deletedParam]);
+          if (!containsDeletedParam) return;
+          
+          const newAttrs: Record<string, string> = {};
+          Object.entries(cleanAttrs).forEach(([key, value]) => {
+            if (!deletedParams.includes(key)) {
+              newAttrs[key] = value;
+            }
+          });
+          
+          // Если после удаления не осталось параметров - удаляем строку
+          if (Object.keys(newAttrs).length === 0) {
+            rowsToDelete.push(row);
+          }
+        });
+        
+        // Удаляем строки без параметров
+        for (const row of rowsToDelete) {
+          await fetch(`/api/admin/prices/services/by-slug/${serviceSlug}/rows/${row.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              attrs: row.attrs,
+              ruleKind: row.ruleKind,
+              unit: row.unit,
+              setup: row.setup,
+              fixed: row.fixed,
+              isActive: false
+            })
+          });
+          processedRowIds.add(row.id);
+          console.log(`🗑️ Deactivated row ${row.id} (no parameters left after deletion)`);
+        }
+        
+        console.log(`🔄 Migrating ${rowsToMigrate.length} rows after parameter deletion`);
+        
+        // Создаем новые строки с мигрированными данными
+        for (const migration of rowsToMigrate) {
+          const finalAttrs: Record<string, any> = {
+            ...migration.newAttrs,
+            _includeVat: migration.includeVat ? 'true' : 'false'
+          };
+          
+          // Проверяем, нет ли уже такой строки
+          const existingRow = data.rows.find((r: any) => {
+            if (r.isActive === false) return false;
+            const rAttrs = typeof r.attrs === 'string' ? JSON.parse(r.attrs) : r.attrs;
+            const rCleanAttrs: Record<string, string> = {};
+            
+            Object.entries(rAttrs).forEach(([key, value]) => {
+              if (key.startsWith('_') || 
+                  ['PRICE', 'NET PRICE', 'VAT', 'Price +VAT', 'Qty'].includes(key)) {
+                return;
+              }
+              if (typeof value === 'string' && value.trim() !== '') {
+                rCleanAttrs[key] = value.trim();
+              }
+            });
+            
+            const matches = JSON.stringify(Object.keys(rCleanAttrs).sort().reduce((acc, k) => {
+              acc[k] = rCleanAttrs[k];
+              return acc;
+            }, {} as Record<string, string>)) === JSON.stringify(Object.keys(migration.newAttrs).sort().reduce((acc, k) => {
+              acc[k] = migration.newAttrs[k];
+              return acc;
+            }, {} as Record<string, string>));
+            
+            return matches;
+          });
+          
+          if (!existingRow) {
+            // Создаем новую строку
+            const createResponse = await fetch(`/api/admin/prices/services/by-slug/${serviceSlug}/rows`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                attrs: finalAttrs,
+                ruleKind: 'tiers',
+                unit: null,
+                setup: migration.row.setup || 0,
+                fixed: migration.row.fixed || 0
+              })
+            });
+            
+            if (createResponse.ok) {
+              const result = await createResponse.json();
+              const newRowId = result.row.id;
+              
+              // Добавляем тиры
+              if (migration.tiers.length > 0) {
+                const tiersResponse = await fetch(`/api/admin/prices/services/by-slug/${serviceSlug}/rows/${newRowId}/tiers`, {
+                  method: 'PUT',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ 
+                    tiers: migration.tiers.map((t: any) => ({
+                      qty: Number(t.qty) || 0,
+                      unit: Number(t.unit) || 0
+                    }))
+                  })
+                });
+                
+                if (tiersResponse.ok) {
+                  console.log(`✅ Migrated row ${migration.row.id} → ${newRowId} with ${migration.tiers.length} tiers`);
+                }
+              }
+            }
+          } else {
+            // Обновляем существующую строку тирами из мигрированной
+            if (migration.tiers.length > 0) {
+              const tiersResponse = await fetch(`/api/admin/prices/services/by-slug/${serviceSlug}/rows/${existingRow.id}/tiers`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                  tiers: migration.tiers.map((t: any) => ({
+                    qty: Number(t.qty) || 0,
+                    unit: Number(t.unit) || 0
+                  }))
+                })
+              });
+              
+              if (tiersResponse.ok) {
+                console.log(`✅ Updated existing row ${existingRow.id} with migrated tiers from row ${migration.row.id}`);
+              }
+            }
+          }
+          
+          // Помечаем старую строку как неактивную
+          await fetch(`/api/admin/prices/services/by-slug/${serviceSlug}/rows/${migration.row.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              attrs: migration.row.attrs,
+              ruleKind: migration.row.ruleKind,
+              unit: migration.row.unit,
+              setup: migration.row.setup,
+              fixed: migration.row.fixed,
+              isActive: false
+            })
+          });
+          
+          processedRowIds.add(migration.row.id); // Отмечаем как обработанную
+          console.log(`🗑️ Deactivated old row ${migration.row.id}`);
+        }
+      };
+      
+      // Выполняем миграцию перед основной обработкой
+      await migrateDeletedParameterRows(deletedParamNames);
+      
+      // Перезагружаем строки после миграции
+      const refreshResponse = await fetch(`/api/admin/prices/services/by-slug/${serviceSlug}/rows`);
+      const refreshData = await refreshResponse.json();
+      if (refreshData.ok) {
+        data.rows = refreshData.rows;
+      }
+      
       // Создаем карту существующих строк по ID
       const existingRowsMap = new Map();
       data.rows.forEach((row: any) => {
         existingRowsMap.set(row.id, row);
       });
       
-      const processedRowIds = new Set<number>();
+      // Трекер обработанных комбинаций для предотвращения дубликатов в текущей сессии
+      const processedCombinations = new Set<string>();
       
       // Разделяем параметры на базовые (не add-ons) и add-ons
       const baseParams = parameters.filter(p => !p.isAddon && p.options.length > 0);
@@ -426,81 +799,291 @@ export default function ServiceEditor({ serviceSlug, serviceName, onClose }: Ser
       
       for (const combination of combinations) {
         try {
-          // Ищем существующую строку с такой комбинацией
-          let existingRow: any = null;
-          for (const [rowId, row] of Array.from(existingRowsMap.entries())) {
-            const rowAttrs = typeof row.attrs === 'string' ? JSON.parse(row.attrs) : row.attrs;
-            const rowAttrsForMatch = { ...rowAttrs };
-            delete rowAttrsForMatch._isMain;
-            
-            let matches = true;
-            if (Object.keys(rowAttrsForMatch).length !== Object.keys(combination).length) {
-              matches = false;
-            } else {
-              for (const [key, value] of Object.entries(combination)) {
-                if (rowAttrsForMatch[key] !== value) {
-                  matches = false;
-                  break;
-                }
-              }
+          // Фильтруем пустые значения из комбинации
+          const cleanCombination: Record<string, string> = {};
+          Object.entries(combination).forEach(([key, value]) => {
+            if (typeof value === 'string' && value.trim() !== '') {
+              cleanCombination[key] = value.trim();
             }
+          });
+          
+          if (Object.keys(cleanCombination).length === 0) {
+            console.log('⚠️ Skipping empty combination');
+            continue;
+          }
+          
+          // Создаем уникальный ключ для комбинации (без служебных полей)
+          const combinationKey = JSON.stringify(
+            Object.keys(cleanCombination).sort().reduce((acc, key) => {
+              acc[key] = cleanCombination[key];
+              return acc;
+            }, {} as Record<string, string>)
+          );
+          
+          // Проверяем, не обрабатывали ли мы уже эту комбинацию в текущей сессии
+          if (processedCombinations.has(combinationKey)) {
+            console.log(`⚠️ Skipping duplicate combination in current session:`, cleanCombination);
+            continue;
+          }
+          
+          // Ищем существующую строку с такой комбинацией
+          // Пытаемся найти по текущим именам, а также по исходным именам (на случай переименования)
+          let existingRow: any = null;
+          
+          // Сначала пытаемся найти точное совпадение по текущим именам
+          for (const [rowId, row] of Array.from(existingRowsMap.entries())) {
+            if (row.isActive === false) continue;
             
-            if (matches) {
+            const rowAttrs = typeof row.attrs === 'string' ? JSON.parse(row.attrs) : row.attrs;
+            const rowAttrsForMatch: Record<string, string> = {};
+            
+            Object.entries(rowAttrs).forEach(([key, value]) => {
+              if (key.startsWith('_') || 
+                  ['PRICE', 'NET PRICE', 'VAT', 'Price +VAT', 'Qty'].includes(key)) {
+                return;
+              }
+              if (typeof value === 'string' && value.trim() !== '') {
+                rowAttrsForMatch[key] = value.trim();
+              }
+            });
+            
+            const rowKey = JSON.stringify(
+              Object.keys(rowAttrsForMatch).sort().reduce((acc, key) => {
+                acc[key] = rowAttrsForMatch[key];
+                return acc;
+              }, {} as Record<string, string>)
+            );
+            
+            if (combinationKey === rowKey) {
               existingRow = row;
               break;
             }
           }
           
-          // Получаем тиры для этой комбинации из главного параметра
-          let tiers: Array<{ qty: number; unit: number }> = [];
-          
-          if (mainParam && combination[mainParam.name]) {
-            const mainOptionValue = combination[mainParam.name];
-            const mainOption = mainParam.options.find(opt => opt.name === mainOptionValue);
-            if (mainOption && mainOption.tiers.length > 0) {
-              tiers = mainOption.tiers.map(t => ({
-                qty: t.quantity,
-                unit: t.price
-              }));
+          // Если не нашли точное совпадение, ищем по исходным именам (переименование опций или параметров)
+          if (!existingRow) {
+            // Создаем комбинацию с исходными именами для поиска
+            const originalCombination: Record<string, string> = {};
+            Object.entries(cleanCombination).forEach(([paramName, currentOptionName]) => {
+              // Сначала проверяем, переименован ли параметр
+              let originalParamName = paramName;
+              for (const [oldParamName, newParamName] of renamedParamsMap.entries()) {
+                if (newParamName === paramName) {
+                  originalParamName = oldParamName;
+                  break;
+                }
+              }
+              
+              // Теперь проверяем, переименована ли опция
+              const optionNameMap = originalToCurrentNamesMap.get(paramName);
+              let originalOptionName = currentOptionName;
+              if (optionNameMap) {
+                // Ищем обратное соответствие (currentName -> originalName)
+                for (const [origName, currName] of optionNameMap.entries()) {
+                  if (currName === currentOptionName) {
+                    originalOptionName = origName;
+                    break;
+                  }
+                }
+              }
+              
+              originalCombination[originalParamName] = originalOptionName;
+            });
+            
+            const originalCombinationKey = JSON.stringify(
+              Object.keys(originalCombination).sort().reduce((acc, key) => {
+                acc[key] = originalCombination[key];
+                return acc;
+              }, {} as Record<string, string>)
+            );
+            
+            console.log(`🔍 Searching by original names:`, {
+              current: cleanCombination,
+              original: originalCombination,
+              originalKey: originalCombinationKey
+            });
+            
+            // Ищем по исходным именам
+            for (const [rowId, row] of Array.from(existingRowsMap.entries())) {
+              if (row.isActive === false) continue;
+              
+              const rowAttrs = typeof row.attrs === 'string' ? JSON.parse(row.attrs) : row.attrs;
+              const rowAttrsForMatch: Record<string, string> = {};
+              
+              Object.entries(rowAttrs).forEach(([key, value]) => {
+                if (key.startsWith('_') || 
+                    ['PRICE', 'NET PRICE', 'VAT', 'Price +VAT', 'Qty'].includes(key)) {
+                  return;
+                }
+                if (typeof value === 'string' && value.trim() !== '') {
+                  rowAttrsForMatch[key] = value.trim();
+                }
+              });
+              
+              const rowKey = JSON.stringify(
+                Object.keys(rowAttrsForMatch).sort().reduce((acc, key) => {
+                  acc[key] = rowAttrsForMatch[key];
+                  return acc;
+                }, {} as Record<string, string>)
+              );
+              
+              if (originalCombinationKey === rowKey) {
+                console.log(`✅ Found existing row by original names: row ${row.id}`);
+                console.log(`   Old attrs:`, rowAttrsForMatch);
+                console.log(`   Will update to:`, cleanCombination);
+                existingRow = row;
+                break;
+              }
             }
           }
           
-          // Если тиров нет, берем из существующей строки
-          if (tiers.length === 0 && existingRow && existingRow.tiers) {
+          // Получаем тиры для этой комбинации
+          // Приоритет: 1) существующая строка, 2) главный параметр, 3) любой параметр с тирами
+          let tiers: Array<{ qty: number; unit: number }> = [];
+          
+          // Если в существующей строке есть тиры - используем их (это сохраняет существующие тиры комбинации)
+          if (existingRow && existingRow.tiers && existingRow.tiers.length > 0) {
+            const rowAttrs = typeof existingRow.attrs === 'string' ? JSON.parse(existingRow.attrs) : existingRow.attrs;
+            const defaultIncludeVat = rowAttrs._includeVat !== 'false'; // По умолчанию true
             tiers = existingRow.tiers.map((t: any) => ({
               qty: t.qty,
-              unit: t.unit
+              unit: t.unit,
+              includeVat: defaultIncludeVat
             }));
+          } else {
+            // Если тиров в существующей строке нет, ищем тиры из параметров комбинации
+            // Сначала пробуем главный параметр
+            if (mainParam && combination[mainParam.name]) {
+              const mainOptionValue = combination[mainParam.name];
+              const mainOption = mainParam.options.find(opt => opt.name === mainOptionValue);
+              if (mainOption && mainOption.tiers.length > 0) {
+                tiers = mainOption.tiers.map(t => ({
+                  qty: t.quantity,
+                  unit: t.price,
+                  includeVat: t.includeVat !== false // По умолчанию true
+                }));
+              }
+            }
+            
+            // Если главный параметр не дал тиров, ищем в любом параметре комбинации
+            if (tiers.length === 0) {
+              for (const [paramName, optionValue] of Object.entries(combination)) {
+                const param = parameters.find((p: Parameter) => p.name === paramName);
+                if (param) {
+                  const option = param.options.find((opt: ParameterOption) => opt.name === optionValue);
+                  if (option && option.tiers.length > 0) {
+                    tiers = option.tiers.map((t: PriceTier) => ({
+                      qty: t.quantity,
+                      unit: t.price,
+                      includeVat: t.includeVat !== false
+                    }));
+                    break; // Используем первые найденные тиры
+                  }
+                }
+              }
+            }
           }
           
+          
           if (existingRow) {
-            // Обновляем существующую строку
+            // Определяем, нужно ли включать VAT
+            // Если есть тиры с includeVat: false, то не включаем VAT для строки
+            const hasNoVatTier = tiers.length > 0 && tiers.some((t: any) => t.includeVat === false);
+            
+            // Сохраняем флаг VAT в attrs
+            const finalAttrs: Record<string, any> = {
+              ...cleanCombination
+            };
+            
+            // Если есть новые тиры, используем их флаг, иначе проверяем существующие тиры
+            if (tiers.length > 0) {
+              finalAttrs._includeVat = hasNoVatTier ? 'false' : 'true';
+            } else if (existingRow.tiers && existingRow.tiers.length > 0) {
+              // Если новых тиров нет, проверяем существующие
+              const existingRowAttrs = typeof existingRow.attrs === 'string' ? JSON.parse(existingRow.attrs) : existingRow.attrs;
+              finalAttrs._includeVat = existingRowAttrs._includeVat || 'true';
+            } else {
+              finalAttrs._includeVat = 'true'; // По умолчанию
+            }
+            
+            // Готовим тиры для сохранения
+            const tiersToSave = tiers.length > 0 
+              ? tiers.map((t: any) => ({
+                  qty: Number(t.qty) || 0,
+                  unit: Number(t.unit) || 0
+                }))
+              : (existingRow.tiers || []).map((t: any) => ({
+                  qty: Number(t.qty) || 0,
+                  unit: Number(t.unit) || 0
+                }));
+            
+            console.log(`🔍 Updating row ${existingRow.id}:`, {
+              attrs: finalAttrs,
+              tiersCount: tiersToSave.length,
+              includeVat: finalAttrs._includeVat
+            });
+            
+            // Обновляем существующую строку (НЕ создаем новую!)
+            const oldAttrs = typeof existingRow.attrs === 'string' ? JSON.parse(existingRow.attrs) : existingRow.attrs;
+            const oldCleanAttrs: Record<string, string> = {};
+            Object.entries(oldAttrs).forEach(([key, value]) => {
+              if (!key.startsWith('_') && !['PRICE', 'NET PRICE', 'VAT', 'Price +VAT', 'Qty'].includes(key)) {
+                if (typeof value === 'string' && value.trim()) {
+                  oldCleanAttrs[key] = value.trim();
+                }
+              }
+            });
+            
+            console.log(`✅ UPDATING existing row ${existingRow.id} (NOT creating new):`, {
+              oldAttrs: oldCleanAttrs,
+              newAttrs: cleanCombination,
+              tiersCount: tiersToSave.length,
+              note: 'This prevents duplicate rows when renaming options/parameters'
+            });
+            
             const updateResponse = await fetch(`/api/admin/prices/services/by-slug/${serviceSlug}/rows/${existingRow.id}`, {
               method: 'PUT',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
-                attrs: combination,
+                attrs: finalAttrs, // Обновляем attrs с новыми именами
                 ruleKind: 'tiers',
                 unit: null,
-                setup: 0,
-                fixed: 0,
-                tiers
+                setup: existingRow.setup || 0,
+                fixed: existingRow.fixed || 0,
+                tiers: tiersToSave,
+                isActive: true // Явно активируем строку
               })
             });
             
             if (!updateResponse.ok) {
-              throw new Error(`Failed to update row ${existingRow.id}`);
+              const errorText = await updateResponse.text();
+              throw new Error(`Failed to update row ${existingRow.id}: ${errorText}`);
             }
             
             processedRowIds.add(existingRow.id);
-            console.log(`✅ Updated combination row ${existingRow.id}`);
+            processedCombinations.add(combinationKey); // Отмечаем комбинацию как обработанную
+            console.log(`✅ Successfully updated row ${existingRow.id} (no duplicate created)`);
           } else {
-            // Создаем новую строку
+            // Определяем, нужно ли включать VAT для новой строки
+            const hasNoVatTier = tiers.length > 0 && tiers.some((t: any) => t.includeVat === false);
+            const finalAttrs: Record<string, any> = {
+              ...cleanCombination,
+              _includeVat: hasNoVatTier ? 'false' : 'true'
+            };
+            
+            console.log(`🆕 CREATING new row (no existing match found):`, {
+              attrs: finalAttrs,
+              tiersCount: tiers.length,
+              includeVat: finalAttrs._includeVat,
+              note: 'This is a truly new combination, not a rename'
+            });
+            
+            // Создаем новую строку только если комбинация не пустая
             const createResponse = await fetch(`/api/admin/prices/services/by-slug/${serviceSlug}/rows`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
-                attrs: combination,
+                attrs: finalAttrs,
                 ruleKind: 'tiers',
                 unit: null,
                 setup: 0,
@@ -516,14 +1099,23 @@ export default function ServiceEditor({ serviceSlug, serviceName, onClose }: Ser
             const result = await createResponse.json();
             const newRowId = result.row.id;
             
+            // Отмечаем комбинацию и строку как обработанную
+            processedRowIds.add(newRowId);
+            processedCombinations.add(combinationKey);
+            
             // Создаем тиры если есть
             if (tiers.length > 0) {
-              await fetch(`/api/admin/prices/services/by-slug/${serviceSlug}/rows/${newRowId}/tiers`, {
+              const tiersResponse = await fetch(`/api/admin/prices/services/by-slug/${serviceSlug}/rows/${newRowId}/tiers`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ tiers })
               });
-              console.log(`✅ Created combination row ${newRowId} with ${tiers.length} tiers`);
+              
+              if (!tiersResponse.ok) {
+                console.warn(`⚠️ Failed to save tiers for row ${newRowId}`);
+              } else {
+                console.log(`✅ Created combination row ${newRowId} with ${tiers.length} tiers`);
+              }
             } else {
               console.log(`⚠️ Created combination row ${newRowId} without tiers (needs manual setup)`);
             }
@@ -538,43 +1130,120 @@ export default function ServiceEditor({ serviceSlug, serviceName, onClose }: Ser
       for (const addonParam of addonParams) {
         console.log(`🔍 Processing add-on parameter: ${addonParam.name}`);
         
+        if (!addonParam.name.trim()) {
+          console.warn(`⚠️ Skipping add-on parameter with empty name`);
+          continue;
+        }
+        
         for (const option of addonParam.options) {
-          if (!option.name.trim()) continue;
+          if (!option.name.trim()) {
+            console.warn(`⚠️ Skipping add-on option with empty name for parameter ${addonParam.name}`);
+            continue;
+          }
           
-          const attrs = { [addonParam.name]: option.name };
-          const tiers = option.tiers.map((tier: any) => ({
-            qty: tier.quantity,
-            unit: tier.price
-          }));
+          const attrs = { [addonParam.name]: option.name.trim() };
+          const tiers = option.tiers
+            .filter((tier: any) => tier.quantity > 0 && tier.price >= 0)
+            .map((tier: any) => ({
+              qty: tier.quantity,
+              unit: tier.price
+            }));
           
-          // Ищем существующую строку add-on
+          // Ищем существующую строку add-on (должна содержать только этот параметр)
+          // Сначала по текущему имени, потом по исходному (на случай переименования)
           let existingRow: any = null;
-          for (const [rowId, row] of Array.from(existingRowsMap.entries())) {
-            const rowAttrs = typeof row.attrs === 'string' ? JSON.parse(row.attrs) : row.attrs;
-            if (rowAttrs[addonParam.name] === option.name) {
-              existingRow = row;
+          
+          // Сначала проверяем переименование параметра
+          let searchParamName = addonParam.name;
+          for (const [oldParamName, newParamName] of renamedParamsMap.entries()) {
+            if (newParamName === addonParam.name) {
+              searchParamName = oldParamName;
               break;
             }
           }
           
+          // Получаем исходное имя опции
+          const optionNameMap = originalToCurrentNamesMap.get(addonParam.name);
+          let originalOptionName = option.name.trim();
+          if (optionNameMap) {
+            for (const [origName, currName] of optionNameMap.entries()) {
+              if (currName === option.name.trim()) {
+                originalOptionName = origName;
+                break;
+              }
+            }
+          }
+          
+          for (const [rowId, row] of Array.from(existingRowsMap.entries())) {
+            if (row.isActive === false) continue;
+            
+            const rowAttrs = typeof row.attrs === 'string' ? JSON.parse(row.attrs) : row.attrs;
+            const rowAttrsClean: Record<string, string> = {};
+            
+            // Очищаем от служебных полей
+            Object.entries(rowAttrs).forEach(([key, value]) => {
+              if (key.startsWith('_') || 
+                  ['PRICE', 'NET PRICE', 'VAT', 'Price +VAT', 'Qty'].includes(key)) {
+                return;
+              }
+              if (typeof value === 'string' && value.trim() !== '') {
+                rowAttrsClean[key] = value.trim();
+              }
+            });
+            
+            // Проверяем, что это add-on строка (только один параметр)
+            if (Object.keys(rowAttrsClean).length === 1) {
+              const rowParamName = Object.keys(rowAttrsClean)[0];
+              const rowOptionName = rowAttrsClean[rowParamName];
+              
+              // Проверяем совпадение по текущим именам
+              if (rowParamName === addonParam.name && rowOptionName === option.name.trim()) {
+                existingRow = row;
+                break;
+              }
+              
+              // Проверяем совпадение по исходным именам (переименование)
+              if (rowParamName === searchParamName && rowOptionName === originalOptionName) {
+                console.log(`✅ Found add-on row by original names: row ${row.id}`);
+                console.log(`   Old: ${rowParamName}: ${rowOptionName} → New: ${addonParam.name}: ${option.name.trim()}`);
+                existingRow = row;
+                break;
+              }
+            }
+          }
+          
           if (existingRow) {
-            // Обновляем существующую строку add-on
+            // Обновляем существующую строку add-on (НЕ создаем новую!)
+            const oldAttrs = typeof existingRow.attrs === 'string' ? JSON.parse(existingRow.attrs) : existingRow.attrs;
+            console.log(`✅ UPDATING add-on row ${existingRow.id} (NOT creating new):`, {
+              oldAttrs: oldAttrs,
+              newAttrs: attrs,
+              note: 'This prevents duplicate rows when renaming add-on options/parameters'
+            });
+            
             const updateResponse = await fetch(`/api/admin/prices/services/by-slug/${serviceSlug}/rows/${existingRow.id}`, {
               method: 'PUT',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
-                attrs,
+                attrs, // Используем новые имена
                 ruleKind: 'tiers',
                 unit: null,
-                setup: 0,
-                fixed: 0,
-                tiers
+                setup: existingRow.setup || 0,
+                fixed: existingRow.fixed || 0,
+                tiers: tiers.length > 0 ? tiers : (existingRow.tiers || []).map((t: any) => ({
+                  qty: t.qty,
+                  unit: t.unit
+                })),
+                isActive: true
               })
             });
             
             if (updateResponse.ok) {
               processedRowIds.add(existingRow.id);
               console.log(`✅ Updated add-on row ${existingRow.id}`);
+            } else {
+              const errorText = await updateResponse.text();
+              console.error(`❌ Failed to update add-on row ${existingRow.id}: ${errorText}`);
             }
           } else {
             // Создаем новую строку add-on
@@ -595,34 +1264,63 @@ export default function ServiceEditor({ serviceSlug, serviceName, onClose }: Ser
               const newRowId = result.row.id;
               
               if (tiers.length > 0) {
-                await fetch(`/api/admin/prices/services/by-slug/${serviceSlug}/rows/${newRowId}/tiers`, {
+                const tiersResponse = await fetch(`/api/admin/prices/services/by-slug/${serviceSlug}/rows/${newRowId}/tiers`, {
                   method: 'PUT',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ tiers })
                 });
-                console.log(`✅ Created add-on row ${newRowId}`);
+                
+                if (!tiersResponse.ok) {
+                  console.warn(`⚠️ Failed to save tiers for add-on row ${newRowId}`);
+                } else {
+                  console.log(`✅ Created add-on row ${newRowId} with ${tiers.length} tiers`);
+                }
+              } else {
+                console.log(`⚠️ Created add-on row ${newRowId} without tiers`);
               }
+            } else {
+              const errorText = await createResponse.text();
+              console.error(`❌ Failed to create add-on row: ${errorText}`);
             }
           }
         }
       }
       
-      // 3. Помечаем необработанные строки как неактивные (не удаляем, для резервной копии)
+      // 3. Помечаем необработанные строки как неактивные только если они не являются комбинациями
+      // (это старые строки, которые больше не нужны)
       for (const [rowId, row] of Array.from(existingRowsMap.entries())) {
-        if (!processedRowIds.has(rowId)) {
-          console.log(`🔍 Marking row ${rowId} as inactive`);
-          await fetch(`/api/admin/prices/services/by-slug/${serviceSlug}/rows/${rowId}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              attrs: row.attrs,
-              ruleKind: row.ruleKind,
-              unit: row.unit,
-              setup: row.setup,
-              fixed: row.fixed,
-              isActive: false
-            })
+        if (!processedRowIds.has(rowId) && row.isActive !== false) {
+          // Проверяем, что это действительно старая строка, а не просто необработанная
+          const rowAttrs = typeof row.attrs === 'string' ? JSON.parse(row.attrs) : row.attrs;
+          const rowAttrsForMatch: Record<string, string> = {};
+          
+          Object.entries(rowAttrs).forEach(([key, value]) => {
+            // Исключаем все служебные поля начинающиеся с _ и стандартные поля
+            if (key.startsWith('_') || 
+                ['PRICE', 'NET PRICE', 'VAT', 'Price +VAT', 'Qty'].includes(key)) {
+              return;
+            }
+            if (typeof value === 'string' && value.trim() !== '') {
+              rowAttrsForMatch[key] = value.trim();
+            }
           });
+          
+          // Если это комбинация параметров, которая не была обработана - помечаем как неактивную
+          if (Object.keys(rowAttrsForMatch).length > 1) {
+            console.log(`🔍 Marking unprocessed combination row ${rowId} as inactive`);
+            await fetch(`/api/admin/prices/services/by-slug/${serviceSlug}/rows/${rowId}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                attrs: row.attrs,
+                ruleKind: row.ruleKind,
+                unit: row.unit,
+                setup: row.setup,
+                fixed: row.fixed,
+                isActive: false
+              })
+            });
+          }
         }
       }
       
@@ -680,21 +1378,39 @@ export default function ServiceEditor({ serviceSlug, serviceName, onClose }: Ser
             <div className="flex items-center gap-2">
               <Eye className="w-4 h-4 text-blue-600" />
               <span className="text-sm font-medium text-blue-800">
-                Found {parameters.length} existing parameter{parameters.length !== 1 ? 's' : ''} from current pricing table
+                Service Structure
               </span>
             </div>
-            <p className="text-xs text-blue-600 mt-1">
-              You can edit existing parameters or add new ones
+            <p className="text-sm text-blue-900 mt-2 font-semibold">
+              Service = {parameters.map((p, i) => (
+                <span key={p.id}>
+                  <strong className="text-blue-700">{p.name}</strong>
+                  {i < parameters.length - 1 ? ' + ' : ''}
+                </span>
+              ))} = <span className="text-green-700">{parameters.reduce((total, param) => 
+                total + param.options.reduce((optTotal, opt) => optTotal + opt.tiers.length, 0), 0
+              )} price tier{parameters.reduce((total, param) => 
+                total + param.options.reduce((optTotal, opt) => optTotal + opt.tiers.length, 0), 0
+              ) !== 1 ? 's' : ''}</span>
             </p>
-            <div className="mt-2 text-xs text-blue-700">
+            <p className="text-xs text-blue-600 mt-2">
+              Each combination of parameter options will use price tiers from the main parameter
+            </p>
+            <div className="mt-3 text-xs text-blue-700 space-y-1 border-t border-blue-200 pt-2">
               {parameters.map(param => (
                 <div key={param.id} className="flex items-center gap-2">
                   <span className="font-medium">{param.name}:</span>
                   <span>{param.options.length} option{param.options.length !== 1 ? 's' : ''}</span>
                   {param.affectsPrice && (
-                    <span className="text-green-600">
-                      ({param.options.reduce((total, opt) => total + opt.tiers.length, 0)} price tiers)
+                    <span className="text-green-600 font-medium">
+                      • {param.options.reduce((total, opt) => total + opt.tiers.length, 0)} tier{param.options.reduce((total, opt) => total + opt.tiers.length, 0) !== 1 ? 's' : ''}
                     </span>
+                  )}
+                  {param.isMain && (
+                    <Badge variant="outline" className="text-xs bg-blue-100 text-blue-700 border-blue-300">MAIN</Badge>
+                  )}
+                  {param.isAddon && (
+                    <Badge variant="outline" className="text-xs bg-purple-100 text-purple-700 border-purple-300">ADD-ON</Badge>
                   )}
                 </div>
               ))}
@@ -792,18 +1508,27 @@ export default function ServiceEditor({ serviceSlug, serviceName, onClose }: Ser
             <CardContent>
               <div className="space-y-4">
                 {param.options.map((option, optionIndex) => (
-                  <div key={option.id} className="border rounded-lg p-4">
+                  <div key={option.id} className="border rounded-lg p-4 bg-gray-50">
                     <div className="flex items-center justify-between mb-4">
-                      <Input
-                        value={option.name}
-                        onChange={(e) => updateOption(param.id, option.id, { name: e.target.value })}
-                        placeholder="Option name (e.g., Black & White, Color)"
-                        className="w-64"
-                      />
+                      <div className="flex items-center gap-3">
+                        <Input
+                          value={option.name}
+                          onChange={(e) => updateOption(param.id, option.id, { name: e.target.value })}
+                          placeholder="Option name (e.g., Black & White, Color)"
+                          className="w-64"
+                        />
+                        {option.tiers && option.tiers.length > 0 && (
+                          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300">
+                            {option.tiers.length} tier{option.tiers.length !== 1 ? 's' : ''}
+                          </Badge>
+                        )}
+                      </div>
                       <Button
                         variant="destructive"
                         size="sm"
                         onClick={() => deleteOption(param.id, option.id)}
+                        title={option.tiers && option.tiers.length > 0 ? `Cannot delete: has ${option.tiers.length} tier(s)` : 'Delete option'}
+                        disabled={option.tiers && option.tiers.length > 0}
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>
@@ -811,11 +1536,19 @@ export default function ServiceEditor({ serviceSlug, serviceName, onClose }: Ser
                     
                     {param.affectsPrice && (
                       <div className="space-y-2">
-                        <Label className="text-sm font-medium">
-                          {param.id === 'sides' ? 'Price Tiers' : 
-                           param.priceType === 'add' ? 'Add to Price (per piece)' : 
-                           'All Price Tiers'}
-                        </Label>
+                        <div className="flex items-center justify-between">
+                          <Label className="text-sm font-medium">
+                            Price Tiers
+                          </Label>
+                          {option.tiers.length === 0 && (
+                            <span className="text-xs text-amber-600">⚠️ Add at least one tier</span>
+                          )}
+                        </div>
+                        {option.tiers.length === 0 && (
+                          <div className="bg-yellow-50 border border-yellow-200 rounded p-2 text-xs text-yellow-800">
+                            This option needs at least one price tier to calculate pricing.
+                          </div>
+                        )}
                         {option.tiers.map((tier, tierIndex) => (
                           <div key={tier.id} className="flex items-center gap-2">
                             <Input
@@ -839,10 +1572,24 @@ export default function ServiceEditor({ serviceSlug, serviceName, onClose }: Ser
                               className="w-24"
                             />
                             <span className="text-sm">£</span>
+                            <div className="flex items-center gap-1">
+                              <Checkbox
+                                id={`vat-${tier.id}`}
+                                checked={tier.includeVat !== false} // По умолчанию true
+                                onCheckedChange={(checked) => updateTier(param.id, option.id, tier.id, { 
+                                  includeVat: checked as boolean 
+                                })}
+                              />
+                              <Label htmlFor={`vat-${tier.id}`} className="text-xs text-gray-600 cursor-pointer">
+                                VAT
+                              </Label>
+                            </div>
                             <Button
                               variant="destructive"
                               size="sm"
                               onClick={() => deleteTier(param.id, option.id, tier.id)}
+                              title={option.tiers.length === 1 ? 'Cannot delete: this is the last tier' : 'Delete tier'}
+                              disabled={option.tiers.length === 1}
                             >
                               <Trash2 className="w-4 h-4" />
                             </Button>

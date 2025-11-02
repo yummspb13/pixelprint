@@ -48,6 +48,7 @@ model Tier {
   rowId Int
   qty   Int
   unit  Float
+  vat   Float?   @default(0) // VAT amount (null = auto-calculate, 0 = no VAT, >0 = custom VAT)
   row   PriceRow @relation(fields: [rowId], references: [id], onDelete: Cascade)
 }
 

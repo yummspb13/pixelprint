@@ -163,7 +163,7 @@ export default function HeroPrintPro({
               {t('hero.uploadArtwork')}
             </Link>
             <a
-              href="tel:+442071234567"
+              href="tel:+441372740113"
               className="inline-flex items-center justify-center gap-2 text-sm text-base text-zinc-700 hover:text-black w-auto py-3"
             >
               <Phone className="h-4 w-4" /> {t('hero.callNow')}
@@ -195,31 +195,19 @@ export default function HeroPrintPro({
           ) : (
             <>
               <div className="relative h-[320px] w-full md:h-[420px] overflow-hidden rounded-3xl shadow-2xl">
-                {/* Background with gradient overlay */}
-                <div className="absolute inset-0 bg-gradient-to-br from-px-cyan/20 via-px-magenta/10 to-px-yellow/20" />
+                {/* Hero Background Image */}
+                <Image
+                  src="/hero/bg_hero.jpeg"
+                  alt="Pixel Print professional printing services"
+                  fill
+                  priority
+                  className="object-cover"
+                  sizes="(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 560px"
+                  quality={85}
+                />
                 
-                {/* Content overlay */}
-                <div className="relative z-10 flex h-full flex-col items-center justify-center p-8 text-center">
-                  <div className="mb-4 h-16 w-16 rounded-full bg-gradient-to-r from-px-cyan to-px-magenta p-0.5">
-                    <div className="flex h-full w-full items-center justify-center rounded-full bg-white">
-                      <span className="text-2xl font-bold text-px-fg">P</span>
-                    </div>
-                  </div>
-                  <h3 className="mb-2 text-2xl font-bold text-px-fg font-playfair">Pixel Print</h3>
-                  <p className="text-sm text-px-muted">Professional Printing Services</p>
-                  
-                  {/* Decorative elements */}
-                  <div className="mt-6 flex space-x-2">
-                    <div className="h-2 w-2 rounded-full bg-px-cyan" />
-                    <div className="h-2 w-2 rounded-full bg-px-magenta" />
-                    <div className="h-2 w-2 rounded-full bg-px-yellow" />
-                  </div>
-                </div>
-                
-                {/* Subtle pattern overlay */}
-                <div className="absolute inset-0 opacity-5">
-                  <div className="h-full w-full bg-[radial-gradient(circle_at_50%_50%,rgba(0,174,239,0.1),transparent_50%)]" />
-                </div>
+                {/* Subtle overlay for better text readability if needed */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/5 to-transparent" />
               </div>
               
               {/* Text below the image block */}

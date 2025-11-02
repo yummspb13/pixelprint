@@ -27,7 +27,7 @@ import AdminCard from "@/components/admin/AdminCard";
 import ScrollReveal from "@/components/ux/ScrollReveal";
 import ServiceEditor from "@/components/admin/ServiceEditor";
 
-type Row = { id:number; attrs:Record<string,string>; ruleKind:"tiers"|"perUnit"|"fixed"; unit?:number|null; setup?:number|null; fixed?:number|null; tiers?:{id:number;qty:number;unit:number}[] };
+type Row = { id:number; attrs:Record<string,string>; ruleKind:"tiers"|"perUnit"|"fixed"; unit?:number|null; setup?:number|null; fixed?:number|null; tiers?:{id:number;qty:number;unit:number;vat?:number|null}[] };
 
 type SortField = 'qty' | 'price' | 'netPrice' | 'vat' | 'priceWithVat' | 'ruleKind';
 type SortDirection = 'asc' | 'desc' | null;
@@ -114,13 +114,26 @@ export default function Page() {
   // Service editor state
   const [showServiceEditor, setShowServiceEditor] = useState(false);
 
-  async function load() {
+  async function load(abortSignal?: AbortSignal) {
     try {
       setLoading(true);
-    const r = await fetch(`/api/admin/prices/services/by-slug/${slug}/rows`, { cache:"no-store" });
+      const r = await fetch(`/api/admin/prices/services/by-slug/${slug}/rows`, { 
+        cache: "no-store",
+        signal: abortSignal 
+      });
       
       if (!r.ok) {
-        console.error('Response not ok:', r.status, r.statusText);
+        console.error('❌ Response not ok:', r.status, r.statusText);
+        // Пытаемся получить детали ошибки из ответа
+        try {
+          const errorData = await r.json();
+          console.error('❌ Error response data:', errorData);
+          if (!abortSignal?.aborted) {
+            toast.error(`Error loading data: ${errorData.error || r.statusText}`);
+          }
+        } catch (e) {
+          console.error('❌ Failed to parse error response');
+        }
         return;
       }
       
@@ -138,31 +151,86 @@ export default function Page() {
       console.log('🔍 LOAD: Rows loaded:', d.rows.length, 'rows');
       console.log('🔍 LOAD: First row:', d.rows[0]);
       
-      // Load change history
-      await loadChangeHistory();
-    } catch (error) {
+      // Load change history (только если запрос не был отменен)
+      if (!abortSignal?.aborted) {
+        await loadChangeHistory(abortSignal);
+      }
+    } catch (error: any) {
+      // Игнорируем AbortError - это нормально при размонтировании или изменении slug
+      if (error.name === 'AbortError') {
+        console.log('⏹️ Request aborted (normal on navigation)');
+        return;
+      }
       console.error('Error loading service details:', error);
-      toast.error('Error loading service details');
+      if (!abortSignal?.aborted) {
+        toast.error('Error loading service details');
+      }
     } finally {
-      setLoading(false);
+      if (!abortSignal?.aborted) {
+        setLoading(false);
+      }
     }
   }
 
-  async function loadChangeHistory() {
+  // Функция для ручного обновления (без сигнала отмены)
+  const handleRefresh = () => {
+    load();
+  };
+
+  async function loadChangeHistory(abortSignal?: AbortSignal) {
     try {
       console.log('Loading change history for slug:', slug);
-      const response = await fetch(`/api/admin/prices/services/by-slug/${slug}/history`);
+      const response = await fetch(`/api/admin/prices/services/by-slug/${slug}/history`, {
+        signal: abortSignal
+      });
+      
+      // Проверяем, что ответ не HTML (404 страница)
+      const contentType = response.headers.get('content-type');
+      if (!contentType?.includes('application/json')) {
+        console.warn('⚠️ History API returned non-JSON response:', contentType);
+        return;
+      }
+      
+      if (!response.ok) {
+        console.warn('⚠️ History API error:', response.status, response.statusText);
+        return;
+      }
+      
       const data = await response.json();
       console.log('History response:', data);
-      if (data.history) {
+      if (data.history && !abortSignal?.aborted) {
         setChangeHistory(data.history);
         console.log('History loaded:', data.history.length, 'entries');
       }
-    } catch (error) {
+    } catch (error: any) {
+      // Игнорируем AbortError
+      if (error.name === 'AbortError') {
+        console.log('⏹️ History request aborted (normal on navigation)');
+        return;
+      }
+      // Игнорируем ошибки парсинга JSON (может быть HTML страница)
+      if (error.message?.includes('JSON') || error.message?.includes('DOCTYPE')) {
+        console.warn('⚠️ History API returned non-JSON (probably 404 page)');
+        return;
+      }
       console.error('Error loading change history:', error);
     }
   }
-  useEffect(()=>{ load(); },[slug]);
+  
+  useEffect(() => {
+    const abortController = new AbortController();
+    
+    // Небольшая задержка чтобы избежать множественных запросов при быстром изменении slug
+    const timeoutId = setTimeout(() => {
+      load(abortController.signal);
+    }, 0);
+    
+    // Cleanup: отменяем запрос при размонтировании или изменении slug
+    return () => {
+      clearTimeout(timeoutId);
+      abortController.abort();
+    };
+  }, [slug]);
 
   const allKeys = useMemo(()=>{
     const s = new Set<string>();
@@ -298,7 +366,7 @@ export default function Page() {
       
       if (response.ok) {
         // Reload history from database
-        await loadChangeHistory();
+        await loadChangeHistory(undefined);
       } else {
         const errorData = await response.json();
         console.error('History save error:', errorData);
@@ -684,7 +752,7 @@ export default function Page() {
             </div>
           </div>
           <Button
-            onClick={load}
+            onClick={handleRefresh}
             variant="outline"
             className="border-px-cyan text-px-cyan hover:bg-px-cyan hover:text-white h-8 px-3 text-xs sm:h-10 sm:px-4 sm:text-sm"
           >
@@ -1361,18 +1429,45 @@ export default function Page() {
 
 function TierEditor({ row, onSaved }:{ row: Row; onSaved: (oldTiers: any[], newTiers: any[])=>void }) {
   const [open, setOpen] = useState(false);
-  const [tiers, setTiers] = useState<{qty:number;unit:number}[]>([]);
+  const [tiers, setTiers] = useState<{qty:number;unit:number;vat:number|null}[]>([]);
   const [setup, setSetup] = useState<number | null>(row.setup ?? null);
-  const [originalTiers, setOriginalTiers] = useState<{qty:number;unit:number}[]>([]);
+  const [originalTiers, setOriginalTiers] = useState<{qty:number;unit:number;vat:number|null}[]>([]);
 
   useEffect(()=>{
-    const currentTiers = (row.tiers ?? []).map(t=>({ qty: t.qty, unit: t.unit }));
+    const currentTiers = (row.tiers ?? []).map(t=>({ 
+      qty: t.qty, 
+      unit: t.unit,
+      vat: t.vat !== undefined ? t.vat : null // null = auto-calculate
+    }));
     setTiers(currentTiers);
     setOriginalTiers(currentTiers);
   },[row]);
 
-  function add(){ setTiers(t=> [...t, { qty:100, unit:0 }]) }
-  function rm(i:number){ setTiers(t=> t.filter((_,k)=>k!==i)) }
+  // Автоматический расчет VAT (20% от net total)
+  function calculateAutoVat(tier: {qty:number;unit:number;vat:number|null}): number {
+    const netTotal = tier.qty * tier.unit;
+    return netTotal * 0.20;
+  }
+
+  // Итоговая цена (net + vat)
+  function calculateTotal(tier: {qty:number;unit:number;vat:number|null}): number {
+    const netTotal = tier.qty * tier.unit;
+    const vatAmount = tier.vat !== null ? tier.vat : calculateAutoVat(tier);
+    return netTotal + vatAmount;
+  }
+
+  function add(){ 
+    setTiers(t=> [...t, { qty:100, unit:0, vat:null }]) 
+  }
+  
+  function rm(i:number){ 
+    setTiers(t=> t.filter((_,k)=>k!==i)) 
+  }
+
+  // Обновление tier
+  function updateTier(i:number, updates: Partial<{qty:number;unit:number;vat:number|null}>){
+    setTiers(arr=> arr.map((x,k)=> k === i ? { ...x, ...updates } : x));
+  }
 
   async function save(){
     const r = await fetch(`/api/admin/prices/rows/${row.id}/tiers`, {
@@ -1396,7 +1491,7 @@ function TierEditor({ row, onSaved }:{ row: Row; onSaved: (oldTiers: any[], newT
           Edit
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-sm mx-2 sm:mx-4 w-[calc(100vw-1rem)] sm:w-auto">
+      <DialogContent className="max-w-5xl mx-2 sm:mx-4 w-[calc(100vw-1rem)] sm:w-auto max-h-[90vh] overflow-y-auto">
         <DialogHeader className="pb-2">
           <DialogTitle className="text-sm sm:text-base">Tiers for row #{row.id}</DialogTitle>
         </DialogHeader>
@@ -1415,43 +1510,109 @@ function TierEditor({ row, onSaved }:{ row: Row; onSaved: (oldTiers: any[], newT
           
           <div className="space-y-2">
             <div className="text-xs sm:text-sm font-medium text-zinc-700">Pricing Tiers</div>
-            <div className="space-y-2 max-h-48 overflow-y-auto">
-                {tiers.map((t,i)=>(
-                <div key={i} className="flex items-center gap-2 p-2 bg-zinc-50 rounded border">
-                  <div className="flex-1">
-                    <label className="text-xs text-zinc-500 block mb-1">Quantity</label>
-                    <Input 
-                      type="number" 
-                      value={t.qty} 
-                      onChange={e=> setTiers(arr=> arr.map((x,k)=> k===i ? {...x, qty:Number(e.target.value)} : x))} 
-                      className="h-7 text-xs"
-                      placeholder="100"
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <label className="text-xs text-zinc-500 block mb-1">Unit Price</label>
-                    <Input 
-                      type="number" 
-                      step="0.01" 
-                      value={t.unit} 
-                      onChange={e=> setTiers(arr=> arr.map((x,k)=> k===i ? {...x, unit:Number(e.target.value)} : x))} 
-                      className="h-7 text-xs"
-                      placeholder="0.00"
-                    />
-                  </div>
-                  <div className="flex items-end">
-                    <Button 
-                      variant="outline" 
-                      onClick={()=>rm(i)}
-                      className="h-7 w-7 p-0 text-red-500 hover:bg-red-50 hover:border-red-300"
-                      title="Remove tier"
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
-          </div>
+            
+            {/* Таблица с 4 колонками */}
+            <div className="border rounded-lg overflow-hidden">
+              <table className="w-full text-xs sm:text-sm">
+                <thead className="bg-zinc-100 border-b">
+                  <tr>
+                    <th className="px-3 py-2 text-left font-medium text-zinc-700">Quantity</th>
+                    <th className="px-3 py-2 text-left font-medium text-zinc-700">Unit Price</th>
+                    <th className="px-3 py-2 text-left font-medium text-zinc-700">VAT</th>
+                    <th className="px-3 py-2 text-left font-medium text-zinc-700">Total Price</th>
+                    <th className="px-3 py-2 text-center font-medium text-zinc-700 w-16">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {tiers.map((t,i)=> {
+                    const netTotal = t.qty * t.unit;
+                    const autoVat = calculateAutoVat(t);
+                    const vatAmount = t.vat !== null ? t.vat : autoVat;
+                    const totalPrice = calculateTotal(t);
+                    
+                    return (
+                      <tr key={i} className="border-b hover:bg-zinc-50">
+                        <td className="px-3 py-2">
+                          <Input 
+                            type="number" 
+                            value={t.qty} 
+                            onChange={e=> updateTier(i, {qty:Number(e.target.value)})} 
+                            className="h-8 text-xs"
+                            placeholder="100"
+                          />
+                        </td>
+                        <td className="px-3 py-2">
+                          <Input 
+                            type="number" 
+                            step="0.01" 
+                            value={t.unit} 
+                            onChange={e=> updateTier(i, {unit:Number(e.target.value)})} 
+                            className="h-8 text-xs"
+                            placeholder="0.00"
+                          />
+                        </td>
+                        <td className="px-3 py-2">
+                          <div className="flex items-center gap-1">
+                            <Input 
+                              type="number" 
+                              step="0.01" 
+                              value={t.vat !== null ? t.vat.toFixed(2) : autoVat.toFixed(2)} 
+                              onChange={e=> {
+                                const val = e.target.value;
+                                if (val === "" || val === "0" || val === "0.00") {
+                                  updateTier(i, {vat: 0});
+                                } else {
+                                  const newVat = Number(val);
+                                  updateTier(i, {vat: isNaN(newVat) ? null : newVat});
+                                }
+                              }}
+                              onBlur={(e)=> {
+                                // Если поле пустое или 0, устанавливаем vat в 0
+                                const val = e.target.value;
+                                if (val === "" || val === "0" || val === "0.00") {
+                                  updateTier(i, {vat: 0});
+                                }
+                              }}
+                              className="h-8 text-xs flex-1"
+                              placeholder="Auto"
+                              title={t.vat === null ? "Auto-calculated (20%). Click to edit." : t.vat === 0 ? "No VAT" : "Manual VAT amount"}
+                            />
+                            {t.vat === null && (
+                              <span className="text-xs text-zinc-400">(auto)</span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-3 py-2">
+                          <div className="flex flex-col">
+                            <span className="font-medium text-zinc-900">£{totalPrice.toFixed(2)}</span>
+                            <span className="text-xs text-zinc-400">
+                              (£{netTotal.toFixed(2)} + £{vatAmount.toFixed(2)})
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-3 py-2 text-center">
+                          <Button 
+                            variant="outline" 
+                            onClick={()=>rm(i)}
+                            className="h-7 w-7 p-0 text-red-500 hover:bg-red-50 hover:border-red-300"
+                            title="Remove tier"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {tiers.length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="px-3 py-4 text-center text-zinc-400 text-xs">
+                        No tiers yet. Click "Add tier" to create one.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
           
           <div className="flex flex-col sm:flex-row gap-2">

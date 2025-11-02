@@ -439,16 +439,21 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Проверяем, нужно ли включать VAT для основной строки
+    const mainRowAttrs = typeof mainRow.attrs === 'string' ? JSON.parse(mainRow.attrs) : (mainRow.attrs ?? {}) as Record<string, string>;
+    const includeVat = mainRowAttrs._includeVat !== 'false'; // По умолчанию true (если поле не задано или равно 'true')
+    
     const netTotal = basePrice + modifierTotal;
-    const vat = netTotal * 0.20;
+    const vat = includeVat ? netTotal * 0.20 : 0;
     const grossTotal = netTotal + vat;
     const finalUnitPrice = grossTotal / qty;
 
     console.log('💰 FINAL CALCULATION:');
+    console.log('   includeVat:', includeVat);
     console.log('   basePrice:', basePrice);
     console.log('   modifierTotal:', modifierTotal);
     console.log('   netTotal:', netTotal);
-    console.log('   vat (20%):', vat);
+    console.log('   vat:', vat, includeVat ? '(20%)' : '(excluded)');
     console.log('   grossTotal:', grossTotal);
     console.log('   finalUnitPrice:', finalUnitPrice);
     console.log('=====================================');

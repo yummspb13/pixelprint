@@ -109,9 +109,8 @@ export default function WhyPixelGrid({ className = "", id }: { className?: strin
       <section className={`relative mx-auto max-w-7xl px-6 ${className}`}>
         <div className="mb-12 text-center">
           <h2 className="text-4xl md:text-5xl font-bold tracking-tight leading-tight font-playfair">
-            <span className="text-px-fg">{t('why.title')?.split('?')[0] || 'Why Choose'} </span>
             <span className="bg-gradient-to-r from-px-cyan via-px-magenta to-px-yellow bg-clip-text text-transparent animate-gradient">
-              {t('why.title')?.split('?')[1] || 'Pixel Print?'}
+              {t('why.title') || 'Why Choose Pixel Digital Printing?'}
             </span>
           </h2>
           <p className="mx-auto mt-4 max-w-2xl text-sm text-zinc-600 md:text-base">
@@ -132,9 +131,8 @@ export default function WhyPixelGrid({ className = "", id }: { className?: strin
       <section className={`relative mx-auto max-w-7xl px-6 ${className}`}>
         <div className="mb-12 text-center">
           <h2 className="text-4xl md:text-5xl font-bold tracking-tight leading-tight font-playfair">
-            <span className="text-px-fg">{t('why.title')?.split('?')[0] || 'Why Choose'} </span>
             <span className="bg-gradient-to-r from-px-cyan via-px-magenta to-px-yellow bg-clip-text text-transparent animate-gradient">
-              {t('why.title')?.split('?')[1] || 'Pixel Print?'}
+              {t('why.title') || 'Why Choose Pixel Digital Printing?'}
             </span>
           </h2>
           <p className="mx-auto mt-4 max-w-2xl text-sm text-zinc-600 md:text-base">
@@ -153,9 +151,8 @@ export default function WhyPixelGrid({ className = "", id }: { className?: strin
     <section id={id} className={`relative mx-auto max-w-7xl px-6 ${className}`}>
       <div className="mb-12 text-center">
         <h2 className="text-4xl md:text-5xl font-bold tracking-tight leading-tight font-playfair">
-          <span className="text-px-fg">{t('why.title')?.split('?')[0] || 'Why Choose'} </span>
           <span className="bg-gradient-to-r from-px-cyan via-px-magenta to-px-yellow bg-clip-text text-transparent animate-gradient">
-            {t('why.title')?.split('?')[1] || 'Pixel Print?'}
+            {t('why.title') || 'Why Choose Pixel Digital Printing?'}
           </span>
         </h2>
         <p className="mx-auto mt-4 max-w-2xl text-sm text-zinc-600 md:text-base">

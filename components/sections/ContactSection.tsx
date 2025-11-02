@@ -71,7 +71,7 @@ export default function ContactSection() {
                 </div>
                 <div>
                   <h3 className="font-semibold text-px-fg">{t('contact.phone')}</h3>
-                  <p className="text-px-muted">+44 20 7123 4567</p>
+                  <a href="tel:+441372740113" className="text-px-muted hover:text-px-cyan transition-colors">01372 740 113</a>
                 </div>
               </div>
 
@@ -81,7 +81,7 @@ export default function ContactSection() {
                 </div>
                 <div>
                   <h3 className="font-semibold text-px-fg">{t('contact.email')}</h3>
-                  <p className="text-px-muted">hello@pixelprint.london</p>
+                  <a href="mailto:sales@pixeldigitalprinting.com" className="text-px-muted hover:text-px-cyan transition-colors">sales@pixeldigitalprinting.com</a>
                 </div>
               </div>
 
@@ -91,7 +91,7 @@ export default function ContactSection() {
                 </div>
                 <div>
                   <h3 className="font-semibold text-px-fg">{t('contact.address')}</h3>
-                  <p className="text-px-muted">123 Print Street, London EC1A 4HD</p>
+                  <p className="text-px-muted">Unit 6 Epsom Downs Metro Centre Waterfield, Tadworth KT20 5LR</p>
                 </div>
               </div>
             </div>

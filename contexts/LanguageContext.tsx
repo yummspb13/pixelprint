@@ -440,7 +440,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
             }
           },
           "why": {
-            "title": "Why Choose Pixel Print?",
+            "title": "Why Choose Pixel Digital Printing?",
             "subtitle": "Excellence in every printing project",
             "articles": {
               "same-day-turnaround": {

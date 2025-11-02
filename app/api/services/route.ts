@@ -150,6 +150,9 @@ export async function POST(request: NextRequest) {
       }
     });
 
+    // Инвалидируем кэш при создании нового сервиса
+    revalidateTag('services');
+
     return NextResponse.json({ service });
   } catch (error) {
     console.error('Error creating service:', error);

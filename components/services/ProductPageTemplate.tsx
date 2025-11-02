@@ -135,7 +135,7 @@ export default function ProductPageTemplate({ model, productInfo }: ProductPageT
                           </div>
                           <div className="text-xs space-y-1">
                             <p>info@company.com</p>
-                            <p>+44 20 1234 5678</p>
+                            <p>01372 740 113</p>
                             <p>www.company.com</p>
                           </div>
                         </div>

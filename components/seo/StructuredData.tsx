@@ -15,13 +15,13 @@ export default function StructuredData({
     url: 'http://localhost:3010',
     logo: 'http://localhost:3010/logo.png',
     image: 'http://localhost:3010/og-image.jpg',
-    telephone: '+44 20 7123 4567',
-    email: 'hello@pixelprint.london',
+    telephone: '+44 1372 740 113',
+    email: 'sales@pixeldigitalprinting.com',
     address: {
       '@type': 'PostalAddress',
-      streetAddress: '123 Print Street',
-      addressLocality: 'London',
-      postalCode: 'EC1A 4HD',
+      streetAddress: 'Unit 6 Epsom Downs Metro Centre Waterfield',
+      addressLocality: 'Tadworth',
+      postalCode: 'KT20 5LR',
       addressCountry: 'GB'
     },
     geo: {
