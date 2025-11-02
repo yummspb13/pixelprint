@@ -91,8 +91,18 @@ export default function MegaMenuPro() {
                     >
                       <div className="relative h-24 w-full">
                         {tile.image ? (
-                          <Image src={tile.image} alt={tile.label} fill sizes="(min-width:768px) 220px, 33vw"
-                                 className="object-cover" priority={false} />
+                          <Image 
+                            src={tile.image} 
+                            alt={tile.label} 
+                            fill 
+                            sizes="(min-width:768px) 220px, 33vw"
+                            className="object-cover" 
+                            priority={false}
+                            unoptimized={
+                              tile.image?.startsWith('/uploads/') || 
+                              tile.image?.includes('cloudinary.com')
+                            }
+                          />
                         ) : (
                           <div className="absolute inset-0 bg-[linear-gradient(135deg,#f3f4f6,white)]" />
                         )}
