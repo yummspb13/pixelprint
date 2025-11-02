@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { revalidateTag } from "next/cache";
 import { PRICING_TAG } from "@/lib/pricing-const";
 
 export const runtime = 'nodejs';
@@ -23,7 +22,18 @@ export async function GET(_: Request, context: { params: Promise<any> }) {
       where: { slug },
       include: { rows: { 
         where: { isActive: true }, // Только активные строки
-        include: { tiers: true }, 
+        include: { 
+          tiers: {
+            select: {
+              id: true,
+              rowId: true,
+              qty: true,
+              unit: true,
+              vat: true // Включаем vat, если поле существует (после миграции)
+            },
+            orderBy: { qty: 'asc' }
+          }
+        }, 
         orderBy: { id: "asc" } 
       } }
     });
@@ -135,6 +145,7 @@ export async function POST(req: Request, context: { params: Promise<any> }) {
       data: { serviceId: s.id, attrs, ruleKind, unit, setup, fixed }
     });
     
+    const { revalidateTag } = await import('next/cache');
     revalidateTag(PRICING_TAG);
     return NextResponse.json({ ok:true, row });
   } catch (error: any) {
