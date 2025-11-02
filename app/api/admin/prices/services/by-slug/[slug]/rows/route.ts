@@ -7,9 +7,20 @@ export const runtime = 'nodejs';
 export async function GET(_: Request, context: { params: Promise<any> }) {
   try {
     console.log('🔍 API ROWS GET: Starting request');
-    const params = await context.params;
-    console.log('🔍 API ROWS GET: Params received:', params);
-    const { slug } = params;
+    let params;
+    try {
+      params = await context.params;
+      console.log('🔍 API ROWS GET: Params received:', params);
+    } catch (paramsError: any) {
+      console.error('❌ Error getting params:', paramsError);
+      return NextResponse.json({ 
+        ok: false, 
+        error: "Failed to get route parameters",
+        errorMessage: process.env.NODE_ENV === 'development' ? paramsError?.message : undefined
+      }, { status: 500 });
+    }
+    
+    const { slug } = params || {};
     
     if (!slug || typeof slug !== 'string') {
       console.error('❌ Invalid slug parameter:', slug, typeof slug);
@@ -19,10 +30,10 @@ export async function GET(_: Request, context: { params: Promise<any> }) {
     console.log('🔍 API ROWS GET: Looking for service with slug:', slug);
     
     // Безопасная загрузка данных - сначала БЕЗ vat (обратная совместимость)
-    // Если поле vat не существует в БД, это предотвратит ошибку
     let s;
     
     try {
+      console.log('🔍 API ROWS GET: Attempting to query database...');
       // Сначала загружаем БЕЗ vat - это безопаснее для старых БД
       s = await prisma.service.findUnique({
         where: { slug },
@@ -43,38 +54,71 @@ export async function GET(_: Request, context: { params: Promise<any> }) {
           orderBy: { id: "asc" } 
         } }
       });
+      console.log('🔍 API ROWS GET: Database query completed');
+    } catch (dbError: any) {
+      console.error('❌ Database query error:', dbError);
+      console.error('❌ DB Error details:', {
+        message: dbError?.message,
+        name: dbError?.name,
+        code: dbError?.code,
+        meta: dbError?.meta
+      });
       
-      // Если данные загрузились, добавляем vat: null ко всем tiers
-      // Это позволяет работать даже если поле vat еще не создано в БД
-      if (s && s.rows) {
+      // Специальная обработка для разных типов ошибок
+      if (dbError?.code === 'P1001') {
+        return NextResponse.json({ 
+          ok: false, 
+          error: "Database connection error",
+          errorMessage: "Cannot reach database server"
+        }, { status: 503 });
+      }
+      
+      if (dbError?.code === 'P2021' || dbError?.message?.includes('does not exist')) {
+        return NextResponse.json({ 
+          ok: false, 
+          error: "Database table or column does not exist",
+          errorMessage: process.env.NODE_ENV === 'development' ? dbError?.message : undefined
+        }, { status: 500 });
+      }
+      
+      // Пробрасываем дальше для общей обработки
+      throw dbError;
+    }
+    
+    // Если данные загрузились, добавляем vat: null ко всем tiers
+    if (s && s.rows) {
+      try {
         s.rows = s.rows.map(row => ({
           ...row,
-          tiers: row.tiers.map((tier: any) => ({
+          tiers: (row.tiers || []).map((tier: any) => ({
             ...tier,
             vat: null // По умолчанию null (auto-calculate) до миграции БД
           }))
         }));
+      } catch (mapError: any) {
+        console.error('❌ Error mapping tiers:', mapError);
+        // Не прерываем выполнение, просто логируем
       }
-      
-      // Попытка загрузить vat из БД через raw query (опционально, для проверки наличия поля)
-      // Если это не критично, можно пропустить этот шаг
-      // Пока оставляем vat: null для всех tiers
-      
-    } catch (error: any) {
-      console.error('❌ Error loading service:', error);
-      // Пробрасываем ошибку дальше для обработки в общем catch блоке
-      throw error;
     }
     
-    console.log('🔍 API ROWS GET: Service found:', s ? `id=${s.id}, name=${s.name}, rows=${s.rows.length}` : 'null');
+    console.log('🔍 API ROWS GET: Service found:', s ? `id=${s.id}, name=${s.name}, rows=${s.rows?.length || 0}` : 'null');
     
     if (!s) {
       console.warn('⚠️ API ROWS GET: Service not found for slug:', slug);
       return NextResponse.json({ ok:false, error:"not found" }, { status:404 });
     }
     
-    console.log('✅ API ROWS GET: Returning success with', s.rows.length, 'rows');
-    return NextResponse.json({ ok:true, service: { id:s.id, name:s.name, slug:s.slug, category:s.category }, rows: s.rows });
+    console.log('✅ API ROWS GET: Returning success with', s.rows?.length || 0, 'rows');
+    return NextResponse.json({ 
+      ok: true, 
+      service: { 
+        id: s.id, 
+        name: s.name, 
+        slug: s.slug, 
+        category: s.category 
+      }, 
+      rows: s.rows || [] 
+    });
   } catch (error: any) {
     console.error('❌ API ROWS GET ERROR:', error);
     console.error('❌ Error details:', {
@@ -82,27 +126,37 @@ export async function GET(_: Request, context: { params: Promise<any> }) {
       name: error?.name,
       code: error?.code,
       meta: error?.meta,
-      stack: error?.stack?.substring(0, 500)
+      stack: error?.stack?.substring(0, 1000)
     });
     
     // Обрабатываем ошибки подключения к базе данных
     if (error?.code === 'P1001' || error?.message?.includes('connection') || error?.message?.includes('Can\'t reach database')) {
       console.error('❌ Database connection error');
       console.error('❌ Database URL:', process.env.DATABASE_URL ? 'exists' : 'missing');
-      console.error('❌ Hint: Check DATABASE_SETUP.md for troubleshooting');
       return NextResponse.json({ 
         ok: false, 
         error: "Database connection error",
         errorMessage: process.env.NODE_ENV === 'development' ? error?.message : undefined,
-        hint: "Please check your DATABASE_URL in .env file. See DATABASE_SETUP.md for help."
-      }, { status: 503 }); // 503 Service Unavailable - более подходящий статус для проблем с БД
+        hint: "Please check your DATABASE_URL in .env file."
+      }, { status: 503 });
+    }
+    
+    // Обрабатываем ошибки отсутствия таблиц/колонок
+    if (error?.code === 'P2021' || error?.message?.includes('does not exist')) {
+      console.error('❌ Database schema error:', error?.message);
+      return NextResponse.json({ 
+        ok: false, 
+        error: "Database schema error",
+        errorMessage: process.env.NODE_ENV === 'development' ? error?.message : undefined
+      }, { status: 500 });
     }
     
     return NextResponse.json({ 
       ok: false, 
       error: "Internal server error",
       errorMessage: process.env.NODE_ENV === 'development' ? error?.message : undefined,
-      errorCode: error?.code
+      errorCode: error?.code,
+      hint: "Check server logs for details"
     }, { status: 500 });
   }
 }
