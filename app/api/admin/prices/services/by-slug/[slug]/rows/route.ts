@@ -18,26 +18,68 @@ export async function GET(_: Request, context: { params: Promise<any> }) {
     
     console.log('🔍 API ROWS GET: Looking for service with slug:', slug);
     
-    // Используем явный select для tiers, чтобы избежать ошибки если поле vat еще не существует
-    const s = await prisma.service.findUnique({
-      where: { slug },
-      include: { rows: { 
-        where: { isActive: true }, // Только активные строки
-        include: { 
-          tiers: {
-            select: {
-              id: true,
-              rowId: true,
-              qty: true,
-              unit: true,
-              vat: true // Включаем vat для корректной загрузки (может быть 0, число или null)
-            },
-            orderBy: { qty: 'asc' }
-          }
-        }, 
-        orderBy: { id: "asc" } 
-      } }
-    });
+    // Пытаемся загрузить с полем vat, если не получится - загружаем без него (обратная совместимость)
+    let s;
+    try {
+      // Пробуем загрузить с vat (для новых БД)
+      s = await prisma.service.findUnique({
+        where: { slug },
+        include: { rows: { 
+          where: { isActive: true },
+          include: { 
+            tiers: {
+              select: {
+                id: true,
+                rowId: true,
+                qty: true,
+                unit: true,
+                vat: true // Включаем vat для корректной загрузки (может быть 0, число или null)
+              },
+              orderBy: { qty: 'asc' }
+            }
+          }, 
+          orderBy: { id: "asc" } 
+        } }
+      });
+    } catch (error: any) {
+      // Если поле vat не существует (P2021 или похожая ошибка), загружаем без него
+      if (error?.code === 'P2021' || error?.message?.includes('does not exist') || error?.message?.includes('Unknown column')) {
+        console.warn('⚠️ VAT column does not exist, loading tiers without vat field');
+        s = await prisma.service.findUnique({
+          where: { slug },
+          include: { rows: { 
+            where: { isActive: true },
+            include: { 
+              tiers: {
+                select: {
+                  id: true,
+                  rowId: true,
+                  qty: true,
+                  unit: true
+                  // Не включаем vat - поле еще не существует
+                },
+                orderBy: { qty: 'asc' }
+              }
+            }, 
+            orderBy: { id: "asc" } 
+          } }
+        });
+        
+        // Добавляем vat: null ко всем tiers для обратной совместимости
+        if (s && s.rows) {
+          s.rows = s.rows.map(row => ({
+            ...row,
+            tiers: row.tiers.map((tier: any) => ({
+              ...tier,
+              vat: null // По умолчанию null (auto-calculate) если поле не существует
+            }))
+          }));
+        }
+      } else {
+        // Если другая ошибка - пробрасываем дальше
+        throw error;
+      }
+    }
     
     console.log('🔍 API ROWS GET: Service found:', s ? `id=${s.id}, name=${s.name}, rows=${s.rows.length}` : 'null');
     
