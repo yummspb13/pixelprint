@@ -52,6 +52,7 @@ export default function ServicePage() {
   const [loading, setLoading] = useState(true);
   const [quoteLoading, setQuoteLoading] = useState(false);
   interface UploadedFileInfo {
+    id: string;
     file: File;
     filePath?: string;
     fileName: string;
@@ -435,6 +436,7 @@ export default function ServicePage() {
 
     // Добавляем файлы в состояние с флагом загрузки
     const newFiles: UploadedFileInfo[] = files.map(file => ({
+      id: `${Date.now()}-${Math.random().toString(36).substring(7)}`,
       file,
       fileName: file.name,
       fileSize: file.size,
