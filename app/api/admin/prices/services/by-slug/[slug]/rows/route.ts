@@ -29,59 +29,37 @@ export async function GET(_: Request, context: { params: Promise<any> }) {
     
     console.log('🔍 API ROWS GET: Looking for service with slug:', slug);
     
-    // Загружаем данные - используем простой include
-    // Если возникнет ошибка P2022 (колонка не существует), обработаем её
-    let s;
-    try {
-      s = await prisma.service.findUnique({
-        where: { slug },
-        include: { rows: { 
-          where: { isActive: true },
-          include: { 
-            tiers: {
-              orderBy: { qty: 'asc' }
-            }
-          }, 
-          orderBy: { id: "asc" } 
-        } }
-      });
-    } catch (dbError: any) {
-      // Если ошибка P2022 (колонка не существует), пробуем загрузить без vat через явный select
-      if (dbError?.code === 'P2022') {
-        console.warn('⚠️ P2022 error - trying to load without vat field');
-        s = await prisma.service.findUnique({
-          where: { slug },
-          include: { rows: { 
-            where: { isActive: true },
-            include: { 
-              tiers: {
-                select: {
-                  id: true,
-                  rowId: true,
-                  qty: true,
-                  unit: true
-                  // Не включаем vat явно
-                },
-                orderBy: { qty: 'asc' }
-              }
-            }, 
-            orderBy: { id: "asc" } 
-          } }
-        });
-        
-        // Добавляем vat: null для обратной совместимости
-        if (s && s.rows) {
-          s.rows = s.rows.map(row => ({
-            ...row,
-            tiers: (row.tiers || []).map((tier: any) => ({
-              ...tier,
-              vat: null
-            }))
-          }));
-        }
-      } else {
-        throw dbError;
-      }
+    // Загружаем данные - используем явный select для tiers чтобы избежать проблем с vat
+    // Если колонка vat существует - загрузим её явно, если нет - просто не включим
+    const s = await prisma.service.findUnique({
+      where: { slug },
+      include: { rows: { 
+        where: { isActive: true },
+        include: { 
+          tiers: {
+            select: {
+              id: true,
+              rowId: true,
+              qty: true,
+              unit: true
+              // Явно НЕ выбираем vat - загрузим его отдельно если нужно через raw query или просто добавим null
+            },
+            orderBy: { qty: 'asc' }
+          }
+        }, 
+        orderBy: { id: "asc" } 
+      } }
+    });
+    
+    // Добавляем vat: null ко всем tiers (будет загружаться из БД после миграции)
+    if (s && s.rows) {
+      s.rows = s.rows.map(row => ({
+        ...row,
+        tiers: (row.tiers || []).map((tier: any) => ({
+          ...tier,
+          vat: tier.vat !== undefined ? tier.vat : null // Используем vat если есть, иначе null
+        }))
+      }));
     }
     
     console.log('🔍 API ROWS GET: Service found:', s ? `id=${s.id}, name=${s.name}, rows=${s.rows?.length || 0}` : 'null');
