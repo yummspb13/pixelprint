@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { revalidateTag } from 'next/cache';
 
 export const runtime = 'nodejs';
 
@@ -68,6 +67,7 @@ export async function PUT(
     });
 
     // Инвалидируем кэш сервисов при обновлении (особенно важно для изображений)
+    const { revalidateTag } = await import('next/cache');
     revalidateTag('services');
     
     return NextResponse.json({ service });
@@ -92,6 +92,7 @@ export async function DELETE(
     });
 
     // Инвалидируем кэш при удалении сервиса
+    const { revalidateTag } = await import('next/cache');
     revalidateTag('services');
 
     return NextResponse.json({ success: true });

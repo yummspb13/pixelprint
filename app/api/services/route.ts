@@ -151,6 +151,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Инвалидируем кэш при создании нового сервиса
+    const { revalidateTag } = await import('next/cache');
     revalidateTag('services');
 
     return NextResponse.json({ service });
