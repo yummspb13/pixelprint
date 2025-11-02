@@ -29,8 +29,7 @@ export async function GET(_: Request, context: { params: Promise<any> }) {
     
     console.log('🔍 API ROWS GET: Looking for service with slug:', slug);
     
-    // Загружаем данные - используем явный select для tiers чтобы избежать проблем с vat
-    // Если колонка vat существует - загрузим её явно, если нет - просто не включим
+    // Загружаем данные - колонка vat существует в БД, загружаем её явно
     const s = await prisma.service.findUnique({
       where: { slug },
       include: { rows: { 
@@ -41,8 +40,8 @@ export async function GET(_: Request, context: { params: Promise<any> }) {
               id: true,
               rowId: true,
               qty: true,
-              unit: true
-              // Явно НЕ выбираем vat - загрузим его отдельно если нужно через raw query или просто добавим null
+              unit: true,
+              vat: true // Колонка существует, загружаем её
             },
             orderBy: { qty: 'asc' }
           }
@@ -50,17 +49,6 @@ export async function GET(_: Request, context: { params: Promise<any> }) {
         orderBy: { id: "asc" } 
       } }
     });
-    
-    // Добавляем vat: null ко всем tiers (будет загружаться из БД после миграции)
-    if (s && s.rows) {
-      s.rows = s.rows.map(row => ({
-        ...row,
-        tiers: (row.tiers || []).map((tier: any) => ({
-          ...tier,
-          vat: tier.vat !== undefined ? tier.vat : null // Используем vat если есть, иначе null
-        }))
-      }));
-    }
     
     console.log('🔍 API ROWS GET: Service found:', s ? `id=${s.id}, name=${s.name}, rows=${s.rows?.length || 0}` : 'null');
     
