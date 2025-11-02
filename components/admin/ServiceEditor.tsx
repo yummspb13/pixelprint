@@ -171,9 +171,10 @@ export default function ServiceEditor({ serviceSlug, serviceName, onClose }: Ser
     
     if (mainParamName) {
       // Создаем Main параметр
+      const mainParamNameString: string = mainParamName;
       const mainParam: Parameter = {
-        id: mainParamName.toLowerCase().replace(/\s+/g, '-'),
-        name: mainParamName,
+        id: mainParamNameString.toLowerCase().replace(/\s+/g, '-'),
+        name: mainParamNameString,
         affectsPrice: true,
         priceType: 'all',
         parameterType: 'single',
@@ -181,13 +182,13 @@ export default function ServiceEditor({ serviceSlug, serviceName, onClose }: Ser
         isAddon: false,
         options: []
       };
-      paramMap.set(mainParamName, mainParam);
+      paramMap.set(mainParamNameString, mainParam);
       
       // Группируем rows по значению Main параметра
       const groupedByMainValue = new Map<string, typeof rowsData>();
       
       rowsData.forEach(rowData => {
-        const mainValue = rowData.attrs[mainParamName];
+        const mainValue = rowData.attrs[mainParamNameString];
         if (!mainValue) return;
         
         if (!groupedByMainValue.has(mainValue)) {
@@ -214,7 +215,7 @@ export default function ServiceEditor({ serviceSlug, serviceName, onClose }: Ser
         
         groupRows.forEach(rowData => {
           Object.entries(rowData.attrs).forEach(([paramName, value]) => {
-            if (paramName !== mainParamName) {
+            if (paramName !== mainParamNameString) {
               if (!addOnMap.has(paramName)) {
                 addOnMap.set(paramName, new Set());
               }
@@ -239,7 +240,7 @@ export default function ServiceEditor({ serviceSlug, serviceName, onClose }: Ser
         
         // Создаем опцию Main параметра
         const option: ParameterOption = {
-          id: `${mainParamName.toLowerCase().replace(/\s+/g, '-')}-${mainValue.toLowerCase().replace(/\s+/g, '-')}-${firstRow.rowId}`,
+          id: `${mainParamNameString.toLowerCase().replace(/\s+/g, '-')}-${mainValue.toLowerCase().replace(/\s+/g, '-')}-${firstRow.rowId}`,
           name: mainValue,
           tiers,
           addOnOptions,
@@ -252,7 +253,7 @@ export default function ServiceEditor({ serviceSlug, serviceName, onClose }: Ser
       
       // Создаем остальные параметры как обычные (не Main, не Addon)
       allParams.forEach(paramName => {
-        if (paramName === mainParamName) return;
+        if (paramName === mainParamNameString) return;
         
         if (!paramMap.has(paramName)) {
           paramMap.set(paramName, {
