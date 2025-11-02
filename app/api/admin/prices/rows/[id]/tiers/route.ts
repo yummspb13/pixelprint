@@ -17,32 +17,28 @@ export async function PUT(req: Request, context: { params: Promise<any> }) {
     setup
   });
   
-  // Обрабатываем vat: null = auto-calculate, 0 = no VAT (явно), >0 = custom VAT
-  // Важно: vat может быть 0 (число), что означает "без VAT"
+  // Временно НЕ сохраняем vat, если колонка еще не создана в БД
+  // Это предотвращает ошибку P2022 (column does not exist)
+  // После миграции БД можно будет раскомментировать vat
   const processedTiers = tiers.map((t: any) => {
-    let vatValue: number | null = null;
-    
-    if (t.vat !== undefined && t.vat !== null) {
-      // Если значение передано (включая 0), используем его
-      vatValue = Number(t.vat);
-      // Если результат NaN, используем null (auto)
-      if (isNaN(vatValue)) {
-        vatValue = null;
-      }
-    } else {
-      // Если не передано, используем null (auto-calculate)
-      vatValue = null;
-    }
-    
-    return {
+    const tierData: any = {
       rowId,
       qty: Number(t.qty) || 0,
-      unit: Number(t.unit) || 0,
-      vat: vatValue
+      unit: Number(t.unit) || 0
     };
+    
+    // Пока НЕ добавляем vat, чтобы избежать ошибки P2022
+    // TODO: Раскомментировать после миграции БД (добавления колонки vat)
+    // if (t.vat !== undefined && t.vat !== null) {
+    //   tierData.vat = Number(t.vat);
+    // } else {
+    //   tierData.vat = null;
+    // }
+    
+    return tierData;
   });
   
-  console.log('📥 Processed tiers for DB:', processedTiers);
+  console.log('📥 Processed tiers for DB (without vat):', processedTiers);
   
   await prisma.$transaction([
     prisma.tier.deleteMany({ where: { rowId } }),

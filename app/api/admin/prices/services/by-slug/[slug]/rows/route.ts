@@ -73,11 +73,18 @@ export async function GET(_: Request, context: { params: Promise<any> }) {
         }, { status: 503 });
       }
       
-      if (dbError?.code === 'P2021' || dbError?.message?.includes('does not exist')) {
+      // P2022 = Column does not exist (например, vat в таблице Tier)
+      // P2021 = Table does not exist
+      if (dbError?.code === 'P2021' || dbError?.code === 'P2022' || dbError?.message?.includes('does not exist')) {
+        console.error('❌ Database schema mismatch - column or table does not exist');
+        console.error('❌ This usually means the database schema needs to be migrated');
+        console.error('❌ Error:', dbError?.message);
         return NextResponse.json({ 
           ok: false, 
-          error: "Database table or column does not exist",
-          errorMessage: process.env.NODE_ENV === 'development' ? dbError?.message : undefined
+          error: "Database schema error",
+          errorMessage: process.env.NODE_ENV === 'development' ? dbError?.message : undefined,
+          errorCode: dbError?.code,
+          hint: "Please run database migration: npm run db:push"
         }, { status: 500 });
       }
       
