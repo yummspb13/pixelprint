@@ -17,7 +17,9 @@ import {
   User,
   Mail,
   Phone,
-  FileText
+  FileText,
+  Download,
+  FileImage
 } from "lucide-react";
 import Link from "next/link";
 import Header from "@/components/site/Header";
@@ -278,12 +280,33 @@ export default function OrderDetailPage() {
                         {item.fileName && (
                           <div className="mb-3">
                             <h5 className="text-sm font-medium text-px-fg mb-1">File:</h5>
-                            <div className="flex items-center space-x-2 text-sm text-px-muted">
-                              <FileText className="h-4 w-4" />
-                              <span>{item.fileName}</span>
-                              {item.fileSize && (
-                                <span>({(item.fileSize / 1024 / 1024).toFixed(2)} MB)</span>
-                              )}
+                            <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-lg flex items-center space-x-2">
+                              <FileImage className="h-4 w-4 text-green-600" />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-green-800 truncate">
+                                  {item.fileName}
+                                </p>
+                                <p className="text-xs text-green-600">
+                                  {item.fileSize ? `${(item.fileSize / 1024 / 1024).toFixed(1)} MB` : 'Unknown size'}
+                                </p>
+                              </div>
+                              <Button 
+                                size="sm" 
+                                variant="outline" 
+                                className="text-green-600 border-green-300 hover:bg-green-100"
+                                onClick={() => {
+                                  // Download file from server
+                                  const downloadUrl = `/api/files/${order.id}/${item.id}`;
+                                  const link = document.createElement('a');
+                                  link.href = downloadUrl;
+                                  link.download = item.fileName || 'file';
+                                  document.body.appendChild(link);
+                                  link.click();
+                                  document.body.removeChild(link);
+                                }}
+                              >
+                                <Download className="h-3 w-3" />
+                              </Button>
                             </div>
                           </div>
                         )}
