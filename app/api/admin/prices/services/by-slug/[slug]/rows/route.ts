@@ -18,8 +18,11 @@ export async function GET(_: Request, context: { params: Promise<any> }) {
     
     console.log('🔍 API ROWS GET: Looking for service with slug:', slug);
     
-    // Пытаемся загрузить с полем vat, если не получится - загружаем без него (обратная совместимость)
+    // Загружаем данные - используем подход с fallback для обратной совместимости
+    // Сначала пытаемся загрузить БЕЗ vat (более безопасно), потом проверяем наличие поля
     let s;
+    let hasVatField = false;
+    
     try {
       // Пробуем загрузить с vat (для новых БД)
       s = await prisma.service.findUnique({
@@ -33,7 +36,7 @@ export async function GET(_: Request, context: { params: Promise<any> }) {
                 rowId: true,
                 qty: true,
                 unit: true,
-                vat: true // Включаем vat для корректной загрузки (может быть 0, число или null)
+                vat: true // Пробуем загрузить vat
               },
               orderBy: { qty: 'asc' }
             }
@@ -41,10 +44,17 @@ export async function GET(_: Request, context: { params: Promise<any> }) {
           orderBy: { id: "asc" } 
         } }
       });
+      
+      // Если загрузилось успешно, проверяем наличие vat в первом tier
+      if (s && s.rows && s.rows.length > 0) {
+        const firstTier = s.rows[0]?.tiers?.[0];
+        hasVatField = firstTier && 'vat' in firstTier;
+      }
     } catch (error: any) {
-      // Если поле vat не существует (P2021 или похожая ошибка), загружаем без него
-      if (error?.code === 'P2021' || error?.message?.includes('does not exist') || error?.message?.includes('Unknown column')) {
-        console.warn('⚠️ VAT column does not exist, loading tiers without vat field');
+      console.warn('⚠️ Error loading with vat field, trying without:', error?.message || error);
+      
+      // Если поле vat не существует, загружаем без него
+      try {
         s = await prisma.service.findUnique({
           where: { slug },
           include: { rows: { 
@@ -75,9 +85,11 @@ export async function GET(_: Request, context: { params: Promise<any> }) {
             }))
           }));
         }
-      } else {
-        // Если другая ошибка - пробрасываем дальше
-        throw error;
+        hasVatField = false;
+      } catch (fallbackError: any) {
+        // Если и это не сработало, пробрасываем оригинальную ошибку
+        console.error('❌ Error loading without vat field:', fallbackError);
+        throw error; // Пробрасываем оригинальную ошибку
       }
     }
     
