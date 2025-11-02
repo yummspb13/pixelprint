@@ -759,6 +759,44 @@ export default function ServiceEditor({ serviceSlug, serviceName, onClose }: Ser
         existingRowsMap.set(row.id, row);
       });
       
+      // ШАГ 1: Помечаем как неактивные все строки, содержащие удаленные опции
+      for (const [paramName, deletedOptionNames] of deletedOptionsMap.entries()) {
+        for (const [rowId, row] of Array.from(existingRowsMap.entries())) {
+          if (row.isActive === false) continue; // Уже деактивирована
+          
+          const rowAttrs = typeof row.attrs === 'string' ? JSON.parse(row.attrs) : row.attrs;
+          const rowParamValue = rowAttrs[paramName];
+          
+          // Если строка содержит удаленную опцию этого параметра - деактивируем её
+          if (rowParamValue && typeof rowParamValue === 'string' && deletedOptionNames.has(rowParamValue.trim())) {
+            console.log(`🗑️ Deactivating row ${row.id} because it contains deleted option "${paramName}: ${rowParamValue}"`);
+            
+            try {
+              await fetch(`/api/admin/prices/services/by-slug/${serviceSlug}/rows/${row.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  attrs: rowAttrs,
+                  ruleKind: row.ruleKind,
+                  unit: row.unit,
+                  setup: row.setup,
+                  fixed: row.fixed,
+                  isActive: false // Деактивируем строку
+                })
+              });
+              
+              // Обновляем в карте
+              existingRowsMap.set(row.id, { ...row, isActive: false });
+              processedRowIds.add(row.id);
+              
+              console.log(`✅ Deactivated row ${row.id}`);
+            } catch (error) {
+              console.error(`❌ Failed to deactivate row ${row.id}:`, error);
+            }
+          }
+        }
+      }
+      
       // Трекер обработанных комбинаций для предотвращения дубликатов в текущей сессии
       const processedCombinations = new Set<string>();
       
