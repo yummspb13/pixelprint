@@ -284,6 +284,10 @@ export default function MenuManager() {
                         width={64}
                         height={64}
                         className="object-cover w-full h-full"
+                        unoptimized={
+                          tile.image?.startsWith('/uploads/') || 
+                          tile.image?.includes('cloudinary.com')
+                        }
                       />
                     ) : (
                       <div className="w-8 h-8 bg-zinc-300 rounded"></div>
@@ -411,6 +415,10 @@ export default function MenuManager() {
                     alt="Preview"
                     fill
                     className="object-cover rounded"
+                    unoptimized={
+                      formData.image?.startsWith('/uploads/') || 
+                      formData.image?.includes('cloudinary.com')
+                    }
                   />
                   <Button
                     type="button"
