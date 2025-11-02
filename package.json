@@ -9,7 +9,7 @@
     "start": "next start",
     "lint": "next lint",
     "postinstall": "prisma generate",
-    "vercel-build": "cp .env.production .env && prisma generate && next build --no-lint",
+    "vercel-build": "cp .env.production .env && prisma generate && prisma db push --skip-generate && next build --no-lint",
     "migrate:combinations": "npx tsx scripts/migrate-to-combinations.ts || npx ts-node scripts/migrate-to-combinations.ts"
   },
   "dependencies": {
