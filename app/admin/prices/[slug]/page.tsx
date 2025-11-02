@@ -1470,16 +1470,54 @@ function TierEditor({ row, onSaved }:{ row: Row; onSaved: (oldTiers: any[], newT
   }
 
   async function save(){
-    const r = await fetch(`/api/admin/prices/rows/${row.id}/tiers`, {
-      method:"PUT", headers:{ "content-type":"application/json" },
-      body: JSON.stringify({ tiers, setup })
+    // Подготавливаем tiers для отправки - явно указываем vat (0, число или null)
+    // Важно: 0 - это валидное значение (без VAT), его нужно сохранить!
+    const tiersToSend = tiers.map(t => {
+      let vatValue: number | null = null;
+      
+      if (t.vat === null) {
+        // null = auto-calculate
+        vatValue = null;
+      } else if (t.vat === undefined) {
+        // undefined = также auto-calculate
+        vatValue = null;
+      } else {
+        // Явное значение (включая 0)
+        vatValue = Number(t.vat);
+        if (isNaN(vatValue)) {
+          vatValue = null; // Если не число, используем auto
+        }
+      }
+      
+      return {
+        qty: Number(t.qty) || 0,
+        unit: Number(t.unit) || 0,
+        vat: vatValue // может быть 0, число > 0, или null
+      };
     });
-    const d = await r.json(); 
+    
+    console.log('💾 Saving tiers:', {
+      rowId: row.id,
+      tiersCount: tiersToSend.length,
+      tiers: tiersToSend,
+      setup
+    });
+    
+    const r = await fetch(`/api/admin/prices/rows/${row.id}/tiers`, {
+      method:"PUT", 
+      headers:{ "content-type":"application/json" },
+      body: JSON.stringify({ tiers: tiersToSend, setup })
+    });
+    
+    const d = await r.json();
+    console.log('💾 Save response:', d);
+    
     if (d.ok) { 
+      toast.success('Tiers saved successfully');
       setOpen(false); 
       onSaved(originalTiers, tiers);
     } else { 
-      /* noop */ 
+      toast.error(d.error || 'Failed to save tiers');
     }
   }
 
@@ -1560,16 +1598,19 @@ function TierEditor({ row, onSaved }:{ row: Row; onSaved: (oldTiers: any[], newT
                               onChange={e=> {
                                 const val = e.target.value;
                                 if (val === "" || val === "0" || val === "0.00") {
+                                  // Явно устанавливаем 0 (без VAT), а не null
                                   updateTier(i, {vat: 0});
                                 } else {
                                   const newVat = Number(val);
+                                  // Сохраняем число если валидно, иначе null (auto)
                                   updateTier(i, {vat: isNaN(newVat) ? null : newVat});
                                 }
                               }}
                               onBlur={(e)=> {
-                                // Если поле пустое или 0, устанавливаем vat в 0
+                                // При потере фокуса: пустое = null (auto), 0 = 0 (без VAT)
                                 const val = e.target.value;
                                 if (val === "" || val === "0" || val === "0.00") {
+                                  // Если пользователь ввел 0, сохраняем как 0
                                   updateTier(i, {vat: 0});
                                 }
                               }}
