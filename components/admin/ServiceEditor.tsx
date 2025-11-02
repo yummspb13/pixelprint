@@ -281,7 +281,7 @@ export default function ServiceEditor({ serviceSlug, serviceName, onClose }: Ser
       prev.map(param => {
         if (param.id === paramId) {
           return {
-            ...param,
+        ...param,
             isMain: !param.isMain,
             isAddon: false // Если делаем главным, убираем add-on
           };
@@ -868,6 +868,21 @@ export default function ServiceEditor({ serviceSlug, serviceName, onClose }: Ser
             continue;
           }
           
+          // Проверяем, не содержит ли комбинация удаленную опцию
+          let containsDeletedOption = false;
+          for (const [paramName, deletedOptionNames] of deletedOptionsMap.entries()) {
+            const optionValue = cleanCombination[paramName];
+            if (optionValue && deletedOptionNames.has(optionValue)) {
+              console.log(`⚠️ Skipping combination with deleted option "${paramName}: ${optionValue}"`);
+              containsDeletedOption = true;
+              break;
+            }
+          }
+          
+          if (containsDeletedOption) {
+            continue; // Пропускаем комбинации с удаленными опциями
+          }
+          
           // Создаем уникальный ключ для комбинации (без служебных полей)
           const combinationKey = JSON.stringify(
             Object.keys(cleanCombination).sort().reduce((acc, key) => {
@@ -1304,17 +1319,17 @@ export default function ServiceEditor({ serviceSlug, serviceName, onClose }: Ser
           } else {
             // Создаем новую строку add-on
             const createResponse = await fetch(`/api/admin/prices/services/by-slug/${serviceSlug}/rows`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
                 attrs,
                 ruleKind: 'tiers',
                 unit: null,
                 setup: 0,
                 fixed: 0
-              })
-            });
-            
+                  })
+                });
+                
             if (createResponse.ok) {
               const result = await createResponse.json();
               const newRowId = result.row.id;
@@ -1567,12 +1582,12 @@ export default function ServiceEditor({ serviceSlug, serviceName, onClose }: Ser
                   <div key={option.id} className="border rounded-lg p-4 bg-gray-50">
                     <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center gap-3">
-                        <Input
-                          value={option.name}
-                          onChange={(e) => updateOption(param.id, option.id, { name: e.target.value })}
-                          placeholder="Option name (e.g., Black & White, Color)"
-                          className="w-64"
-                        />
+                      <Input
+                        value={option.name}
+                        onChange={(e) => updateOption(param.id, option.id, { name: e.target.value })}
+                        placeholder="Option name (e.g., Black & White, Color)"
+                        className="w-64"
+                      />
                         {option.tiers && option.tiers.length > 0 && (
                           <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300">
                             {option.tiers.length} tier{option.tiers.length !== 1 ? 's' : ''}
@@ -1593,9 +1608,9 @@ export default function ServiceEditor({ serviceSlug, serviceName, onClose }: Ser
                     {param.affectsPrice && (
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
-                          <Label className="text-sm font-medium">
+                        <Label className="text-sm font-medium">
                             Price Tiers
-                          </Label>
+                        </Label>
                           {option.tiers.length === 0 && (
                             <span className="text-xs text-amber-600">⚠️ Add at least one tier</span>
                           )}
