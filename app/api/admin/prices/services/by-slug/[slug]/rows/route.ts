@@ -29,8 +29,8 @@ export async function GET(_: Request, context: { params: Promise<any> }) {
               id: true,
               rowId: true,
               qty: true,
-              unit: true
-              // Не включаем vat явно - будет добавлено после миграции
+              unit: true,
+              vat: true // Включаем vat для корректной загрузки (может быть 0, число или null)
             },
             orderBy: { qty: 'asc' }
           }

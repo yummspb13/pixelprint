@@ -34,6 +34,7 @@ model PriceRow {
   unit          Float?
   setup         Float?
   fixed         Float?
+  forceAutoVat  Boolean         @default(true) // Принудительный автоматический расчет VAT (по умолчанию включен)
   originalRowId String?         @unique
   isActive      Boolean         @default(true)
   createdAt     DateTime        @default(now())
