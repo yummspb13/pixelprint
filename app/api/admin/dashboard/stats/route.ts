@@ -109,11 +109,27 @@ export async function GET(request: NextRequest) {
       conversionChange: conversionChange
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching dashboard stats:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch dashboard statistics' },
-      { status: 500 }
-    );
+    console.error('Error details:', {
+      message: error?.message,
+      name: error?.name,
+      code: error?.code,
+      meta: error?.meta
+    });
+    
+    // Возвращаем валидную структуру данных даже при ошибке
+    // Это предотвратит ошибки в UI
+    return NextResponse.json({
+      totalOrders: 0,
+      totalRevenue: 0,
+      totalCustomers: 0,
+      conversionRate: 0,
+      ordersChange: 0,
+      revenueChange: 0,
+      customersChange: 0,
+      conversionChange: 0,
+      error: process.env.NODE_ENV === 'development' ? error?.message : 'Failed to fetch dashboard statistics'
+    }, { status: 200 }); // Возвращаем 200, чтобы не ломать UI, но включаем error в ответ
   }
 }

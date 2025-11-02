@@ -32,7 +32,23 @@ export default function StatsGrid() {
     try {
       const response = await fetch('/api/admin/dashboard/stats');
       const data = await response.json();
-      setStats(data);
+      
+      // Проверяем, что данные валидны и не содержат ошибку
+      if (data.error || !data.totalOrders !== undefined && data.ordersChange === undefined) {
+        throw new Error(data.error || 'Invalid stats data');
+      }
+      
+      // Убеждаемся, что все обязательные поля присутствуют
+      setStats({
+        totalOrders: data.totalOrders ?? 0,
+        totalRevenue: data.totalRevenue ?? 0,
+        totalCustomers: data.totalCustomers ?? 0,
+        conversionRate: data.conversionRate ?? 0,
+        ordersChange: data.ordersChange ?? 0,
+        revenueChange: data.revenueChange ?? 0,
+        customersChange: data.customersChange ?? 0,
+        conversionChange: data.conversionChange ?? 0
+      });
     } catch (error) {
       console.error('Error fetching stats:', error);
       // Fallback to default values
@@ -90,32 +106,32 @@ export default function StatsGrid() {
     {
       title: "Total Orders",
       value: stats.totalOrders ? stats.totalOrders.toLocaleString() : '0',
-      change: `${stats.ordersChange >= 0 ? '+' : ''}${stats.ordersChange.toFixed(1)}%`,
-      changeType: stats.ordersChange >= 0 ? "positive" as const : "negative" as const,
+      change: `${(stats.ordersChange ?? 0) >= 0 ? '+' : ''}${((stats.ordersChange ?? 0)).toFixed(1)}%`,
+      changeType: (stats.ordersChange ?? 0) >= 0 ? "positive" as const : "negative" as const,
       icon: ShoppingCart,
       color: "cyan"
     },
     {
       title: "Revenue",
       value: `£${stats.totalRevenue ? stats.totalRevenue.toLocaleString() : '0'}`,
-      change: `${stats.revenueChange >= 0 ? '+' : ''}${stats.revenueChange.toFixed(1)}%`,
-      changeType: stats.revenueChange >= 0 ? "positive" as const : "negative" as const,
+      change: `${(stats.revenueChange ?? 0) >= 0 ? '+' : ''}${(stats.revenueChange ?? 0).toFixed(1)}%`,
+      changeType: (stats.revenueChange ?? 0) >= 0 ? "positive" as const : "negative" as const,
       icon: DollarSign,
       color: "magenta"
     },
     {
       title: "Average Order",
       value: `£${stats.totalRevenue && stats.totalOrders ? (stats.totalRevenue / Math.max(stats.totalOrders, 1)).toFixed(2) : '0.00'}`,
-      change: `${stats.conversionChange >= 0 ? '+' : ''}${stats.conversionChange.toFixed(1)}%`,
-      changeType: stats.conversionChange >= 0 ? "positive" as const : "negative" as const,
+      change: `${(stats.conversionChange ?? 0) >= 0 ? '+' : ''}${(stats.conversionChange ?? 0).toFixed(1)}%`,
+      changeType: (stats.conversionChange ?? 0) >= 0 ? "positive" as const : "negative" as const,
       icon: TrendingUp,
       color: "yellow"
     },
     {
       title: "Conversion",
-      value: `${stats.conversionRate.toFixed(1)}%`,
-      change: `${stats.conversionChange >= 0 ? '+' : ''}${stats.conversionChange.toFixed(1)}%`,
-      changeType: stats.conversionChange >= 0 ? "positive" as const : "negative" as const,
+      value: `${(stats.conversionRate ?? 0).toFixed(1)}%`,
+      change: `${(stats.conversionChange ?? 0) >= 0 ? '+' : ''}${(stats.conversionChange ?? 0).toFixed(1)}%`,
+      changeType: (stats.conversionChange ?? 0) >= 0 ? "positive" as const : "negative" as const,
       icon: TrendingUp,
       color: "cyan"
     }
