@@ -64,20 +64,49 @@ export default function AdminPrices() {
       console.log('Fetching from API...');
       const r = await fetch("/api/admin/prices/services/", { cache:"no-store" });
       console.log('API response received:', r.status, r.ok);
-      const data = await r.json();
-      console.log('Services loaded:', data);
-      console.log('Setting items...');
-      setItems(data);
-      console.log('Items set:', data.length, 'items');
       
-      // Verify items were set
-      setTimeout(() => {
-        console.log('Items after setItems:', items.length);
-      }, 100);
-      console.log('Setting loading to false...');
-    } catch (error) {
+      // Проверяем, что ответ валиден перед парсингом JSON
+      if (!r.ok) {
+        const errorText = await r.text().catch(() => 'Unknown error');
+        console.error('API error response:', r.status, errorText);
+        throw new Error(`HTTP ${r.status}: ${errorText}`);
+      }
+      
+      // Проверяем, что есть контент для парсинга
+      const text = await r.text();
+      if (!text || text.trim() === '') {
+        console.warn('Empty response from API, using empty array');
+        setItems([]);
+        return;
+      }
+      
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (parseError) {
+        console.error('JSON parse error:', parseError, 'Response text:', text);
+        throw new Error('Invalid JSON response from server');
+      }
+      
+      // Если ответ содержит ошибку, обрабатываем её
+      if (data.error) {
+        console.error('API returned error:', data.error);
+        toast.error(data.error || 'Error loading services');
+        setItems(data.items || []);
+        return;
+      }
+      
+      // Если это массив - используем напрямую, иначе извлекаем items
+      const services = Array.isArray(data) ? data : (data.items || []);
+      
+      console.log('Services loaded:', services);
+      console.log('Setting items...');
+      setItems(services);
+      console.log('Items set:', services.length, 'items');
+    } catch (error: any) {
       console.error('Error loading services:', error);
-      toast.error('Error loading services');
+      toast.error(error?.message || 'Error loading services');
+      setItems([]); // Устанавливаем пустой массив при ошибке
     } finally {
       console.log('Finally block - setting loading to false');
       setLoading(false);
