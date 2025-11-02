@@ -24,13 +24,6 @@ export async function GET(_: Request, context: { params: Promise<any> }) {
         where: { isActive: true }, // Только активные строки
         include: { 
           tiers: {
-            select: {
-              id: true,
-              rowId: true,
-              qty: true,
-              unit: true,
-              vat: true // Включаем vat, если поле существует (после миграции)
-            },
             orderBy: { qty: 'asc' }
           }
         }, 
