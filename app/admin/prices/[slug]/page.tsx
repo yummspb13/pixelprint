@@ -125,31 +125,93 @@ export default function Page() {
       if (!r.ok) {
         console.error('❌ Response not ok:', r.status, r.statusText);
         // Пытаемся получить детали ошибки из ответа
+        let errorData: any = {};
         try {
-          const errorData = await r.json();
-          console.error('❌ Error response data:', errorData);
-          if (!abortSignal?.aborted) {
-            toast.error(`Error loading data: ${errorData.error || r.statusText}`);
+          const text = await r.text();
+          if (text) {
+            errorData = JSON.parse(text);
           }
         } catch (e) {
           console.error('❌ Failed to parse error response');
         }
+        
+        // Если сервис не найден (404), явно устанавливаем service = null
+        if (r.status === 404 || errorData.error === 'not found') {
+          console.warn('⚠️ Service not found:', slug);
+          setService(null);
+          setRows([]);
+          if (!abortSignal?.aborted) {
+            setLoading(false);
+          }
+          return;
+        }
+        
+        // Для других ошибок показываем toast
+        if (!abortSignal?.aborted) {
+          toast.error(`Error loading data: ${errorData.error || r.statusText}`);
+          setService(null);
+          setRows([]);
+        }
         return;
       }
       
-      const d = await r.json(); 
+      let d;
+      try {
+        const text = await r.text();
+        if (!text || text.trim() === '') {
+          console.error('❌ Empty response from API');
+          setService(null);
+          setRows([]);
+          if (!abortSignal?.aborted) {
+            setLoading(false);
+            toast.error('Empty response from server');
+          }
+          return;
+        }
+        d = JSON.parse(text);
+      } catch (parseError) {
+        console.error('❌ Failed to parse JSON response:', parseError);
+        setService(null);
+        setRows([]);
+        if (!abortSignal?.aborted) {
+          setLoading(false);
+          toast.error('Invalid response from server');
+        }
+        return;
+      }
       
       if (!d?.ok) {
-        console.error('Data not ok:', d);
+        console.error('❌ Data not ok:', d);
+        // Если сервис не найден, явно устанавливаем service = null
+        if (d.error === 'not found') {
+          setService(null);
+          setRows([]);
+        } else {
+          setService(null);
+          setRows([]);
+          if (!abortSignal?.aborted) {
+            toast.error(d.error || 'Failed to load service');
+          }
+        }
+        return;
+      }
+      
+      // Проверяем, что сервис действительно есть в ответе
+      if (!d.service) {
+        console.error('❌ Service object missing in response');
+        setService(null);
+        setRows([]);
+        if (!abortSignal?.aborted) {
+          setLoading(false);
+        }
         return;
       }
       
       setService(d.service); 
-      setRows(d.rows);
+      setRows(d.rows || []);
       
       console.log('🔍 LOAD: Service loaded:', d.service);
-      console.log('🔍 LOAD: Rows loaded:', d.rows.length, 'rows');
-      console.log('🔍 LOAD: First row:', d.rows[0]);
+      console.log('🔍 LOAD: Rows loaded:', (d.rows || []).length, 'rows');
       
       // Load change history (только если запрос не был отменен)
       if (!abortSignal?.aborted) {
@@ -161,9 +223,12 @@ export default function Page() {
         console.log('⏹️ Request aborted (normal on navigation)');
         return;
       }
-      console.error('Error loading service details:', error);
+      console.error('❌ Error loading service details:', error);
+      setService(null);
+      setRows([]);
       if (!abortSignal?.aborted) {
         toast.error('Error loading service details');
+        setLoading(false);
       }
     } finally {
       if (!abortSignal?.aborted) {
