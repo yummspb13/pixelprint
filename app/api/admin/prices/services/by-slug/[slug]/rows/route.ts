@@ -29,7 +29,8 @@ export async function GET(_: Request, context: { params: Promise<any> }) {
     
     console.log('🔍 API ROWS GET: Looking for service with slug:', slug);
     
-    // Загружаем данные - колонка vat существует в БД, загружаем её явно
+    // Загружаем данные БЕЗ vat - Prisma Client может быть не синхронизирован
+    // Временно не загружаем vat, чтобы избежать P2022 ошибки
     const s = await prisma.service.findUnique({
       where: { slug },
       include: { rows: { 
@@ -40,8 +41,8 @@ export async function GET(_: Request, context: { params: Promise<any> }) {
               id: true,
               rowId: true,
               qty: true,
-              unit: true,
-              vat: true // Колонка существует, загружаем её
+              unit: true
+              // Временно НЕ загружаем vat - добавляем null после загрузки
             },
             orderBy: { qty: 'asc' }
           }
@@ -49,6 +50,17 @@ export async function GET(_: Request, context: { params: Promise<any> }) {
         orderBy: { id: "asc" } 
       } }
     });
+    
+    // Добавляем vat: null ко всем tiers (значения из БД будут загружены позже после синхронизации Prisma Client)
+    if (s && s.rows) {
+      s.rows = s.rows.map(row => ({
+        ...row,
+        tiers: (row.tiers || []).map((tier: any) => ({
+          ...tier,
+          vat: null // Временно null, будет загружаться после синхронизации Prisma Client на Vercel
+        }))
+      }));
+    }
     
     console.log('🔍 API ROWS GET: Service found:', s ? `id=${s.id}, name=${s.name}, rows=${s.rows?.length || 0}` : 'null');
     
