@@ -809,12 +809,75 @@ export default function Page() {
 
   if (rows.length === 0) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <div className="text-center space-y-4">
-          <div className="text-gray-400 text-6xl">📊</div>
-          <h2 className="text-xl font-semibold text-px-fg">No pricing data</h2>
-          <p className="text-px-muted">No pricing information available for this service.</p>
-        </div>
+      <div className="space-y-8">
+        {/* Header */}
+        <ScrollReveal>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center space-x-2 sm:space-x-4">
+              <Button
+                variant="outline"
+                onClick={() => router.back()}
+                className="border-px-cyan text-px-cyan hover:bg-px-cyan hover:text-white h-8 px-3 text-xs sm:h-10 sm:px-4 sm:text-sm"
+              >
+                <ArrowLeft className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                Back
+              </Button>
+              <div className="min-w-0 flex-1">
+                <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-bold tracking-tight leading-tight font-playfair">
+                  <span className="text-px-fg truncate">{service?.name}</span>
+                </h1>
+                <p className="text-xs sm:text-sm lg:text-base text-px-muted max-w-2xl mt-1 sm:mt-2">
+                  <code className="text-xs bg-zinc-100 px-1.5 py-0.5 sm:px-2 sm:py-1 rounded">{slug}</code> • Manage pricing tiers and rules
+                </p>
+              </div>
+            </div>
+            <Button
+              onClick={handleRefresh}
+              variant="outline"
+              className="border-px-cyan text-px-cyan hover:bg-px-cyan hover:text-white h-8 px-3 text-xs sm:h-10 sm:px-4 sm:text-sm"
+            >
+              <RefreshCw className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+              Refresh
+            </Button>
+          </div>
+        </ScrollReveal>
+
+        {/* Empty State with Actions */}
+        <ScrollReveal>
+          <AdminCard title="Pricing Setup" className="p-6 sm:p-8">
+            <div className="text-center space-y-6">
+              <div className="text-gray-400 text-6xl">📊</div>
+              <div className="space-y-2">
+                <h2 className="text-xl sm:text-2xl font-semibold text-px-fg">No pricing data</h2>
+                <p className="text-px-muted text-sm sm:text-base">No pricing information available for this service yet.</p>
+                <p className="text-px-muted text-xs sm:text-sm">Create your first pricing row to get started.</p>
+              </div>
+              
+              {/* Action Buttons */}
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 pt-4">
+                <Button
+                  onClick={addNewType}
+                  className="bg-gradient-to-r from-px-yellow to-px-magenta hover:from-px-yellow/90 hover:to-px-magenta/90 text-white h-10 px-6 text-sm sm:text-base"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Type
+                </Button>
+                <Button
+                  onClick={addRow}
+                  className="bg-gradient-to-r from-px-cyan to-px-magenta hover:from-px-cyan/90 hover:to-px-magenta/90 text-white h-10 px-6 text-sm sm:text-base"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Row
+                </Button>
+              </div>
+              
+              <div className="text-xs text-px-muted pt-2">
+                <p><strong>Add Type:</strong> Create a new pricing type with Sides and Color options</p>
+                <p><strong>Add Row:</strong> Create a basic pricing row</p>
+              </div>
+            </div>
+          </AdminCard>
+        </ScrollReveal>
       </div>
     );
   }
