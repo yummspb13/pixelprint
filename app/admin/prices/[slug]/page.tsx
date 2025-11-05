@@ -526,26 +526,52 @@ export default function Page() {
         const excludeFields = ['Qty', 'PRICE', 'NET PRICE', 'VAT', 'Price +VAT'];
         
         // Определяем приоритетные атрибуты для группировки
-        const priorityFields = ['Sides', 'Color', 'Paper', 'Size'];
+        // ВАЖНО: Color/Colour должен быть обязательно учтен, если он есть
+        const priorityFields = ['Sides', 'Paper', 'Size'];
         
-        // Сначала добавляем приоритетные поля
+        // Сначала добавляем приоритетные поля (кроме Color/Colour, обработаем отдельно)
         priorityFields.forEach(field => {
-          if (attrs[field] && !excludeFields.includes(field)) {
-            keyAttrs[field] = attrs[field];
+          const fieldValue = attrs[field];
+          if (fieldValue && typeof fieldValue === 'string' && fieldValue.trim() !== '' && !excludeFields.includes(field)) {
+            keyAttrs[field] = fieldValue.trim();
           }
         });
+        
+        // Обрабатываем Color/Colour отдельно - проверяем оба варианта написания
+        const colorValue = attrs['Color'] || attrs['Colour'] || attrs['color'] || attrs['colour'] || attrs['COLOR'] || attrs['COLOUR'];
+        if (colorValue && typeof colorValue === 'string' && colorValue.trim() !== '') {
+          // Нормализуем значение Color для консистентности
+          let normalizedValue = colorValue.trim();
+          const colorLower = normalizedValue.toLowerCase();
+          if (colorLower === 'colour' || colorLower === 'color' || colorLower === 'цветной' || colorLower === 'цвет') {
+            normalizedValue = 'Colour';
+          } else if (colorLower === 'bw' || colorLower === 'black & white' || colorLower === 'черно-белый') {
+            normalizedValue = 'BW';
+          }
+          // Используем единое название поля "Color" для ключа группировки
+          keyAttrs['Color'] = normalizedValue;
+        }
         
         // Если нет приоритетных полей, добавляем все остальные (кроме исключенных)
         if (Object.keys(keyAttrs).length === 0) {
           Object.entries(attrs).forEach(([key, value]) => {
-            if (!excludeFields.includes(key) && value) {
-              keyAttrs[key] = value;
+            if (!excludeFields.includes(key) && value && typeof value === 'string' && value.trim() !== '') {
+              keyAttrs[key] = value.trim();
             }
           });
         }
         
-        const key = JSON.stringify(keyAttrs);
-        console.log(`🔍 GET GROUPED ROWS: Row ${index} attrs:`, attrs, 'Key attrs:', keyAttrs, 'Key:', key);
+        // Нормализуем ключ: сортируем ключи объекта для стабильной группировки
+        // Это гарантирует, что одинаковые комбинации атрибутов всегда дают одинаковый ключ
+        const normalizedKeyAttrs = Object.keys(keyAttrs)
+          .sort()
+          .reduce((acc, key) => {
+            acc[key] = keyAttrs[key];
+            return acc;
+          }, {} as Record<string, string>);
+        
+        const key = JSON.stringify(normalizedKeyAttrs);
+        console.log(`🔍 GET GROUPED ROWS: Row ${index} (id=${row.id}) attrs:`, attrs, 'Key attrs:', normalizedKeyAttrs, 'Key:', key);
         
         if (!groups.has(key)) {
           groups.set(key, []);

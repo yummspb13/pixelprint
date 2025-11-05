@@ -61,74 +61,98 @@ function TiltCard({ service, index, onServiceClick }: TiltCardProps) {
 
   return (
     <Link href={`/services/${service.slug}`} onClick={handleClick}>
-      <div ref={cardRef} className="relative isolate overflow-hidden rounded-2xl bg-white shadow-lg p-6 md:p-8 cursor-pointer hover:shadow-xl transition-shadow duration-300">
-        {/* текст слева, оставляем место под фото справа */}
-        <div className="pr-28 md:pr-48">
-          <div className="flex items-center gap-2 mb-2">
-            <h3 className={`${getTextSize(language, 'serviceTitle')} font-playfair font-semibold text-px-fg`}>
-              {service.name}
-            </h3>
-            {service.calculatorAvailable && (
-              <div className="w-7 h-7 bg-px-cyan/10 rounded-full flex items-center justify-center">
-                <svg className="w-4 h-4 text-px-cyan" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" viewBox="0 0 24 24">
-                  <path d="M21.5 12.95v-1.9c0-4.03 0-6.046-1.391-7.298S16.479 2.5 12 2.5c-4.478 0-6.718 0-8.109 1.252S2.5 7.02 2.5 11.05v1.9c0 4.03 0 6.046 1.391 7.298S7.521 21.5 12 21.5c4.478 0 6.718 0 8.109-1.252S21.5 16.98 21.5 12.95M18 8h-4m2-2v4m2 7.5h-4m4-3h-4m-4 3l-1.75-1.75m0 0L6.5 14m1.75 1.75L10 14m-1.75 1.75L6.5 17.5M10 8H6"/>
-                </svg>
-              </div>
-            )}
-            {index < 2 && (
-              <div className="flex items-center gap-1 text-yellow-600 px-2 py-1 rounded-full text-xs font-medium ml-1.5 relative z-20 bg-white/90 backdrop-blur-sm shadow-lg">
-                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 32 32">
-                  <path d="m18.7 4.627l2.247 4.31a2.27 2.27 0 0 0 1.686 1.189l4.746.65c2.538.35 3.522 3.479 1.645 5.219l-3.25 2.999a2.225 2.225 0 0 0-.683 2.04l.793 4.398c.441 2.45-2.108 4.36-4.345 3.24l-4.536-2.25a2.282 2.282 0 0 0-2.006 0l-4.536 2.25c-2.238 1.11-4.786-.79-4.345-3.24l.793-4.399c.14-.75-.12-1.52-.682-2.04l-3.251-2.998c-1.877-1.73-.893-4.87 1.645-5.22l4.746-.65a2.23 2.23 0 0 0 1.686-1.189l2.248-4.309c1.144-2.17 4.264-2.17 5.398 0Z"/>
-                </svg>
-                <span>{t('services.popular')}</span>
-              </div>
-            )}
+      <div ref={cardRef} className="relative isolate overflow-hidden rounded-2xl bg-white shadow-lg cursor-pointer hover:shadow-xl transition-shadow duration-300">
+        {/* Структура с двумя колонками одинаковой ширины: текст слева, картинка справа */}
+        <div className="grid grid-cols-2 items-stretch">
+          {/* Левая колонка: заголовок и описание */}
+          <div className="min-w-0 flex flex-col justify-center p-6 md:p-8">
+            <div className="mb-2">
+              <h3 className={`${getTextSize(language, 'serviceTitle')} font-playfair font-semibold text-px-fg`}>
+                {service.name}
+              </h3>
+            </div>
+            <p className={`${getTextSize(language, 'small')} text-gray-500 leading-relaxed break-words`}>
+              {service.description || 'Professional printing service for your business needs.'}
+            </p>
           </div>
-          <p className={`${getTextSize(language, 'small')} text-gray-500 leading-relaxed max-w-[200px] md:max-w-[280px]`}>
-            {service.description || 'Professional printing service for your business needs.'}
-          </p>
-        </div>
 
-        {/* контейнер фото — ВНУТРИ карточки; всё, что выйдет, обрежется border-radius'ом */}
-        <div className="pointer-events-none absolute inset-y-0 right-0 w-[50%] md:w-[45%]">
-          <div 
-            className={`absolute right-0 top-1/2 -translate-y-1/2 will-change-transform transition-all duration-700 ease-out ${
-              isVisible
-                ? 'translate-x-0 opacity-100'
-                : 'translate-x-full opacity-0'
-            }`}
-          >
-            {service.image ? (
-              <Image
-                src={service.image}
-                alt={service.name}
-                width={280}
-                height={160}
-                onError={(e) => {
-                  const target = e.target as HTMLImageElement;
-                  // Если изображение не загрузилось, показываем placeholder SVG
-                  if (!target.src.includes('data:image/svg+xml')) {
-                    target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjgwIiBoZWlnaHQ9IjE2MCIgdmlld0JveD0iMCAwIDI4MCAxNjAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIyODAiIGhlaWdodD0iMTYwIiBmaWxsPSIjRjNGNEY2Ii8+Cjx0ZXh0IHg9IjE0MCIgeT0iODAiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzlDQTNBRiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+Tm8gSW1hZ2U8L3RleHQ+Cjwvc3ZnPg==';
-                    target.onerror = null; // Предотвращаем бесконечный цикл ошибок
-                  }
-                }}
-                className="block w-[200px] h-[120px] md:w-[280px] md:h-[160px] object-cover rounded-md shadow-xl"
-                loading="lazy"
-                quality={85}
-                sizes="(max-width: 768px) 200px, 280px"
-                unoptimized={
-                  service.image?.startsWith('/uploads/') || 
-                  service.image?.includes('cloudinary.com') ||
-                  service.image?.includes('.webp') || 
-                  service.image?.includes('.gif') || 
-                  service.image === '/placeholder-service.jpg'
-                }
-              />
-            ) : (
-              <div className="block w-[200px] h-[120px] md:w-[280px] md:h-[160px] bg-zinc-200 rounded-md flex items-center justify-center">
-                <span className="text-zinc-400 text-sm">No Image</span>
-              </div>
-            )}
+          {/* Правая колонка: картинка без отступов */}
+          <div className="relative self-stretch overflow-hidden">
+            <div 
+              className={`relative w-full h-full will-change-transform transition-all duration-700 ease-out ${
+                isVisible
+                  ? 'translate-x-0 opacity-100'
+                  : 'translate-x-full opacity-0'
+              }`}
+            >
+              {service.image ? (
+                <div className="relative w-full h-full">
+                  <Image
+                    src={service.image}
+                    alt={service.name}
+                    width={280}
+                    height={160}
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      // Если изображение не загрузилось, показываем placeholder SVG
+                      if (!target.src.includes('data:image/svg+xml')) {
+                        target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjgwIiBoZWlnaHQ9IjE2MCIgdmlld0JveD0iMCAwIDI4MCAxNjAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIyODAiIGhlaWdodD0iMTYwIiBmaWxsPSIjRjNGNEY2Ii8+Cjx0ZXh0IHg9IjE0MCIgeT0iODAiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzlDQTNBRiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+Tm8gSW1hZ2U8L3RleHQ+Cjwvc3ZnPg==';
+                        target.onerror = null; // Предотвращаем бесконечный цикл ошибок
+                      }
+                    }}
+                    className="w-full h-full object-cover object-center"
+                    loading="lazy"
+                    quality={85}
+                    sizes="(max-width: 768px) 50vw, 50vw"
+                    unoptimized={
+                      service.image?.startsWith('/uploads/') || 
+                      service.image?.includes('cloudinary.com') ||
+                      service.image?.includes('.webp') || 
+                      service.image?.includes('.gif') || 
+                      service.image === '/placeholder-service.jpg'
+                    }
+                  />
+                  {/* Бейджик калькулятора на картинке в левом верхнем углу */}
+                  {service.calculatorAvailable && (
+                    <div className="absolute top-1.5 left-1.5 md:top-2 md:left-2 w-7 h-7 md:w-8 md:h-8 bg-px-cyan/10 rounded-full flex items-center justify-center z-30 backdrop-blur-sm shadow-md">
+                      <svg className="w-3.5 h-3.5 md:w-4 md:h-4 text-px-cyan" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" viewBox="0 0 24 24">
+                        <path d="M21.5 12.95v-1.9c0-4.03 0-6.046-1.391-7.298S16.479 2.5 12 2.5c-4.478 0-6.718 0-8.109 1.252S2.5 7.02 2.5 11.05v1.9c0 4.03 0 6.046 1.391 7.298S7.521 21.5 12 21.5c4.478 0 6.718 0 8.109-1.252S21.5 16.98 21.5 12.95M18 8h-4m2-2v4m2 7.5h-4m4-3h-4m-4 3l-1.75-1.75m0 0L6.5 14m1.75 1.75L10 14m-1.75 1.75L6.5 17.5M10 8H6"/>
+                      </svg>
+                    </div>
+                  )}
+                  {/* Бейджик Popular на картинке в правом верхнем углу */}
+                  {index < 2 && (
+                    <div className="absolute top-1.5 right-1.5 md:top-2 md:right-2 flex items-center gap-1 text-yellow-600 px-2 py-0.5 md:px-2 md:py-1 rounded-full text-[10px] md:text-xs font-medium bg-white/95 backdrop-blur-sm shadow-md">
+                      <svg className="w-3 h-3 md:w-4 md:h-4" fill="currentColor" viewBox="0 0 32 32">
+                        <path d="m18.7 4.627l2.247 4.31a2.27 2.27 0 0 0 1.686 1.189l4.746.65c2.538.35 3.522 3.479 1.645 5.219l-3.25 2.999a2.225 2.225 0 0 0-.683 2.04l.793 4.398c.441 2.45-2.108 4.36-4.345 3.24l-4.536-2.25a2.282 2.282 0 0 0-2.006 0l-4.536 2.25c-2.238 1.11-4.786-.79-4.345-3.24l.793-4.399c.14-.75-.12-1.52-.682-2.04l-3.251-2.998c-1.877-1.73-.893-4.87 1.645-5.22l4.746-.65a2.23 2.23 0 0 0 1.686-1.189l2.248-4.309c1.144-2.17 4.264-2.17 5.398 0Z"/>
+                      </svg>
+                      <span>{t('services.popular')}</span>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="relative w-full h-full bg-zinc-200 flex items-center justify-center">
+                  <span className="text-zinc-400 text-xs md:text-sm">No Image</span>
+                  {/* Бейджик калькулятора на placeholder в левом верхнем углу */}
+                  {service.calculatorAvailable && (
+                    <div className="absolute top-1.5 left-1.5 md:top-2 md:left-2 w-7 h-7 md:w-8 md:h-8 bg-px-cyan/10 rounded-full flex items-center justify-center z-30 backdrop-blur-sm shadow-md">
+                      <svg className="w-3.5 h-3.5 md:w-4 md:h-4 text-px-cyan" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" viewBox="0 0 24 24">
+                        <path d="M21.5 12.95v-1.9c0-4.03 0-6.046-1.391-7.298S16.479 2.5 12 2.5c-4.478 0-6.718 0-8.109 1.252S2.5 7.02 2.5 11.05v1.9c0 4.03 0 6.046 1.391 7.298S7.521 21.5 12 21.5c4.478 0 6.718 0 8.109-1.252S21.5 16.98 21.5 12.95M18 8h-4m2-2v4m2 7.5h-4m4-3h-4m-4 3l-1.75-1.75m0 0L6.5 14m1.75 1.75L10 14m-1.75 1.75L6.5 17.5M10 8H6"/>
+                      </svg>
+                    </div>
+                  )}
+                  {/* Бейджик Popular на placeholder тоже */}
+                  {index < 2 && (
+                    <div className="absolute top-1.5 right-1.5 md:top-2 md:right-2 flex items-center gap-1 text-yellow-600 px-2 py-0.5 md:px-2 md:py-1 rounded-full text-[10px] md:text-xs font-medium bg-white/95 backdrop-blur-sm shadow-md">
+                      <svg className="w-3 h-3 md:w-4 md:h-4" fill="currentColor" viewBox="0 0 32 32">
+                        <path d="m18.7 4.627l2.247 4.31a2.27 2.27 0 0 0 1.686 1.189l4.746.65c2.538.35 3.522 3.479 1.645 5.219l-3.25 2.999a2.225 2.225 0 0 0-.683 2.04l.793 4.398c.441 2.45-2.108 4.36-4.345 3.24l-4.536-2.25a2.282 2.282 0 0 0-2.006 0l-4.536 2.25c-2.238 1.11-4.786-.79-4.345-3.24l.793-4.399c.14-.75-.12-1.52-.682-2.04l-3.251-2.998c-1.877-1.73-.893-4.87 1.645-5.22l4.746-.65a2.23 2.23 0 0 0 1.686-1.189l2.248-4.309c1.144-2.17 4.264-2.17 5.398 0Z"/>
+                      </svg>
+                      <span>{t('services.popular')}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
