@@ -552,10 +552,16 @@ export default function Page() {
           keyAttrs['Color'] = normalizedValue;
         }
         
-        // Если нет приоритетных полей, добавляем все остальные (кроме исключенных)
+        // Если нет приоритетных полей, добавляем все остальные (кроме исключенных и системных)
         if (Object.keys(keyAttrs).length === 0) {
           Object.entries(attrs).forEach(([key, value]) => {
-            if (!excludeFields.includes(key) && value && typeof value === 'string' && value.trim() !== '') {
+            if (
+              !excludeFields.includes(key) && 
+              !key.startsWith('_') && // Исключаем системные поля (начинающиеся с _)
+              value && 
+              typeof value === 'string' && 
+              value.trim() !== ''
+            ) {
               keyAttrs[key] = value.trim();
             }
           });
@@ -1035,7 +1041,11 @@ export default function Page() {
                     <div className="min-w-0 flex-1 mr-2">
                       <h3 className="text-xs font-semibold text-px-fg truncate">
                         {Object.entries(group.attrs)
-                          .filter(([key, value]) => value && !['Qty', 'PRICE', 'NET PRICE', 'VAT', 'Price +VAT'].includes(key))
+                          .filter(([key, value]) => 
+                            value && 
+                            !['Qty', 'PRICE', 'NET PRICE', 'VAT', 'Price +VAT'].includes(key) &&
+                            !key.startsWith('_') // Исключаем системные поля (начинающиеся с _)
+                          )
                           .map(([key, value]) => `${key}: ${value}`)
                           .join(' - ')}
                       </h3>
@@ -1331,7 +1341,11 @@ export default function Page() {
                             <div className="flex items-center space-x-4">
                               <h3 className="text-lg font-semibold text-px-fg">
                                 {service?.name} - {Object.entries(group.attrs)
-                                  .filter(([key, value]) => value && !['Qty', 'PRICE', 'NET PRICE', 'VAT', 'Price +VAT'].includes(key))
+                                  .filter(([key, value]) => 
+                                    value && 
+                                    !['Qty', 'PRICE', 'NET PRICE', 'VAT', 'Price +VAT'].includes(key) &&
+                                    !key.startsWith('_') // Исключаем системные поля (начинающиеся с _)
+                                  )
                                   .map(([key, value]) => `${key}: ${value}`)
                                   .join(' - ')}
                               </h3>
