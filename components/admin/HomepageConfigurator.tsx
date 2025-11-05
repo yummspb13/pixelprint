@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
   Plus, 
   Edit, 
@@ -88,15 +89,13 @@ export default function HomepageConfigurator() {
 
   const handleCreate = () => {
     setEditingService(null);
-    const firstCategory = Object.keys(services)[0];
-    const categoryOrder = firstCategory ? services[firstCategory][0]?.categoryOrder || 1 : 1;
     
     setFormData({
       name: '',
       description: '',
       image: '',
-      category: firstCategory || '',
-      categoryOrder: categoryOrder,
+      category: '', // Пустая категория - пользователь должен выбрать
+      categoryOrder: 0,
       calculatorAvailable: false,
       slug: '',
       isActive: true
@@ -120,6 +119,17 @@ export default function HomepageConfigurator() {
   };
 
   const handleSave = async () => {
+    // Валидация
+    if (!formData.name || !formData.slug) {
+      toast.error('Please fill in all required fields (Name, Slug)');
+      return;
+    }
+    
+    if (!formData.category) {
+      toast.error('Please select a category for this service');
+      return;
+    }
+    
     try {
       if (editingService) {
         // Update existing service
@@ -615,12 +625,34 @@ export default function HomepageConfigurator() {
               
               <div>
                 <Label htmlFor="category">Category *</Label>
-                <Input
-                  id="category"
+                <Select
                   value={formData.category}
-                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                  placeholder="Business Stationery"
-                />
+                  onValueChange={(value) => {
+                    const selectedCategory = value;
+                    const categoryOrder = selectedCategory ? services[selectedCategory]?.[0]?.categoryOrder || Object.keys(services).length + 1 : 0;
+                    setFormData({ ...formData, category: selectedCategory, categoryOrder });
+                  }}
+                >
+                  <SelectTrigger id="category">
+                    <SelectValue placeholder="Select a category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.length > 0 ? (
+                      categories.map((category) => (
+                        <SelectItem key={category} value={category}>
+                          {category}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="" disabled>
+                        No categories available
+                      </SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+                {!formData.category && (
+                  <p className="text-xs text-px-muted mt-1">Please select a category for this service</p>
+                )}
               </div>
               
               <div className="flex items-center space-x-4">
