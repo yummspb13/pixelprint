@@ -98,7 +98,7 @@ export default function HeroPrintPro({
         <div className="absolute inset-0 bg-white/80 backdrop-blur-sm" />
       </div>
       
-        <div className="relative z-10 grid grid-cols-1 items-center gap-6 py-8 sm:py-14 md:grid-cols-2 md:gap-10 md:py-18 px-4 sm:px-0">
+        <div className="relative z-10 grid grid-cols-1 items-start gap-6 py-8 sm:py-14 md:grid-cols-2 md:gap-10 md:py-18 px-4 sm:px-0">
         {/* LEFT */}
         <div>
           {/* Gradient Title */}
@@ -158,20 +158,20 @@ export default function HeroPrintPro({
             </div>
             <Link
               href="/upload"
-              className={`inline-flex items-center justify-center rounded-lg border px-4 py-3 text-zinc-900 hover:bg-zinc-50 w-auto ${getTextSize(language, 'button')} font-medium`}
+              className={`hidden inline-flex items-center justify-center rounded-lg border px-4 py-3 text-zinc-900 hover:bg-zinc-50 w-auto ${getTextSize(language, 'button')} font-medium`}
             >
               {t('hero.uploadArtwork')}
             </Link>
             <a
               href="tel:+441372740113"
-              className="inline-flex items-center justify-center gap-2 text-sm text-base text-zinc-700 hover:text-black w-auto py-3"
+              className="inline-flex items-center justify-center gap-2 text-sm text-base text-zinc-700 hover:text-black w-auto py-3 ml-[30px]"
             >
               <Phone className="h-4 w-4" /> {t('hero.callNow')}
             </a>
           </div>
 
           {/* Hero Search Bar */}
-          <div className="mt-5">
+          <div className="mt-5 hidden">
             <HeroSearchBar />
           </div>
 
@@ -213,7 +213,7 @@ export default function HeroPrintPro({
               {/* Text below the image block */}
               <div className="mt-6 text-zinc-700 text-sm md:text-base leading-relaxed">
                 <p>
-                  Whether you need essential <strong className="font-semibold text-px-fg">Business Stationery</strong> (invoices, letterheads, compliment slips, loyalty cards, appointment cards, or business cards); <strong className="font-semibold text-px-fg">Pricing & Service Assets</strong> (restaurant menus, price lists, or gift vouchers); <strong className="font-semibold text-px-fg">Promotional Items</strong> (eye-catching flyers, booklets, or greetings cards); or <strong className="font-semibold text-px-fg">Large-Format Printing</strong> (posters and engineering drawings), we are here to look after all your printing and finishing requirements.
+                  Whether you need essential <strong className="font-semibold text-px-fg">business stationery</strong> (invoices, letterheads, compliment slips, loyalty cards, appointment cards, or business cards), <strong className="font-semibold text-px-fg">pricing and service materials</strong> (restaurant menus, price lists, or gift vouchers), <strong className="font-semibold text-px-fg">promotional items</strong> (flyers, leaflets, calendars, or booklets), <strong className="font-semibold text-px-fg">event printing</strong> (invitations, orders of service, or thank-you cards), <strong className="font-semibold text-px-fg">bespoke Christmas cards</strong>, or <strong className="font-semibold text-px-fg">large-format printing</strong> (posters and engineering drawings) — we're here to take care of all your printing and finishing needs.
                 </p>
               </div>
             </>

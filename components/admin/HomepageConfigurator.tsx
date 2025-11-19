@@ -54,6 +54,7 @@ export default function HomepageConfigurator() {
     description: '',
     image: '',
     category: '',
+    order: 0,
     categoryOrder: 0,
     calculatorAvailable: false,
     slug: '',
@@ -68,9 +69,15 @@ export default function HomepageConfigurator() {
 
   const fetchServices = async () => {
     try {
-      const response = await fetch(`${window.location.origin}/api/services?includeInactive=true`, {
+      // Используем правильный endpoint с параметрами для обхода кэша
+      const response = await fetch(`/api/services?includeInactive=true&t=${Date.now()}`, {
         method: 'GET',
-        cache: 'no-cache',
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
       });
       
       if (!response.ok) {
@@ -78,7 +85,13 @@ export default function HomepageConfigurator() {
       }
       
       const data = await response.json();
-      setServices(data.services);
+      
+      // Данные уже приходят в формате ServicesData (группированные по категориям)
+      if (data.services && typeof data.services === 'object') {
+        setServices(data.services);
+      } else {
+        setServices({});
+      }
     } catch (error) {
       console.error('Error fetching services:', error);
       toast.error('Failed to fetch services');
@@ -95,6 +108,7 @@ export default function HomepageConfigurator() {
       description: '',
       image: '',
       category: '', // Пустая категория - пользователь должен выбрать
+      order: 0,
       categoryOrder: 0,
       calculatorAvailable: false,
       slug: '',
@@ -110,6 +124,7 @@ export default function HomepageConfigurator() {
       description: service.description || '',
       image: service.image || '',
       category: service.category,
+      order: service.order,
       categoryOrder: service.categoryOrder,
       calculatorAvailable: service.calculatorAvailable,
       slug: service.slug,
@@ -629,8 +644,24 @@ export default function HomepageConfigurator() {
                   value={formData.category}
                   onValueChange={(value) => {
                     const selectedCategory = value;
+                    // Получаем categoryOrder из первой услуги в выбранной категории
                     const categoryOrder = selectedCategory ? services[selectedCategory]?.[0]?.categoryOrder || Object.keys(services).length + 1 : 0;
-                    setFormData({ ...formData, category: selectedCategory, categoryOrder });
+                    // Вычисляем новый order - последний в новой категории + 1
+                    const servicesInCategory = services[selectedCategory] || [];
+                    let newOrder = 1; // По умолчанию 1
+                    if (servicesInCategory.length > 0) {
+                      const orders = servicesInCategory.map(s => s.order || 0).filter(o => o > 0);
+                      if (orders.length > 0) {
+                        newOrder = Math.max(...orders) + 1;
+                      }
+                    }
+                    
+                    setFormData({ 
+                      ...formData, 
+                      category: selectedCategory, 
+                      categoryOrder,
+                      order: editingService && editingService.category !== selectedCategory ? newOrder : formData.order
+                    });
                   }}
                 >
                   <SelectTrigger id="category">
@@ -652,6 +683,11 @@ export default function HomepageConfigurator() {
                 </Select>
                 {!formData.category && (
                   <p className="text-xs text-px-muted mt-1">Please select a category for this service</p>
+                )}
+                {editingService && formData.category && formData.category !== editingService.category && (
+                  <p className="text-xs text-blue-600 mt-1">
+                    Service will be moved to "{formData.category}" category
+                  </p>
                 )}
               </div>
               

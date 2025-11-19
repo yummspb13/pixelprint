@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { PRICING_TAG } from '@/lib/pricing-const';
 
 export const runtime = 'nodejs';
 
@@ -51,6 +52,31 @@ export async function PUT(
       isActive
     } = body;
 
+    // Получаем текущий сервис для проверки изменения категории
+    const currentService = await prisma.service.findUnique({
+      where: { id: parseInt(id) }
+    });
+
+    if (!currentService) {
+      return NextResponse.json(
+        { error: 'Service not found' },
+        { status: 404 }
+      );
+    }
+
+    // Если категория изменилась и order не указан явно, вычисляем новый order
+    let finalOrder = order;
+    if (category && category !== currentService.category) {
+      if (order === undefined) {
+        // Находим максимальный order в новой категории
+        const lastService = await prisma.service.findFirst({
+          where: { category },
+          orderBy: { order: 'desc' }
+        });
+        finalOrder = lastService ? lastService.order + 1 : 1;
+      }
+    }
+
     const service = await prisma.service.update({
       where: { id: parseInt(id) },
       data: {
@@ -58,7 +84,7 @@ export async function PUT(
         ...(description !== undefined && { description }),
         ...(image !== undefined && { image }),
         ...(category && { category }),
-        ...(order !== undefined && { order }),
+        ...(finalOrder !== undefined && { order: finalOrder }),
         ...(categoryOrder !== undefined && { categoryOrder }),
         ...(calculatorAvailable !== undefined && { calculatorAvailable }),
         ...(slug && { slug }),
@@ -67,8 +93,11 @@ export async function PUT(
     });
 
     // Инвалидируем кэш сервисов при обновлении (особенно важно для изображений)
-    const { revalidateTag } = await import('next/cache');
-    revalidateTag('services');
+    const { revalidateTag, revalidatePath } = await import('next/cache');
+    revalidateTag(PRICING_TAG);
+    revalidateTag('services'); // Для обратной совместимости
+    revalidatePath('/api/pricing/services');
+    revalidatePath(`/services/${service.slug}`);
     
     return NextResponse.json({ service });
   } catch (error) {
@@ -92,8 +121,10 @@ export async function DELETE(
     });
 
     // Инвалидируем кэш при удалении сервиса
-    const { revalidateTag } = await import('next/cache');
-    revalidateTag('services');
+    const { revalidateTag, revalidatePath } = await import('next/cache');
+    revalidateTag(PRICING_TAG);
+    revalidateTag('services'); // Для обратной совместимости
+    revalidatePath('/api/pricing/services');
 
     return NextResponse.json({ success: true });
   } catch (error) {

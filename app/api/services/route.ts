@@ -151,8 +151,12 @@ export async function POST(request: NextRequest) {
     });
 
     // Инвалидируем кэш при создании нового сервиса
-    const { revalidateTag } = await import('next/cache');
-    revalidateTag('services');
+    const { revalidateTag, revalidatePath } = await import('next/cache');
+    const { PRICING_TAG } = await import('@/lib/pricing-const');
+    revalidateTag(PRICING_TAG);
+    revalidateTag('services'); // Для обратной совместимости
+    revalidatePath('/api/pricing/services');
+    revalidatePath('/api/services');
 
     return NextResponse.json({ service });
   } catch (error) {

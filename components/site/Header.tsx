@@ -152,12 +152,6 @@ export default function Header() {
 
           {/* Navigation Menu */}
           <nav className="hidden lg:flex items-center">
-            <button 
-              onClick={() => scrollToArticles('about pixel digital')}
-              className="text-sm font-medium text-gray-700 hover:text-px-cyan transition-colors px-4 py-2"
-            >
-              {t('header.navigation.about')}
-            </button>
             <div className="px-4 py-2">
               <MegaMenuPro />
             </div>
@@ -172,6 +166,12 @@ export default function Header() {
               className="text-sm font-medium text-gray-700 hover:text-px-cyan transition-colors px-4 py-2"
             >
               {t('header.navigation.faq')}
+            </button>
+            <button 
+              onClick={() => scrollToArticles('about pixel digital')}
+              className="text-sm font-medium text-gray-700 hover:text-px-cyan transition-colors px-4 py-2"
+            >
+              {t('header.navigation.about')}
             </button>
             <a href="#footer" className="text-sm font-medium text-gray-700 hover:text-px-cyan transition-colors px-4 py-2">
               {t('header.navigation.contacts')}
