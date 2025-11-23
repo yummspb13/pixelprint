@@ -1,19 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 
-// Демо пользователи
+// Demo users
 const DEMO_USERS = {
   "admin@pixelprint.com": {
     email: "admin@pixelprint.com",
     password: "admin123",
     role: "admin",
-    name: "Администратор"
+    name: "Administrator"
   },
   "user@pixelprint.com": {
     email: "user@pixelprint.com", 
     password: "user123",
     role: "user",
-    name: "Пользователь"
+    name: "User"
   }
 };
 
@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
     if (!user) {
       console.log("❌ API AUTH POST: Invalid credentials");
       return NextResponse.json(
-        { error: "Неверные учетные данные" },
+        { error: "Invalid credentials" },
         { status: 401 }
       );
     }
@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("Auth error:", error);
     return NextResponse.json(
-      { error: "Ошибка сервера" },
+      { error: "Server error" },
       { status: 500 }
     );
   }
@@ -134,7 +134,7 @@ export async function DELETE() {
   } catch (error) {
     console.error("Logout error:", error);
     return NextResponse.json(
-      { error: "Ошибка выхода" },
+      { error: "Logout error" },
       { status: 500 }
     );
   }

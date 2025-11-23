@@ -47,30 +47,6 @@ export default function LoginModal({ isOpen, onClose, onSwitchToRegister }: Logi
     }
   };
 
-  const handleDemoLogin = async (type: 'user' | 'admin') => {
-    setLoading(true);
-    try {
-      console.log("🔐 DEMO LOGIN:", type);
-      const success = await login(
-        type === 'admin' ? 'admin@pixelprint.com' : 'user@pixelprint.com',
-        type === 'admin' ? 'admin123' : 'user123'
-      );
-      if (success) {
-        console.log("✅ DEMO LOGIN SUCCESS:", type);
-        toast.success(`${type === 'admin' ? 'Admin' : 'User'} login successful!`);
-        onClose();
-      } else {
-        console.log("❌ DEMO LOGIN FAILED:", type);
-        toast.error('Demo login failed');
-      }
-    } catch (error) {
-      console.error("💥 DEMO LOGIN ERROR:", error);
-      toast.error('Demo login failed');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md w-[95vw] sm:w-full">
@@ -135,39 +111,6 @@ export default function LoginModal({ isOpen, onClose, onSwitchToRegister }: Logi
             {loading ? 'Signing in...' : 'Sign In'}
           </Button>
         </form>
-
-        {/* Demo Login Buttons */}
-        <div className="space-y-2">
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t border-zinc-300" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-white px-2 text-zinc-500">Demo Accounts</span>
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-2 gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => handleDemoLogin('user')}
-              disabled={loading}
-              className="text-xs"
-            >
-              Demo User
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => handleDemoLogin('admin')}
-              disabled={loading}
-              className="text-xs"
-            >
-              Demo Admin
-            </Button>
-          </div>
-        </div>
 
         <div className="text-center">
           <p className="text-sm text-px-muted mb-3">

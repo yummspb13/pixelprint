@@ -64,34 +64,8 @@ export default function UserMenu() {
 
           {/* Menu Items */}
           <div className="py-2">
-            <Link
-              href="/dashboard/profile"
-              className="flex items-center space-x-3 px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-50 transition-colors"
-              onClick={() => setIsOpen(false)}
-            >
-              <User className="h-4 w-4 text-px-cyan" />
-              <span>Profile</span>
-            </Link>
-
-            <Link
-              href="/dashboard/orders"
-              className="flex items-center space-x-3 px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-50 transition-colors"
-              onClick={() => setIsOpen(false)}
-            >
-              <Package className="h-4 w-4 text-px-magenta" />
-              <span>Orders</span>
-            </Link>
-
-            <Link
-              href="/dashboard/orders"
-              className="flex items-center space-x-3 px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-50 transition-colors"
-              onClick={() => setIsOpen(false)}
-            >
-              <History className="h-4 w-4 text-px-yellow" />
-              <span>Order History</span>
-            </Link>
-
-            {user.role === 'admin' && (
+            {user.role === 'admin' ? (
+              // Admin menu - only Admin Panel
               <Link
                 href="/admin"
                 className="flex items-center space-x-3 px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-50 transition-colors"
@@ -102,6 +76,36 @@ export default function UserMenu() {
                 </div>
                 <span>Admin Panel</span>
               </Link>
+            ) : (
+              // Regular user menu
+              <>
+                <Link
+                  href="/dashboard/profile"
+                  className="flex items-center space-x-3 px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-50 transition-colors"
+                  onClick={() => setIsOpen(false)}
+                >
+                  <User className="h-4 w-4 text-px-cyan" />
+                  <span>Profile</span>
+                </Link>
+
+                <Link
+                  href="/dashboard/orders"
+                  className="flex items-center space-x-3 px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-50 transition-colors"
+                  onClick={() => setIsOpen(false)}
+                >
+                  <Package className="h-4 w-4 text-px-magenta" />
+                  <span>Orders</span>
+                </Link>
+
+                <Link
+                  href="/dashboard/orders"
+                  className="flex items-center space-x-3 px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-50 transition-colors"
+                  onClick={() => setIsOpen(false)}
+                >
+                  <History className="h-4 w-4 text-px-yellow" />
+                  <span>Order History</span>
+                </Link>
+              </>
             )}
           </div>
 
