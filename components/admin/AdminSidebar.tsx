@@ -70,11 +70,6 @@ export default function AdminSidebar() {
         {/* Logo */}
         <div className="p-6 border-b border-gray-200">
           <div className="flex items-center space-x-3">
-            <img 
-              src="/logo.png" 
-              alt="Pixel Print" 
-              className="h-8 w-auto"
-            />
             <div>
               <p className="text-sm text-gray-500">Admin Panel</p>
             </div>

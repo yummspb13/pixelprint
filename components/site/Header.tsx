@@ -141,15 +141,6 @@ export default function Header() {
     <>
       <header className="sticky top-0 z-40 border-b bg-white/80 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 sm:px-6">
-          {/* Лого */}
-          <Link href="/" className="flex items-center">
-            <img 
-              src="/logo.png" 
-              alt="Pixel Print" 
-              className="h-10 w-auto"
-            />
-          </Link>
-
           {/* Navigation Menu */}
           <nav className="hidden lg:flex items-center">
             <div className="px-4 py-2">
@@ -157,7 +148,7 @@ export default function Header() {
             </div>
             <button 
               onClick={() => scrollToArticles('same-day express')}
-              className="text-sm font-medium text-gray-700 hover:text-px-cyan transition-colors px-4 py-2 -ml-[18px]"
+              className="hidden text-sm font-medium text-gray-700 hover:text-px-cyan transition-colors px-4 py-2 -ml-[18px]"
             >
               {t('header.navigation.urgent')}
             </button>

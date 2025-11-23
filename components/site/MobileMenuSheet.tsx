@@ -23,11 +23,7 @@ export default function MobileMenuSheet() {
       <SheetContent side="left" className="w-[85vw] max-w-[380px] flex flex-col">
         <SheetHeader className="flex-shrink-0 px-4 pt-6 pb-4">
           <SheetTitle className="flex items-center">
-            <img 
-              src="/logo.png" 
-              alt="Pixel Print" 
-              className="h-6 w-auto"
-            />
+            PIXEL DIGITAL PRINTING
           </SheetTitle>
         </SheetHeader>
         

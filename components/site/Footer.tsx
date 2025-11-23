@@ -16,10 +16,13 @@ export default function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           {/* Company Info */}
           <div className="space-y-4">
-            <div className="flex items-center space-x-2">
-              <div className="h-8 w-8 rounded bg-gradient-to-r from-px-cyan to-px-magenta" />
-              <span className="font-heading text-xl font-bold">Pixel Print</span>
-            </div>
+            <Link href="/" className="flex items-center">
+              <img 
+                src="/logo.png" 
+                alt="PIXEL DIGITAL PRINTING" 
+                className="h-10 w-auto rounded-lg"
+              />
+            </Link>
             <p className={`${getTextSize(language, 'small')} text-gray-300`}>
               {t('footer.description')}
             </p>
